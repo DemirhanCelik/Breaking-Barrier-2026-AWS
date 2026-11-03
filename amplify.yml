@@ -1,0 +1,21 @@
+version: 1
+applications:
+  - appRoot: web
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            # Vite 7 needs Node 20.19+; pin Node 22 LTS on the Amplify build image.
+            - nvm install 22
+            - nvm use 22
+            - npm ci
+        build:
+          commands:
+            - npm run build
+      artifacts:
+        baseDirectory: dist
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
