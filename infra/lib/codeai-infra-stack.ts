@@ -9,6 +9,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as bedrock from 'aws-cdk-lib/aws-bedrock';
 
 export interface CodeAiInfraStackProps extends cdk.StackProps {
   /** GitHub repo in "owner/name" form used to scope the OIDC trust policy. */
@@ -300,14 +301,39 @@ export class CodeAiInfraStack extends cdk.Stack {
       }),
     );
 
+    // Content-filtering Guardrail (design §7 / NFR1: fail-closed filtering on
+    // input and output). A minimal, sensible-default guardrail the API applies
+    // on both student input and model output. Tune categories/strengths to the
+    // curriculum's safety needs.
+    const guardrail = new bedrock.CfnGuardrail(this, 'ContentGuardrail', {
+      name: 'codeai-content-guardrail',
+      description:
+        'Fail-closed input/output content filtering for the adaptive engine.',
+      // Shown when content is blocked (student-facing, non-evaluative).
+      blockedInputMessaging:
+        "Let's keep this focused on the lesson — try rephrasing your request.",
+      blockedOutputsMessaging:
+        'That response was withheld. Let us try a different approach.',
+      contentPolicyConfig: {
+        filtersConfig: [
+          { type: 'SEXUAL', inputStrength: 'HIGH', outputStrength: 'HIGH' },
+          { type: 'VIOLENCE', inputStrength: 'HIGH', outputStrength: 'HIGH' },
+          { type: 'HATE', inputStrength: 'HIGH', outputStrength: 'HIGH' },
+          { type: 'INSULTS', inputStrength: 'HIGH', outputStrength: 'HIGH' },
+          { type: 'MISCONDUCT', inputStrength: 'HIGH', outputStrength: 'HIGH' },
+          // Prompt-attack filtering applies to input only (per Bedrock).
+          { type: 'PROMPT_ATTACK', inputStrength: 'HIGH', outputStrength: 'NONE' },
+        ],
+      },
+    });
+
     apiInstanceRole.addToPolicy(
       new iam.PolicyStatement({
         sid: 'BedrockGuardrails',
         effect: iam.Effect.ALLOW,
         actions: ['bedrock:ApplyGuardrail'],
-        resources: [
-          `arn:${this.partition}:bedrock:${this.region}:${this.account}:guardrail/*`,
-        ],
+        // Scoped to the specific guardrail created above.
+        resources: [guardrail.attrGuardrailArn],
       }),
     );
 
@@ -341,6 +367,8 @@ export class CodeAiInfraStack extends cdk.Stack {
         DB_NAME: 'codeai',
         ARTIFACTS_BUCKET: artifactsBucket.bucketName,
         BEDROCK_MODEL_ID: props.bedrockModelId,
+        BEDROCK_GUARDRAIL_ID: guardrail.attrGuardrailId,
+        BEDROCK_GUARDRAIL_VERSION: 'DRAFT',
         COGNITO_USER_POOL_ID: userPool.userPoolId,
         COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
       },
@@ -511,5 +539,9 @@ export class CodeAiInfraStack extends cdk.Stack {
     });
     new cdk.CfnOutput(this, 'GitHubDeployRoleArn', { value: deployRole.roleArn });
     new cdk.CfnOutput(this, 'KmsKeyArn', { value: dataKey.keyArn });
+    new cdk.CfnOutput(this, 'GuardrailId', { value: guardrail.attrGuardrailId });
+    new cdk.CfnOutput(this, 'GuardrailArn', {
+      value: guardrail.attrGuardrailArn,
+    });
   }
 }
