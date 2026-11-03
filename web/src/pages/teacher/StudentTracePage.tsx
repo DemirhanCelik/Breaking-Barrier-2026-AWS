@@ -1,22 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link as RouterLink, useParams } from 'react-router-dom';
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  CircularProgress,
-  Grid,
-  List,
-  ListItem,
-  ListItemText,
-  Paper,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Container, Typography } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { api, type StudentTrace } from '../../api';
-import { StageCell, StatusChip } from './StageCell';
+import FlagRoundedIcon from '@mui/icons-material/FlagRounded';
+import StarIcon from '@mui/icons-material/Star';
+import { api, type StudentTrace, type ValidationRecord } from '../../api';
+import { Initials, PaneHeader } from '../../components/brand';
+import { brand } from '../../theme';
+import { STAGE_NAMES, StageSquare, StatusChip } from './StageCell';
+import { TeacherHeader } from './TeacherHeader';
 
 const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -31,143 +23,257 @@ export function StudentTracePage() {
   }, [studentId]);
 
   const back = (
-    <Button component={RouterLink} to="/teacher" startIcon={<ArrowBackIcon />} sx={{ alignSelf: 'flex-start' }}>
-      Back to class
+    <Button component={RouterLink} to="/teacher" startIcon={<ArrowBackIcon />} sx={{ color: '#fff', mb: 1, ml: -1 }}>
+      Class progress
     </Button>
   );
 
-  if (error) return <Stack spacing={2}>{back}<Alert severity="error">{error}</Alert></Stack>;
-  if (!trace) return <CircularProgress aria-label="Loading student" />;
+  if (error) {
+    return (
+      <Container sx={{ py: 4 }}>
+        <Alert severity="error">{error}</Alert>
+      </Container>
+    );
+  }
+  if (!trace) {
+    return (
+      <Box sx={{ display: 'grid', placeItems: 'center', flex: 1 }}>
+        <CircularProgress aria-label="Loading student" />
+      </Box>
+    );
+  }
 
   const name = (id: string) => trace.concepts.find((c) => c.id === id)?.name ?? id;
 
   return (
-    <Stack spacing={3}>
-      {back}
-      <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
-        <Typography variant="h1">{trace.displayName}</Typography>
-        <StatusChip status={trace.status} />
-        <Typography color="text.secondary">{trace.stepsCompleted} steps done</Typography>
-      </Stack>
-
-      {trace.flags.map((f, i) => (
-        <Alert key={i} severity="warning">
-          {f}
-        </Alert>
-      ))}
-
-      <Paper sx={{ p: 2.5 }}>
-        <Typography variant="h3" gutterBottom>
-          Stage by concept
-        </Typography>
-        {trace.diagnostic ? (
-          <Grid container spacing={2}>
-            {trace.concepts.map((c) => (
-              <Grid key={c.id} size={{ xs: 6, md: 3 }}>
-                <Typography variant="body2" fontWeight={600} gutterBottom>
-                  {c.name}
-                </Typography>
-                <StageCell stage={trace.stages[c.id]} placed={trace.diagnostic![c.id]} bar={trace.bar} concept={c} />
-              </Grid>
-            ))}
-          </Grid>
-        ) : (
-          <Typography color="text.secondary">Has not started the warm-up yet.</Typography>
-        )}
-      </Paper>
-
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 5 }}>
-          <Paper sx={{ p: 2.5, height: '100%' }}>
-            <Typography variant="h3">Roadmap from here</Typography>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              Planned route to Stage {trace.bar} on every concept. It is rebuilt after every result.
+    <Box sx={{ flex: 1 }}>
+      <TeacherHeader
+        eyebrow={back}
+        title={
+          <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+            <Initials name={trace.displayName} size={48} />
+            {trace.displayName}
+          </Box>
+        }
+        right={
+          <Box sx={{ bgcolor: '#fff', color: brand.charcoal, borderRadius: 1.5, px: 2, py: 1.25, display: 'flex', gap: 2, alignItems: 'center' }}>
+            <StatusChip status={trace.status} />
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              {trace.stepsCompleted} steps done
             </Typography>
-            <List dense>
-              {trace.roadmap.map((s, i) => (
-                <ListItem key={`${s.levelCode}-${i}`} disableGutters alignItems="flex-start">
-                  <Chip size="small" label={s.levelCode} sx={{ mr: 1.5, mt: 0.5 }} />
-                  <ListItemText
-                    primary={s.title}
-                    secondary={s.targets.length ? `Advances: ${s.targets.map(name).join(', ')}` : 'Project'}
-                  />
-                </ListItem>
-              ))}
-              {trace.roadmap.length === 0 && (
-                <Typography variant="body2" color="text.secondary">
-                  No remaining steps.
-                </Typography>
-              )}
-            </List>
-          </Paper>
-        </Grid>
+          </Box>
+        }
+      />
 
-        <Grid size={{ xs: 12, md: 7 }}>
-          <Paper sx={{ p: 2.5, height: '100%' }}>
-            <Typography variant="h3">Why each step was chosen</Typography>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              Routing is deterministic. Each entry shows the rule and the stage vector it used. Newest first.
-            </Typography>
-            <List dense>
-              {trace.decisions.map((d, i) => (
-                <ListItem key={i} disableGutters alignItems="flex-start">
-                  <ListItemText
-                    primary={`${time(d.at)} · ${d.levelCode === '-' ? d.levelTitle : `${d.levelCode} ${d.levelTitle}`}`}
-                    secondary={d.rule}
-                  />
-                </ListItem>
-              ))}
-            </List>
-          </Paper>
-        </Grid>
-      </Grid>
+      <Container maxWidth="xl" sx={{ py: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {trace.flags.map((f, i) => (
+          <Box
+            key={i}
+            role="alert"
+            sx={{ display: 'flex', gap: 1.5, alignItems: 'center', px: 2, py: 1.5, borderRadius: 1.5, bgcolor: '#fdecea', border: '1px solid #f3b8b4' }}
+          >
+            <FlagRoundedIcon sx={{ color: '#d0453f' }} />
+            <Typography sx={{ fontWeight: 600 }}>{f}</Typography>
+          </Box>
+        ))}
 
-      <Paper sx={{ p: 2.5 }}>
-        <Typography variant="h3">Validation evidence</Typography>
-        <Typography variant="body2" color="text.secondary" gutterBottom>
-          Demo mode scores with deterministic probes only. Production adds the Bedrock rubric eval.
-        </Typography>
-        <Stack spacing={1.5} sx={{ mt: 1 }}>
-          {trace.validations.length === 0 && (
-            <Typography variant="body2" color="text.secondary">
-              No submissions yet.
-            </Typography>
+        <Panel title="Stage by concept">
+          {trace.diagnostic ? (
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'repeat(4, 1fr)' }, gap: 2 }}>
+              {trace.concepts.map((c) => {
+                const now = trace.stages[c.id];
+                const placed = trace.diagnostic![c.id];
+                return (
+                  <Box key={c.id} sx={{ p: 2, borderRadius: 1.5, bgcolor: brand.bg }}>
+                    <Typography sx={{ fontWeight: 700 }}>{c.name}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {c.csta}
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, my: 1.5 }}>
+                      <StageSquare stage={placed} size={28} />
+                      <Typography color="text.secondary" aria-hidden>
+                        →
+                      </Typography>
+                      <StageSquare stage={now} size={40} belowBar={now < trace.bar} />
+                      <Typography sx={{ fontWeight: 700, ml: 0.5 }}>{STAGE_NAMES[now]}</Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      {c.descriptors[now]}
+                    </Typography>
+                  </Box>
+                );
+              })}
+            </Box>
+          ) : (
+            <Typography color="text.secondary">Hasn't started the warm-up yet.</Typography>
           )}
-          {trace.validations.map((v, i) => (
-            <Box key={i} sx={{ borderLeft: '3px solid', borderColor: 'divider', pl: 1.5 }}>
-              <Typography variant="body2" fontWeight={600}>
-                {time(v.at)} · {v.levelCode} · {v.mode}
+        </Panel>
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '5fr 7fr' }, gap: 3 }}>
+          <Panel title="Route from here" note={`Planned path to Meeting on every concept. Rebuilt after every result.`}>
+            {trace.roadmap.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                No remaining steps.
               </Typography>
-              {v.mode === 'withheld' && (
-                <Typography variant="body2" color="text.secondary">
-                  Content filter withheld the submission.
-                </Typography>
-              )}
-              {v.mode === 'error' && (
-                <Typography variant="body2" color="text.secondary">
-                  Validation failed. Student moved to the non-adaptive path.
-                </Typography>
-              )}
-              {v.mode === 'fallback' && (
-                <Typography variant="body2" color="text.secondary">
-                  Accepted on the non-adaptive path. Not scored.
-                </Typography>
-              )}
-              {v.results.map((r) => (
-                <Box key={r.conceptId} sx={{ mt: 0.5 }}>
-                  <Typography variant="body2">
-                    {name(r.conceptId)}: {r.fromStage}→{r.targetStage}, observed {r.observedStage}{' '}
-                    <Chip size="small" label={r.passed ? 'met' : 'not yet'} color={r.passed ? 'success' : 'default'} />
+            ) : (
+              <Box component="ol" sx={{ listStyle: 'none', m: 0, p: 0 }}>
+                {trace.roadmap.map((s, i) => {
+                  const project = s.targets.length === 0;
+                  return (
+                    <Box component="li" key={`${s.levelCode}-${i}`} sx={{ display: 'flex', gap: 1.5, position: 'relative', pb: 2 }}>
+                      {i < trace.roadmap.length - 1 && (
+                        <Box aria-hidden sx={{ position: 'absolute', left: 15, top: 32, bottom: 0, width: 2, bgcolor: brand.borderLight }} />
+                      )}
+                      <Box
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: project ? 1 : '50%',
+                          flexShrink: 0,
+                          display: 'grid',
+                          placeItems: 'center',
+                          fontSize: 11,
+                          fontWeight: 800,
+                          bgcolor: i === 0 ? '#fff' : brand.strip,
+                          border: `2px solid ${i === 0 ? brand.orange : brand.border}`,
+                        }}
+                      >
+                        {project ? <StarIcon sx={{ fontSize: 16 }} /> : s.levelCode}
+                      </Box>
+                      <Box>
+                        <Typography sx={{ fontWeight: 600 }}>{s.title}</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {project ? 'Project' : `Moves ${s.targets.map(name).join(', ')}`}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  );
+                })}
+              </Box>
+            )}
+          </Panel>
+
+          <Panel title="Why each step was chosen" note="Routing follows fixed rules. Each entry shows the rule and the stages it used. Newest first.">
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {trace.decisions.map((d, i) => (
+                <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '64px 1fr', gap: 1.5 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ pt: 0.25 }}>
+                    {time(d.at)}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {r.evidence.join(' · ')}
-                  </Typography>
+                  <Box sx={{ borderLeft: `3px solid ${d.levelCode === '-' ? brand.orange : brand.teal}`, pl: 1.5 }}>
+                    <Typography sx={{ fontWeight: 700 }}>
+                      {d.levelCode === '-' ? d.levelTitle : `${d.levelCode} · ${d.levelTitle}`}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {d.rule}
+                    </Typography>
+                  </Box>
                 </Box>
               ))}
             </Box>
-          ))}
-        </Stack>
-      </Paper>
-    </Stack>
+          </Panel>
+        </Box>
+
+        <Panel title="Validation evidence" note="Demo mode scores with fixed checks only. Production adds the Bedrock rubric eval.">
+          {trace.validations.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              No submissions yet.
+            </Typography>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {trace.validations.map((v, i) => (
+                <ValidationRow key={i} v={v} name={name} />
+              ))}
+            </Box>
+          )}
+        </Panel>
+      </Container>
+    </Box>
+  );
+}
+
+function Panel({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
+  return (
+    <Box sx={{ bgcolor: '#fff', borderRadius: 2, border: `1px solid ${brand.borderLight}`, overflow: 'hidden' }}>
+      <PaneHeader title={title} />
+      <Box sx={{ p: 2.5 }}>
+        {note && (
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {note}
+          </Typography>
+        )}
+        {children}
+      </Box>
+    </Box>
+  );
+}
+
+const MODE_LABEL: Record<ValidationRecord['mode'], { label: string; color: string }> = {
+  adaptive: { label: 'Scored', color: brand.tealDark },
+  fallback: { label: 'Non-adaptive, not scored', color: brand.gray },
+  error: { label: 'Validation failed', color: '#d0453f' },
+  withheld: { label: 'Withheld by content filter', color: brand.orangeDark },
+};
+
+function ValidationRow({ v, name }: { v: ValidationRecord; name: (id: string) => string }) {
+  const mode = MODE_LABEL[v.mode];
+  return (
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '140px 1fr' }, gap: 1.5, pb: 2, borderBottom: `1px solid ${brand.borderLight}`, '&:last-child': { borderBottom: 0, pb: 0 } }}>
+      <Box>
+        <Typography sx={{ fontWeight: 800 }}>{v.levelCode}</Typography>
+        <Typography variant="body2" color="text.secondary">
+          {time(v.at)}
+        </Typography>
+        <Typography variant="caption" sx={{ color: mode.color, fontWeight: 700 }}>
+          {mode.label}
+        </Typography>
+      </Box>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+        {v.results.length === 0 && (
+          <Typography variant="body2" color="text.secondary">
+            {v.mode === 'withheld'
+              ? 'The submission was withheld before scoring.'
+              : v.mode === 'error'
+                ? 'Moved to the non-adaptive path.'
+                : 'Work accepted on the non-adaptive path.'}
+          </Typography>
+        )}
+        {v.results.map((r) => (
+          <Box key={r.conceptId}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              <Typography sx={{ fontWeight: 700 }}>{name(r.conceptId)}</Typography>
+              <StageSquare stage={r.fromStage} size={22} />
+              <Typography variant="body2" color="text.secondary">
+                → target
+              </Typography>
+              <StageSquare stage={r.targetStage} size={22} />
+              <Typography variant="body2" sx={{ fontWeight: 700, color: r.passed ? '#3d9b5f' : brand.orangeDark }}>
+                {r.passed ? 'Met' : 'Not yet'}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 0.75 }}>
+              {r.evidence.map((e) => {
+                const met = e.startsWith('Met') || e.startsWith('Seeded');
+                return (
+                  <Box
+                    key={e}
+                    sx={{
+                      fontSize: 12.5,
+                      px: 1,
+                      py: 0.25,
+                      borderRadius: 1,
+                      bgcolor: met ? '#e7f5ec' : '#fff4e0',
+                      color: brand.charcoal,
+                    }}
+                  >
+                    {e.replace(/^(Met|Not yet): /, met ? '✓ ' : '○ ')}
+                  </Box>
+                );
+              })}
+            </Box>
+          </Box>
+        ))}
+      </Box>
+    </Box>
   );
 }

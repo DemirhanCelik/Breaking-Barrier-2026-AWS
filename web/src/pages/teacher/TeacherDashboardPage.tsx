@@ -1,14 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Alert,
   Box,
   Button,
   CircularProgress,
-  Grid,
-  Link,
-  Paper,
-  Stack,
+  Container,
   Table,
   TableBody,
   TableCell,
@@ -18,13 +15,18 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
+import FlagRoundedIcon from '@mui/icons-material/FlagRounded';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { api, type ClassAttainment } from '../../api';
-import { StageCell, StatusChip } from './StageCell';
+import { Initials } from '../../components/brand';
+import { brand } from '../../theme';
+import { StageCell, StageLegend, StatusChip } from './StageCell';
+import { HeaderStat, TeacherHeader } from './TeacherHeader';
 
 /** Read-only, teacher-only attainment view (FR12). */
 export function TeacherDashboardPage() {
+  const navigate = useNavigate();
   const [data, setData] = useState<ClassAttainment | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,101 +37,119 @@ export function TeacherDashboardPage() {
 
   useEffect(load, [load]);
 
-  if (error) return <Alert severity="error">Could not load class attainment: {error}</Alert>;
-  if (!data) return <CircularProgress aria-label="Loading class" />;
+  if (error) {
+    return (
+      <Container sx={{ py: 4 }}>
+        <Alert severity="error">Could not load class attainment: {error}</Alert>
+      </Container>
+    );
+  }
+  if (!data) {
+    return (
+      <Box sx={{ display: 'grid', placeItems: 'center', flex: 1 }}>
+        <CircularProgress aria-label="Loading class" />
+      </Box>
+    );
+  }
 
   const started = data.students.filter((s) => s.diagnostic);
   const metBar = started.filter((s) => data.concepts.every((c) => s.stages[c.id] >= data.bar)).length;
   const flagged = data.students.filter((s) => s.flags.length > 0 || s.status === 'needs-attention').length;
 
   return (
-    <Stack spacing={3}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'flex-end' }} spacing={2}>
-        <Box sx={{ flex: 1 }}>
-          <Typography variant="overline" color="secondary">
-            Teacher view
-          </Typography>
-          <Typography variant="h1">{data.className}</Typography>
-          <Typography color="text.secondary">
-            Bar: Stage {data.bar} (Meeting) on every concept. Stage 3 is optional depth. Students never see this page.
-          </Typography>
+    <Box sx={{ flex: 1 }}>
+      <TeacherHeader
+        eyebrow="AI-Generated Design · Robotics Club Page"
+        title={data.className}
+        subtitle="Everyone reaches Meeting on every concept. Exceeding is optional depth. Students never see this page."
+        right={
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+            <HeaderStat label="started" value={`${started.length}/${data.students.length}`} />
+            <HeaderStat label="at the bar" value={metBar} />
+            <HeaderStat label="flagged" value={flagged} />
+          </Box>
+        }
+      />
+
+      <Container maxWidth="xl" sx={{ py: 3 }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2, mb: 2 }}>
+          <StageLegend bar={data.bar} />
+          <Box sx={{ flex: 1 }} />
+          <Button startIcon={<RefreshIcon />} onClick={load} sx={{ color: brand.charcoal }}>
+            Refresh
+          </Button>
         </Box>
-        <Button startIcon={<RefreshIcon />} onClick={load} variant="outlined">
-          Refresh
-        </Button>
-      </Stack>
 
-      <Grid container spacing={2}>
-        <Summary label="Started" value={`${started.length} / ${data.students.length}`} />
-        <Summary label="At the bar on every concept" value={`${metBar}`} />
-        <Summary label="Flagged for you" value={`${flagged}`} />
-      </Grid>
-
-      <TableContainer component={Paper}>
-        <Table size="small" aria-label="Per-concept stage for each student">
-          <TableHead>
-            <TableRow>
-              <TableCell>Student</TableCell>
-              <TableCell>Status</TableCell>
-              {data.concepts.map((c) => (
-                <TableCell key={c.id}>
-                  <Tooltip title={`${c.csta}. Stage ${data.bar}: ${c.descriptors[data.bar]}`}>
-                    <span>{c.name}</span>
-                  </Tooltip>
-                </TableCell>
-              ))}
-              <TableCell align="right">Steps</TableCell>
-              <TableCell />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {data.students.map((s) => (
-              <TableRow key={s.studentId} hover>
-                <TableCell>
-                  <Link component={RouterLink} to={`/teacher/students/${s.studentId}`} fontWeight={600}>
-                    {s.displayName}
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <StatusChip status={s.status} />
-                </TableCell>
+        <TableContainer sx={{ bgcolor: '#fff', borderRadius: 2, border: `1px solid ${brand.borderLight}` }}>
+          <Table aria-label="Stage per concept for each student">
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ position: 'sticky', left: 0, zIndex: 1, minWidth: 200 }}>Student</TableCell>
+                <TableCell>Status</TableCell>
                 {data.concepts.map((c) => (
-                  <TableCell key={c.id}>
-                    {s.diagnostic ? (
-                      <StageCell stage={s.stages[c.id]} placed={s.diagnostic[c.id]} bar={data.bar} concept={c} />
-                    ) : (
-                      <Typography variant="body2" color="text.disabled">
-                        -
-                      </Typography>
-                    )}
+                  <TableCell key={c.id} sx={{ minWidth: 150 }}>
+                    <Tooltip title={`${c.csta}. Meeting: ${c.descriptors[data.bar]}`}>
+                      <Box>
+                        <Typography sx={{ fontWeight: 700, fontSize: 14 }}>{c.name}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {c.csta}
+                        </Typography>
+                      </Box>
+                    </Tooltip>
                   </TableCell>
                 ))}
-                <TableCell align="right">{s.stepsCompleted}</TableCell>
-                <TableCell>
-                  {s.flags.length > 0 && (
-                    <Tooltip title={s.flags.join(' ')}>
-                      <FlagOutlinedIcon color="error" fontSize="small" aria-label={`${s.flags.length} flag(s)`} />
-                    </Tooltip>
-                  )}
-                </TableCell>
+                <TableCell align="right">Steps</TableCell>
+                <TableCell />
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Stack>
-  );
-}
-
-function Summary({ label, value }: { label: string; value: string }) {
-  return (
-    <Grid size={{ xs: 12, sm: 4 }}>
-      <Paper sx={{ p: 2 }}>
-        <Typography variant="body2" color="text.secondary">
-          {label}
+            </TableHead>
+            <TableBody>
+              {data.students.map((s) => (
+                <TableRow
+                  key={s.studentId}
+                  hover
+                  onClick={() => navigate(`/teacher/students/${s.studentId}`)}
+                  sx={{ cursor: 'pointer', '&:last-child td': { borderBottom: 0 } }}
+                >
+                  <TableCell sx={{ position: 'sticky', left: 0, bgcolor: '#fff' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Initials name={s.displayName} size={34} />
+                      <Typography sx={{ fontWeight: 700 }}>{s.displayName}</Typography>
+                      {s.flags.length > 0 && (
+                        <Tooltip title={s.flags.join(' ')}>
+                          <FlagRoundedIcon sx={{ color: '#d0453f', fontSize: 18 }} aria-label={`${s.flags.length} flag(s)`} />
+                        </Tooltip>
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <StatusChip status={s.status} />
+                  </TableCell>
+                  {data.concepts.map((c) => (
+                    <TableCell key={c.id}>
+                      {s.diagnostic ? (
+                        <StageCell stage={s.stages[c.id]} placed={s.diagnostic[c.id]} bar={data.bar} concept={c} />
+                      ) : (
+                        <Typography variant="body2" color="text.disabled">
+                          Not started
+                        </Typography>
+                      )}
+                    </TableCell>
+                  ))}
+                  <TableCell align="right">
+                    <Typography sx={{ fontWeight: 700 }}>{s.stepsCompleted}</Typography>
+                  </TableCell>
+                  <TableCell padding="checkbox">
+                    <ChevronRightIcon sx={{ color: brand.border }} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+          Select a student to see their route and why each step was chosen.
         </Typography>
-        <Typography variant="h2">{value}</Typography>
-      </Paper>
-    </Grid>
+      </Container>
+    </Box>
   );
 }

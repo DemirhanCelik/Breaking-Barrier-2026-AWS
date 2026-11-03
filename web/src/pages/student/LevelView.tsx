@@ -1,21 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  LinearProgress,
-  Paper,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Box, Button, InputBase, LinearProgress, Typography } from '@mui/material';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import { api, type StudentLevel, type SubmissionOutcome } from '../../api';
+import { PaneHeader, SpeechBubble } from '../../components/brand';
+import { brand } from '../../theme';
 import { AssistantDrawer } from './AssistantDrawer';
 
 const POLL_MS = 400;
 const POLL_TIMEOUT_MS = 20_000;
+const MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 
 type Feedback =
   | { kind: 'none' }
@@ -23,7 +18,16 @@ type Feedback =
   | { kind: 'outcome'; outcome: Exclude<SubmissionOutcome, { status: 'checking' }> }
   | { kind: 'error'; message: string };
 
-export function LevelView({ level, onAdvance }: { level: StudentLevel; onAdvance: () => void }) {
+/** Lab layout: instructions on the left, the student's workspace on the right. */
+export function LevelView({
+  level,
+  stepNumber,
+  onAdvance,
+}: {
+  level: StudentLevel;
+  stepNumber: number;
+  onAdvance: () => void;
+}) {
   const [response, setResponse] = useState('');
   const [feedback, setFeedback] = useState<Feedback>({ kind: 'none' });
   const [assistantOpen, setAssistantOpen] = useState(false);
@@ -56,7 +60,7 @@ export function LevelView({ level, onAdvance }: { level: StudentLevel; onAdvance
         await new Promise((r) => setTimeout(r, POLL_MS));
       }
     } catch {
-      setFeedback({ kind: 'error', message: "We couldn't send your work just now. It's still here, so try again." });
+      setFeedback({ kind: 'error', message: "I couldn't send your work just now. It's still here, so try again." });
     }
   };
 
@@ -64,94 +68,234 @@ export function LevelView({ level, onAdvance }: { level: StudentLevel; onAdvance
   const canContinue = outcome?.status === 'done' && outcome.nextAction === 'continue';
   const checking = feedback.kind === 'checking';
   const isProject = level.kind === 'project';
+  const lineCount = Math.max(response.split('\n').length, isProject ? 14 : 10);
 
   return (
-    <Stack spacing={2.5}>
-      <Box>
-        {isProject && <Chip label="Project" color="secondary" size="small" sx={{ mb: 1 }} />}
-        <Typography variant="h1" gutterBottom>
-          {level.title}
-        </Typography>
-        <Typography color="text.secondary">{level.intro}</Typography>
+    <Box
+      sx={{
+        flex: 1,
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', md: 'minmax(360px, 42%) 1fr' },
+        gridTemplateRows: { xs: 'auto auto', md: '1fr' },
+        height: { md: 'calc(100vh - 60px)' },
+        bgcolor: brand.bg,
+      }}
+    >
+      {/* Instructions pane */}
+      <Box
+        component="section"
+        aria-label="Instructions"
+        sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, bgcolor: '#fff', borderRight: { md: `1px solid ${brand.border}` } }}
+      >
+        <PaneHeader
+          title="Instructions"
+          right={
+            <Typography variant="overline" color="text.secondary">
+              {isProject ? 'Project' : `Step ${stepNumber}`}
+            </Typography>
+          }
+        />
+        <Box sx={{ flex: 1, overflowY: 'auto', px: { xs: 2, md: 3 }, py: 3, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+          <Typography variant="h2" component="h1">
+            {level.title}
+          </Typography>
+
+          <SpeechBubble mood="happy">
+            <Typography>{level.intro}</Typography>
+          </SpeechBubble>
+
+          <Box component="ol" sx={{ listStyle: 'none', m: 0, p: 0, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+            {level.instructions.map((text, i) => (
+              <Box component="li" key={text} sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                <Box
+                  sx={{
+                    width: 26,
+                    height: 26,
+                    borderRadius: '50%',
+                    bgcolor: brand.purple,
+                    color: '#fff',
+                    fontWeight: 800,
+                    fontSize: 13,
+                    display: 'grid',
+                    placeItems: 'center',
+                    flexShrink: 0,
+                    mt: '1px',
+                  }}
+                  aria-hidden
+                >
+                  {i + 1}
+                </Box>
+                <Typography sx={{ fontWeight: 500 }}>{text}</Typography>
+              </Box>
+            ))}
+          </Box>
+
+          {level.aiOutput && (
+            <Box sx={{ borderRadius: 1.5, overflow: 'hidden', border: `1px solid ${brand.slate}` }}>
+              <PaneHeader title="What the AI made" dark />
+              <Box
+                component="pre"
+                sx={{
+                  m: 0,
+                  p: 2,
+                  bgcolor: brand.editor,
+                  color: '#d9e2ec',
+                  fontFamily: MONO,
+                  fontSize: 13.5,
+                  lineHeight: 1.6,
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {level.aiOutput}
+              </Box>
+            </Box>
+          )}
+
+          <Feedback feedback={feedback} />
+        </Box>
       </Box>
 
-      {level.aiOutput && (
-        <Paper sx={{ p: 2, bgcolor: '#0f1b2d', color: '#e6edf6', border: 'none' }}>
-          <Typography variant="caption" sx={{ color: '#9fb3c8', display: 'block', mb: 1 }}>
-            What the AI made
+      {/* Workspace pane */}
+      <Box component="section" aria-label="Your work" sx={{ display: 'flex', flexDirection: 'column', minHeight: { xs: 420, md: 0 } }}>
+        <PaneHeader
+          title="Your work"
+          right={
+            !canContinue && (
+              <Button
+                size="small"
+                startIcon={<LightbulbOutlinedIcon />}
+                onClick={() => setAssistantOpen(true)}
+                sx={{
+                  color: brand.charcoal,
+                  ...(outcome?.status === 'done' && outcome.offerAssistant
+                    ? { bgcolor: '#fff3d6', '&:hover': { bgcolor: '#ffe9b3' } }
+                    : {}),
+                }}
+              >
+                Hint
+              </Button>
+            )
+          }
+        />
+        <Box sx={{ px: 2, pt: 1.5, pb: 1, bgcolor: '#fff', borderBottom: `1px solid ${brand.borderLight}` }}>
+          <Typography component="label" htmlFor="workspace-editor" sx={{ fontWeight: 700, fontSize: 14 }}>
+            {level.responseLabel}
           </Typography>
-          <Box component="pre" sx={{ m: 0, fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontSize: 14, whiteSpace: 'pre-wrap' }}>
-            {level.aiOutput}
-          </Box>
-        </Paper>
-      )}
-
-      <Paper sx={{ p: 2.5 }}>
-        <Typography variant="h3" gutterBottom>
-          What to do
-        </Typography>
-        <Box component="ol" sx={{ m: 0, pl: 3 }}>
-          {level.instructions.map((i) => (
-            <Typography component="li" key={i} sx={{ mb: 0.5 }}>
-              {i}
-            </Typography>
-          ))}
         </Box>
-      </Paper>
 
-      <TextField
-        label={level.responseLabel}
-        placeholder={level.responsePlaceholder}
-        value={response}
-        onChange={(e) => setResponse(e.target.value)}
-        multiline
-        minRows={isProject ? 10 : 6}
-        fullWidth
-        disabled={checking || canContinue}
-        slotProps={{ input: { sx: { fontFamily: 'ui-monospace, Menlo, Consolas, monospace', bgcolor: 'background.paper' } } }}
-      />
-
-      {checking && (
-        <Box role="status">
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Reading your work…
-          </Typography>
-          <LinearProgress />
-        </Box>
-      )}
-
-      {feedback.kind === 'error' && <Alert severity="warning">{feedback.message}</Alert>}
-
-      {outcome?.status === 'withheld' && <Alert severity="warning">{outcome.message}</Alert>}
-
-      {outcome?.status === 'done' && (
-        <Alert severity="info" icon={<LightbulbOutlinedIcon />} role="status">
-          {outcome.coaching}
-        </Alert>
-      )}
-
-      <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
-        {canContinue ? (
-          <Button variant="contained" size="large" onClick={onAdvance}>
-            Next step
-          </Button>
-        ) : (
-          <Button variant="contained" size="large" disabled={checking || response.trim().length === 0} onClick={submit}>
-            {outcome?.status === 'done' ? 'Send my update' : 'Send my work'}
-          </Button>
-        )}
-        {!canContinue && (
-          <Button
-            variant={outcome?.status === 'done' && outcome.offerAssistant ? 'outlined' : 'text'}
-            startIcon={<LightbulbOutlinedIcon />}
-            onClick={() => setAssistantOpen(true)}
+        <Box sx={{ flex: 1, overflowY: 'auto', bgcolor: '#fff', display: 'flex', alignItems: 'stretch' }}>
+          <Box
+            aria-hidden
+            sx={{
+              py: 1.5,
+              px: 1,
+              minWidth: 44,
+              textAlign: 'right',
+              bgcolor: '#f7f8f9',
+              borderRight: `1px solid ${brand.borderLight}`,
+              color: '#9aa3ab',
+              fontFamily: MONO,
+              fontSize: 14,
+              lineHeight: '24px',
+              userSelect: 'none',
+            }}
           >
-            Ask for a hint
-          </Button>
-        )}
-      </Stack>
+            {Array.from({ length: lineCount }, (_, i) => (
+              <div key={i}>{i + 1}</div>
+            ))}
+          </Box>
+          <InputBase
+            id="workspace-editor"
+            multiline
+            fullWidth
+            minRows={lineCount}
+            value={response}
+            onChange={(e) => setResponse(e.target.value)}
+            placeholder={level.responsePlaceholder}
+            disabled={checking || canContinue}
+            sx={{
+              alignItems: 'flex-start',
+              px: 1.5,
+              py: 1.5,
+              fontFamily: MONO,
+              fontSize: 14,
+              '& textarea': { lineHeight: '24px', whiteSpace: 'pre-wrap' },
+              '& textarea::placeholder': { color: '#9aa3ab', opacity: 1 },
+            }}
+          />
+        </Box>
+
+        {checking && <LinearProgress color="warning" aria-label="Reading your work" />}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            px: 2,
+            py: 1.5,
+            bgcolor: brand.strip,
+            borderTop: `1px solid ${brand.border}`,
+          }}
+        >
+          <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }} role="status">
+            {checking
+              ? 'Bit is reading your work…'
+              : canContinue
+                ? 'Your work is saved.'
+                : wordLabel(response)}
+          </Typography>
+          {canContinue ? (
+            <Button variant="contained" size="large" endIcon={<ArrowForwardIcon />} onClick={onAdvance}>
+              Continue
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              color="warning"
+              size="large"
+              startIcon={<PlayArrowRoundedIcon />}
+              disabled={checking || response.trim().length === 0}
+              onClick={submit}
+            >
+              {outcome?.status === 'done' ? 'Check again' : 'Check my work'}
+            </Button>
+          )}
+        </Box>
+      </Box>
 
       <AssistantDrawer open={assistantOpen} onClose={() => setAssistantOpen(false)} level={level} />
-    </Stack>
+    </Box>
+  );
+}
+
+function wordLabel(text: string) {
+  const n = text.trim() ? text.trim().split(/\s+/).length : 0;
+  return `${n} ${n === 1 ? 'word' : 'words'}`;
+}
+
+function Feedback({ feedback }: { feedback: Feedback }) {
+  if (feedback.kind === 'error') {
+    return (
+      <SpeechBubble tone="caution" role="alert">
+        <Typography>{feedback.message}</Typography>
+      </SpeechBubble>
+    );
+  }
+  if (feedback.kind !== 'outcome') return null;
+  const o = feedback.outcome;
+  if (o.status === 'withheld') {
+    return (
+      <SpeechBubble tone="caution" role="alert">
+        <Typography>{o.message}</Typography>
+      </SpeechBubble>
+    );
+  }
+  return (
+    <SpeechBubble tone="coach" mood={o.nextAction === 'continue' ? 'happy' : 'thinking'} role="status">
+      <Typography variant="overline" sx={{ color: brand.tealDark, display: 'block' }}>
+        {o.nextAction === 'continue' ? 'Nice!' : 'Try this'}
+      </Typography>
+      <Typography>{o.coaching}</Typography>
+    </SpeechBubble>
   );
 }

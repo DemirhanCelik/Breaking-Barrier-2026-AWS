@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Box, Button, CircularProgress, Grid } from '@mui/material';
-import { api, type LessonState } from '../../api';
+import { Alert, Box, Button, CircularProgress } from '@mui/material';
+import { api, type LessonState, type PathItem } from '../../api';
+import { useHeaderSlot } from '../../components/AppShell';
 import { DiagnosticView } from './DiagnosticView';
 import { LevelView } from './LevelView';
-import { PathPanel } from './PathPanel';
+import { ProgressBubbles } from './ProgressBubbles';
 import { DepthChoiceView } from './DepthChoiceView';
 import { CompleteView } from './CompleteView';
+
+import { LESSON_NAME } from './lesson';
+
+function useLessonHeader(path: PathItem[] | null) {
+  const key = path ? path.map((p) => `${p.levelId}:${p.status}`).join('|') : 'none';
+  useHeaderSlot(path ? <ProgressBubbles path={path} lessonName={LESSON_NAME} /> : null, key);
+}
 
 /**
  * Student lesson. Renders only what the student API returns: the current task,
@@ -28,23 +36,27 @@ export function StudentLessonPage() {
     void load();
   }, [load]);
 
+  useLessonHeader(state && (state.phase === 'level' || state.phase === 'choose-depth') ? state.path : null);
+
   if (error) {
     return (
-      <Alert
-        severity="warning"
-        action={
-          <Button color="inherit" onClick={load}>
-            Try again
-          </Button>
-        }
-      >
-        We couldn't load your lesson just now.
-      </Alert>
+      <Box sx={{ p: 4 }}>
+        <Alert
+          severity="warning"
+          action={
+            <Button color="inherit" onClick={load}>
+              Try again
+            </Button>
+          }
+        >
+          We couldn't load your lesson just now.
+        </Alert>
+      </Box>
     );
   }
   if (!state) {
     return (
-      <Box sx={{ display: 'grid', placeItems: 'center', minHeight: '50vh' }}>
+      <Box sx={{ display: 'grid', placeItems: 'center', flex: 1 }}>
         <CircularProgress aria-label="Loading lesson" />
       </Box>
     );
@@ -56,26 +68,10 @@ export function StudentLessonPage() {
     case 'complete':
       return <CompleteView state={state} />;
     case 'choose-depth':
-      return (
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12, md: 8 }}>
-            <DepthChoiceView options={state.options} onChosen={setState} />
-          </Grid>
-          <Grid size={{ xs: 12, md: 4 }}>
-            <PathPanel path={state.path} stepsCompleted={state.stepsCompleted} />
-          </Grid>
-        </Grid>
-      );
+      return <DepthChoiceView options={state.options} onChosen={setState} />;
     case 'level':
       return (
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12, md: 8 }}>
-            <LevelView key={state.level.id} level={state.level} onAdvance={load} />
-          </Grid>
-          <Grid size={{ xs: 12, md: 4 }}>
-            <PathPanel path={state.path} stepsCompleted={state.stepsCompleted} />
-          </Grid>
-        </Grid>
+        <LevelView key={state.level.id} level={state.level} stepNumber={state.stepsCompleted + 1} onAdvance={load} />
       );
   }
 }

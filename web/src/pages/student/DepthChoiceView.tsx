@@ -1,6 +1,11 @@
 import { useState } from 'react';
-import { Alert, Box, Card, CardActionArea, CardContent, Stack, Typography } from '@mui/material';
+import { Box, Container, Typography } from '@mui/material';
+import ExploreOutlinedIcon from '@mui/icons-material/ExploreOutlined';
+import BuildCircleOutlinedIcon from '@mui/icons-material/BuildCircleOutlined';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { api, type DepthOption, type LessonState } from '../../api';
+import { SpeechBubble } from '../../components/brand';
+import { brand } from '../../theme';
 
 /**
  * Shown once every required concept is at the bar. Optional depth is offered as
@@ -22,28 +27,59 @@ export function DepthChoiceView({ options, onChosen }: { options: DepthOption[];
   };
 
   return (
-    <Stack spacing={2.5}>
-      <Box>
-        <Typography variant="h1" gutterBottom>
-          What do you want to work on next?
+    <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
+      <Typography variant="h1" sx={{ mb: 2 }}>
+        Pick what's next
+      </Typography>
+      <SpeechBubble sx={{ mb: 4 }}>
+        <Typography>
+          You've covered everything for today's page. Choose a challenge to explore, or go straight to building your
+          own club page. You'll build it either way.
         </Typography>
-        <Typography color="text.secondary">Pick one. You'll end up building your own club page either way.</Typography>
-      </Box>
-      {error && <Alert severity="warning">{error}</Alert>}
-      {options.map((o) => (
-        <Card key={o.id}>
-          <CardActionArea disabled={busy} onClick={() => choose(o.id)}>
-            <CardContent>
-              <Typography variant="h3" gutterBottom>
-                {o.label}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
+      </SpeechBubble>
+      {error && (
+        <Typography color="error" sx={{ mb: 2 }} role="alert">
+          {error}
+        </Typography>
+      )}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+        {options.map((o) => {
+          const isProject = o.id === 'project';
+          const Icon = isProject ? BuildCircleOutlinedIcon : ExploreOutlinedIcon;
+          return (
+            <Box
+              key={o.id}
+              component="button"
+              type="button"
+              disabled={busy}
+              onClick={() => choose(o.id)}
+              sx={{
+                all: 'unset',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 1,
+                p: 2.5,
+                borderRadius: 2,
+                bgcolor: '#fff',
+                border: `2px solid ${brand.borderLight}`,
+                borderTop: `6px solid ${isProject ? brand.orange : brand.purple}`,
+                '&:hover': { borderColor: isProject ? brand.orange : brand.purple },
+                '&:focus-visible': { outline: `3px solid ${brand.orange}`, outlineOffset: 2 },
+              }}
+            >
+              <Icon sx={{ fontSize: 34, color: isProject ? brand.orangeDark : brand.purple }} />
+              <Typography variant="h3">{o.label}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
                 {o.description}
               </Typography>
-            </CardContent>
-          </CardActionArea>
-        </Card>
-      ))}
-    </Stack>
+              <Typography sx={{ fontWeight: 700, color: brand.tealDark, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                {isProject ? 'Start building' : 'Explore this'} <ArrowForwardIcon fontSize="small" />
+              </Typography>
+            </Box>
+          );
+        })}
+      </Box>
+    </Container>
   );
 }
