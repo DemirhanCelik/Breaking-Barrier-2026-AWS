@@ -1,0 +1,57 @@
+name: Deploy infra (CDK)
+
+# Keyless deploys to the teammate-owned AWS account via GitHub OIDC.
+# The stack must have been bootstrapped + deployed once from a machine with
+# credentials first (that creates the OIDC provider + deploy role this uses).
+#
+# Required repo configuration:
+#   - Variable  AWS_DEPLOY_ROLE_ARN  = the GitHubDeployRoleArn stack output
+#                                      (role codeai-github-deploy)
+# Trust is scoped to this repo + the main branch, so only main can assume it.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write   # required to request the OIDC token
+  contents: read
+
+concurrency:
+  group: infra-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: infra/package-lock.json
+
+      - name: Install dependencies
+        working-directory: infra
+        run: npm ci
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: CDK synth
+        working-directory: infra
+        run: npx cdk synth
+
+      - name: CDK deploy
+        working-directory: infra
+        run: npx cdk deploy --require-approval never
