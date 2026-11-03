@@ -1,0 +1,7 @@
+{
+  "name": "codeai-api-placeholder",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Neutral placeholder for the API Lambda until the real Rails image is deployed.",
+  "main": "app.js"
+}

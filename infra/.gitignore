@@ -3,6 +3,8 @@ dist/
 *.js
 *.d.ts
 !jest.config.js
+# Lambda placeholder handler is source, not compiled output — keep it.
+!lib/placeholder-api/*.js
 cdk.out/
 cdk.context.json
 .cdk.staging/

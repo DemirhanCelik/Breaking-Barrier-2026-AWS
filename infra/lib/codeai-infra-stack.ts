@@ -8,7 +8,7 @@ import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
-import * as apprunner from 'aws-cdk-lib/aws-apprunner';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 
 export interface CodeAiInfraStackProps extends cdk.StackProps {
   /** GitHub repo in "owner/name" form used to scope the OIDC trust policy. */
@@ -17,6 +17,9 @@ export interface CodeAiInfraStackProps extends cdk.StackProps {
   readonly githubBranch: string;
   /** Bedrock model id the API is permitted to invoke. */
   readonly bedrockModelId: string;
+  /** Memory (MB) for the API Lambda. CPU scales with memory; 512 is a good
+   *  cost/responsiveness balance for Rails. */
+  readonly apiMemoryMb: number;
 }
 
 /**
@@ -24,8 +27,10 @@ export interface CodeAiInfraStackProps extends cdk.StackProps {
  *
  * Budget/security constraints enforced here:
  *  - NO NAT GATEWAYS. Aurora uses the Data API (HTTP over the AWS network), and
- *    App Runner runs in default egress mode, so neither needs a NAT path.
- *  - Everything smallest/cheapest tier; Aurora Serverless v2 scales to zero.
+ *    the API Lambda runs with managed egress (no VPC attachment), so neither
+ *    needs a NAT path.
+ *  - Everything smallest/cheapest tier; Aurora Serverless v2 scales to zero and
+ *    the API Lambda scales to zero (pay-per-request, $0 idle).
  *  - Private by default: both S3 buckets Block Public Access + SSE-KMS.
  *  - Least privilege IAM; customer-managed KMS keys; no hardcoded secrets.
  */
@@ -157,7 +162,10 @@ export class CodeAiInfraStack extends cdk.Stack {
 
     const dbCluster = new rds.DatabaseCluster(this, 'Aurora', {
       engine: rds.DatabaseClusterEngine.auroraPostgres({
-        version: rds.AuroraPostgresEngineVersion.VER_16_6,
+        // 16.8 is a currently-available standard Aurora PostgreSQL version that
+        // supports Serverless v2 scale-to-zero. (16.6 only exists as the
+        // separate "-limitless" variant, which is why the first deploy failed.)
+        version: rds.AuroraPostgresEngineVersion.VER_16_8,
       }),
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
@@ -239,8 +247,14 @@ export class CodeAiInfraStack extends cdk.Stack {
     //    (Data API on Aurora, read the DB secret, S3 artifacts, Bedrock + Guardrails.)
     // =========================================================================
     const apiInstanceRole = new iam.Role(this, 'ApiInstanceRole', {
-      assumedBy: new iam.ServicePrincipal('tasks.apprunner.amazonaws.com'),
-      description: 'Runtime role for the Rails API on App Runner (least privilege).',
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      description: 'Runtime role for the Rails API Lambda (least privilege).',
+      managedPolicies: [
+        // CloudWatch Logs for the function; no VPC access policy (no VPC attach).
+        iam.ManagedPolicy.fromAwsManagedPolicyName(
+          'service-role/AWSLambdaBasicExecutionRole',
+        ),
+      ],
     });
 
     // 6a. Aurora Data API (execute statements against the cluster).
@@ -254,17 +268,19 @@ export class CodeAiInfraStack extends cdk.Stack {
     dataKey.grantEncryptDecrypt(apiInstanceRole); // for SSE-KMS object access.
 
     // 6d. Bedrock: invoke the configured model + apply Guardrails. Scoped to
-    //     this region/account and foundation models; not a blanket bedrock:*.
-    const bedrockModelArn = cdk.Arn.format(
-      {
-        service: 'bedrock',
-        region: this.region,
-        account: '', // foundation-model ARNs have no account segment.
-        resource: 'foundation-model',
-        resourceName: props.bedrockModelId,
-        arnFormat: cdk.ArnFormat.SLASH_RESOURCE_NAME,
-      },
-      this,
+    //     Bedrock resources in this account/partition; not a blanket bedrock:*.
+    //
+    //     The configured model id is a CROSS-REGION INFERENCE PROFILE
+    //     (e.g. "us.anthropic.claude-haiku-4-5-..."). Invoking a profile needs:
+    //       (a) the inference-profile ARN, AND
+    //       (b) the underlying foundation-model ARNs in EVERY region the profile
+    //           may route to (us-east-1, us-east-2, us-west-2 for "us." profiles).
+    //     Granting only the single-region foundation-model ARN would fail with
+    //     AccessDenied when the profile fans out, so we grant the foundation
+    //     models across the US regions the "us." profile uses.
+    const usProfileRegions = ['us-east-1', 'us-east-2', 'us-west-2'];
+    const foundationModelArns = usProfileRegions.map(
+      (r) => `arn:${this.partition}:bedrock:${r}::foundation-model/*`,
     );
 
     apiInstanceRole.addToPolicy(
@@ -276,9 +292,10 @@ export class CodeAiInfraStack extends cdk.Stack {
           'bedrock:InvokeModelWithResponseStream',
         ],
         resources: [
-          bedrockModelArn,
-          // Inference-profile ARNs (cross-region profiles) for the same account.
+          // The inference profile in this account/region.
           `arn:${this.partition}:bedrock:${this.region}:${this.account}:inference-profile/*`,
+          // The foundation models the profile routes to, across US regions.
+          ...foundationModelArns,
         ],
       }),
     );
@@ -295,62 +312,53 @@ export class CodeAiInfraStack extends cdk.Stack {
     );
 
     // =========================================================================
-    // 7. App Runner — smallest size (0.25 vCPU / 0.5 GB). Default egress (no NAT).
+    // 7. Compute for the Rails API — Lambda (container image) + Function URL.
     // =========================================================================
-    // Build-time access role to pull the container image from ECR.
-    const apiAccessRole = new iam.Role(this, 'ApiAccessRole', {
-      assumedBy: new iam.ServicePrincipal('build.apprunner.amazonaws.com'),
-      description: 'App Runner ECR access role.',
-      managedPolicies: [
-        iam.ManagedPolicy.fromAwsManagedPolicyName(
-          'service-role/AWSAppRunnerServicePolicyForECRAccess',
-        ),
-      ],
+    // App Runner was the original design choice, but it is blocked by SCP in the
+    // target accounts, so compute is a scale-to-zero Lambda instead. This is
+    // cheaper (true $0 idle, no always-on memory bill, no ALB) and still NAT-free:
+    //  - Managed egress reaches Bedrock / Secrets Manager (no VPC attachment).
+    //  - Aurora is reached via the Data API over HTTPS.
+    //  - A Function URL provides the public HTTPS endpoint the SPA/clients call.
+    // arm64 (Graviton) is ~20% cheaper and faster per the same memory.
+    const apiFunction = new lambda.DockerImageFunction(this, 'ApiFunction', {
+      functionName: 'codeai-rails-api',
+      role: apiInstanceRole,
+      // x86_64 to match the build host (arm64 cross-build hit "exec format
+      // error" during npm install). Still cheap + scale-to-zero.
+      architecture: lambda.Architecture.X86_64,
+      // 512 MB balances Rails cold-start CPU against cost; tune via context.
+      memorySize: props.apiMemoryMb,
+      timeout: cdk.Duration.seconds(30),
+      // Placeholder image so the stack deploys before the real Rails image
+      // exists. Swap to your ECR Rails image (with the Lambda Web Adapter) at
+      // deploy time. Uses the AWS base "hello world" image for a valid synth.
+      code: lambda.DockerImageCode.fromImageAsset(`${__dirname}/placeholder-api`),
+      environment: {
+        AWS_LWA_PORT: '8080',
+        DB_CLUSTER_ARN: dbCluster.clusterArn,
+        DB_SECRET_ARN: dbCluster.secret?.secretArn ?? '',
+        DB_NAME: 'codeai',
+        ARTIFACTS_BUCKET: artifactsBucket.bucketName,
+        BEDROCK_MODEL_ID: props.bedrockModelId,
+        COGNITO_USER_POOL_ID: userPool.userPoolId,
+        COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
+      },
     });
 
-    const apiService = new apprunner.CfnService(this, 'ApiService', {
-      serviceName: 'codeai-rails-api',
-      instanceConfiguration: {
-        // Smallest App Runner size.
-        cpu: '0.25 vCPU',
-        memory: '0.5 GB',
-        instanceRoleArn: apiInstanceRole.roleArn,
-      },
-      sourceConfiguration: {
-        autoDeploymentsEnabled: false,
-        authenticationConfiguration: {
-          accessRoleArn: apiAccessRole.roleArn,
-        },
-        imageRepository: {
-          // Placeholder public image so `cdk synth` is valid before the Rails
-          // image exists. Swap to your private ECR image at deploy time.
-          imageIdentifier: 'public.ecr.aws/aws-containers/hello-app-runner:latest',
-          imageRepositoryType: 'ECR_PUBLIC',
-          imageConfiguration: {
-            port: '8080',
-            runtimeEnvironmentVariables: [
-              { name: 'AWS_REGION', value: this.region },
-              { name: 'DB_CLUSTER_ARN', value: dbCluster.clusterArn },
-              { name: 'DB_SECRET_ARN', value: dbCluster.secret?.secretArn ?? '' },
-              { name: 'DB_NAME', value: 'codeai' },
-              { name: 'ARTIFACTS_BUCKET', value: artifactsBucket.bucketName },
-              { name: 'BEDROCK_MODEL_ID', value: props.bedrockModelId },
-              { name: 'COGNITO_USER_POOL_ID', value: userPool.userPoolId },
-              { name: 'COGNITO_CLIENT_ID', value: userPoolClient.userPoolClientId },
-            ],
-          },
-        },
-      },
-      healthCheckConfiguration: {
-        protocol: 'TCP',
-        interval: 10,
-        timeout: 5,
-        healthyThreshold: 1,
-        unhealthyThreshold: 5,
+    // Public HTTPS endpoint. AuthN is handled by the app (Cognito JWT), so the
+    // URL auth type is NONE; the function itself enforces the JWT + row scoping.
+    const apiFunctionUrl = apiFunction.addFunctionUrl({
+      authType: lambda.FunctionUrlAuthType.NONE,
+      cors: {
+        allowedOrigins: ['*'], // tighten to the CloudFront domain post-deploy.
+        allowedMethods: [lambda.HttpMethod.ALL],
+        allowedHeaders: ['*'],
       },
     });
-    apiService.node.addDependency(apiInstanceRole);
-    apiService.node.addDependency(apiAccessRole);
+    // NOTE: The SPA build is deployed to spaBucket by CI (web -> build -> S3 ->
+    // CloudFront invalidate), not by this stack. The bucket + distribution are
+    // provisioned here; content upload is a deploy-time step (see README).
 
     // =========================================================================
     // 8. GitHub OIDC provider + least-privilege deploy role.
@@ -460,17 +468,17 @@ export class CodeAiInfraStack extends cdk.Stack {
       }),
     );
 
-    // Trigger an App Runner deployment after pushing a new image.
+    // Update the API Lambda's image after pushing a new container to ECR.
     deployRole.addToPolicy(
       new iam.PolicyStatement({
-        sid: 'AppRunnerDeploy',
+        sid: 'LambdaDeploy',
         effect: iam.Effect.ALLOW,
         actions: [
-          'apprunner:StartDeployment',
-          'apprunner:DescribeService',
-          'apprunner:ListOperations',
+          'lambda:UpdateFunctionCode',
+          'lambda:GetFunction',
+          'lambda:UpdateFunctionConfiguration',
         ],
-        resources: [apiService.attrServiceArn],
+        resources: [apiFunction.functionArn],
       }),
     );
 
@@ -495,9 +503,11 @@ export class CodeAiInfraStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'CloudFrontDistributionId', {
       value: distribution.distributionId,
     });
-    new cdk.CfnOutput(this, 'ApiServiceArn', { value: apiService.attrServiceArn });
-    new cdk.CfnOutput(this, 'ApiServiceUrl', {
-      value: apiService.attrServiceUrl,
+    new cdk.CfnOutput(this, 'ApiFunctionName', {
+      value: apiFunction.functionName,
+    });
+    new cdk.CfnOutput(this, 'ApiFunctionUrl', {
+      value: apiFunctionUrl.url,
     });
     new cdk.CfnOutput(this, 'GitHubDeployRoleArn', { value: deployRole.roleArn });
     new cdk.CfnOutput(this, 'KmsKeyArn', { value: dataKey.keyArn });
