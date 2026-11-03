@@ -34,16 +34,21 @@ const githubBranch =
 
 const bedrockModelId =
   (app.node.tryGetContext('codeai:bedrockModelId') as string | undefined) ??
-  'anthropic.claude-3-haiku-20240307-v1:0';
+  'us.anthropic.claude-haiku-4-5-20251001-v1:0';
+
+const apiMemoryMb = Number(
+  (app.node.tryGetContext('codeai:apiMemoryMb') as string | undefined) ?? 512,
+);
 
 new CodeAiInfraStack(app, 'CodeAiAdaptiveEngineMvp', {
   env: { account: accountId, region },
   githubRepo,
   githubBranch,
   bedrockModelId,
+  apiMemoryMb,
   description:
     'CodeAI Adaptive Learning Engine MVP — Cognito, Aurora Serverless v2 (Data API), ' +
-    'private S3 + CloudFront OAC, App Runner, GitHub OIDC deploy role, Bedrock access. No NAT gateways.',
+    'private S3 + CloudFront OAC, API Lambda + Function URL, GitHub OIDC deploy role, Bedrock access. No NAT gateways.',
   tags: {
     Project: 'CodeAI-Adaptive-Learning-Engine',
     Environment: 'mvp',
