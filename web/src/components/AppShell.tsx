@@ -38,7 +38,10 @@ export function useHeaderSlot(node: ReactNode, key: string) {
 function DemoMenu() {
   const controls = demoControls;
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-  const [fault, setFault] = useState(() => controls?.getFaultInjection() ?? false);
+  const [fault, setFault] = useState(false);
+  useEffect(() => {
+    controls?.getFaultInjection().then(setFault).catch(() => setFault(false));
+  }, [controls]);
   if (!controls) return null;
 
   return (
@@ -58,7 +61,7 @@ function DemoMenu() {
             Demo controls
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Synthetic users and data, stored in this browser.
+            {api.mode === 'mock' ? 'Synthetic users and data, stored in this browser.' : 'Synthetic users and data on the demo backend.'}
           </Typography>
         </Box>
         <Divider />
@@ -68,9 +71,14 @@ function DemoMenu() {
               <Switch
                 color="warning"
                 checked={fault}
-                onChange={(e) => {
-                  controls.setFaultInjection(e.target.checked);
-                  setFault(e.target.checked);
+                onChange={async (e) => {
+                  const on = e.target.checked;
+                  setFault(on);
+                  try {
+                    await controls.setFaultInjection(on);
+                  } catch {
+                    setFault(!on);
+                  }
                 }}
               />
             }
@@ -82,8 +90,8 @@ function DemoMenu() {
         </Box>
         <Divider />
         <MenuItem
-          onClick={() => {
-            controls.resetDemo();
+          onClick={async () => {
+            await controls.resetDemo().catch(() => undefined);
             window.location.reload();
           }}
         >

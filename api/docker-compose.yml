@@ -1,0 +1,27 @@
+# Local development: Postgres + the Rails API (puma on :3000).
+#   docker compose -f api/docker-compose.yml up
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: codeai
+      POSTGRES_PASSWORD: codeai
+      POSTGRES_DB: codeai
+    ports: ["5432:5432"]
+  api:
+    image: ruby:3.3
+    working_dir: /w
+    command: sh -c "bundle exec rake db:schema && bundle exec rails server -b 0.0.0.0 -p 3000"
+    environment:
+      BUNDLE_PATH: /w/vendor/bundle
+      DATABASE_URL: postgres://codeai:codeai@db:5432/codeai
+      AUTH_MODE: demo
+      ALLOWED_ORIGINS: http://localhost:5173
+      VALIDATION_MODE: ${VALIDATION_MODE:-model}
+      AWS_PROFILE: ${AWS_PROFILE:-workshop}
+      AWS_REGION: us-east-1
+    volumes:
+      - .:/w
+      - ~/.aws:/root/.aws:ro
+    ports: ["3000:3000"]
+    depends_on: [db]

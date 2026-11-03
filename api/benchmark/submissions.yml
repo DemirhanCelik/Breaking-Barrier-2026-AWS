@@ -1,0 +1,50 @@
+# M5 benchmark set: synthetic student submissions with a human-assigned stage.
+#
+# STATUS: SYNTHETIC. Written and rated by the engineering team for the
+# hackathon, not by Teaching & Learning. The BRD's launch gate needs T&L to
+# re-rate (ideally two raters) and ratify the threshold.
+#
+# Fields: level (level id), concept, from (student's stage before this level),
+#         human (stage 0-3 the rater assigns for this concept), text.
+items:
+  # c2 Test and refine AI output, L2 (0 -> 1)
+  - { id: b01, level: l2, concept: c2, from: 0, human: 1, text: "The form is missing an email field, and when you click sign up nothing happens." }
+  - { id: b02, level: l2, concept: c2, from: 0, human: 0, text: "Looks good to me, I would use it." }
+  - { id: b03, level: l2, concept: c2, from: 0, human: 2, text: "The club asked for name and email plus a confirmation. The AI forgot the email input and there is no confirmation message, so I would add an email field and show 'Thanks for joining' after submit." }
+  - { id: b04, level: l2, concept: c2, from: 0, human: 0, text: "I like the button color." }
+
+  # c3 AI collaboration, L3 (0 -> 1)
+  - { id: b05, level: l3, concept: c3, from: 0, human: 1, text: "Make a header for the robotics club page with our club name." }
+  - { id: b06, level: l3, concept: c3, from: 0, human: 0, text: "header" }
+  - { id: b07, level: l3, concept: c3, from: 0, human: 2, text: "Create a header for the Robotics Club page. Use only our school colors, blue and gold. If the club name is too long for a phone screen, wrap it onto two lines." }
+
+  # c4 Responsible design, L4 (0 -> 1)
+  - { id: b08, level: l4, concept: c4, from: 0, human: 1, text: "Students who use screen readers might not be able to use it if the pictures have no descriptions." }
+  - { id: b09, level: l4, concept: c4, from: 0, human: 0, text: "Everyone can use it, it's just a website." }
+  - { id: b10, level: l4, concept: c4, from: 0, human: 1, text: "People on their phones because the page might be too wide." }
+
+  # c1 Decompose a design, L5 (1 -> 2)
+  - { id: b11, level: l5, concept: c1, from: 1, human: 2, text: "- Header - shows the club name and logo\n- Events list - shows the next meetups with date and room\n- Sign-up form - lets new members join" }
+  - { id: b12, level: l5, concept: c1, from: 1, human: 1, text: "- header\n- events\n- form" }
+  - { id: b13, level: l5, concept: c1, from: 1, human: 1, text: "A page with stuff about the club and a place to sign up." }
+  - { id: b14, level: l5, concept: c1, from: 1, human: 3, text: "- Header - shows the club name, build this first because every page needs it\n- Events list - shows meetups, then build this because it needs the event data\n- Sign-up form - lets students join; it depends on the events list so members can pick an event" }
+
+  # c3 AI collaboration, L6 (1 -> 2)
+  - { id: b15, level: l6, concept: c3, from: 1, human: 2, text: "Create an events list for our club page. Show at most 5 upcoming events with date, time and room. If there are no events, show 'No meetups scheduled yet'." }
+  - { id: b16, level: l6, concept: c3, from: 1, human: 1, text: "Make an events list for the robotics club." }
+  - { id: b17, level: l6, concept: c3, from: 1, human: 1, text: "Make an events list. Only show the next 3 events." }
+  - { id: b18, level: l6, concept: c3, from: 1, human: 2, text: "Update the events section so it lists meetups newest first. It must only use our two school colors. When the list is empty, show a friendly message instead." }
+
+  # c2 Test and refine AI output, L7 (1 -> 2)
+  - { id: b19, level: l7, concept: c2, from: 1, human: 2, text: "The club asked for date, time and room, newest first. The list is missing the date and time and is sorted oldest first. Fix: add the date and time to each item and reverse the sort order." }
+  - { id: b20, level: l7, concept: c2, from: 1, human: 1, text: "It is wrong, the order is weird." }
+  - { id: b21, level: l7, concept: c2, from: 1, human: 1, text: "The list should be better. Change it." }
+
+  # c4 Responsible design, L10 (1 -> 2)
+  - { id: b22, level: l10, concept: c4, from: 1, human: 2, text: "Students with low vision would have trouble reading light gray text, and blind students using screen readers get nothing from the photos. I would raise the text contrast and add alt text to every photo." }
+  - { id: b23, level: l10, concept: c4, from: 1, human: 1, text: "Some people might not be able to read it." }
+  - { id: b24, level: l10, concept: c4, from: 1, human: 1, text: "People who are colorblind. I would make it nicer." }
+
+  # c2 Test and refine AI output, L13 (2 -> 3)
+  - { id: b25, level: l13, concept: c2, from: 2, human: 3, text: "Test 1: If I RSVP to event 4 with the name Sam, it should add Sam and say You are in. Test 2: If I enter a blank name, it should show an error instead of adding an empty attendee. Test 3: If the same name RSVPs twice, the duplicate should be rejected." }
+  - { id: b26, level: l13, concept: c2, from: 2, human: 2, text: "Test: if I enter my name it should say You are in." }

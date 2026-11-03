@@ -37,9 +37,9 @@ export interface ApiClient {
   getStudentTrace(studentId: string): Promise<StudentTrace>;
 }
 
-/** Demo-only controls, available in mock mode. */
+/** Demo-only controls: mock mode, or HTTP mode against a backend with AUTH_MODE=demo. */
 export interface DemoControls {
-  getFaultInjection(): boolean;
-  setFaultInjection(on: boolean): void;
-  resetDemo(): void;
+  getFaultInjection(): Promise<boolean>;
+  setFaultInjection(on: boolean): Promise<void>;
+  resetDemo(): Promise<void>;
 }

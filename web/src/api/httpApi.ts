@@ -1,11 +1,13 @@
 /**
- * HTTP client for the Rails API tier. Endpoint paths are the proposed contract;
- * the Rails team should match them or update this file.
+ * HTTP client for the Rails API tier (api/).
  *
- * Auth: sends the Cognito ID token as a Bearer JWT once Cognito is wired up
- * (design §11). Until then, getSession() returns null and sign-in is disabled.
+ * Auth:
+ *  - Cognito: pass a TokenProvider that returns the Cognito ID token; it is sent
+ *    as a Bearer JWT (design §11).
+ *  - Demo: when the backend runs with AUTH_MODE=demo, the chosen synthetic user
+ *    id is sent as X-Demo-User. Synthetic data only.
  */
-import type { ApiClient } from './client';
+import type { ApiClient, DemoControls } from './client';
 import {
   ApiError,
   type AssistantReply,
@@ -21,7 +23,9 @@ import {
 
 export type TokenProvider = () => Promise<string | null>;
 
-export class HttpApiClient implements ApiClient {
+const DEMO_USER_KEY = 'codeai-demo-user';
+
+export class HttpApiClient implements ApiClient, DemoControls {
   readonly mode = 'http' as const;
 
   constructor(
@@ -29,14 +33,24 @@ export class HttpApiClient implements ApiClient {
     private readonly getToken: TokenProvider = async () => null,
   ) {}
 
+  private demoUser(): string | null {
+    try {
+      return localStorage.getItem(DEMO_USER_KEY);
+    } catch {
+      return null;
+    }
+  }
+
   private async request<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
     const token = await this.getToken();
+    const demoUser = this.demoUser();
     const res = await fetch(`${this.baseUrl.replace(/\/$/, '')}${path}`, {
       method,
       headers: {
         Accept: 'application/json',
         ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(!token && demoUser ? { 'X-Demo-User': demoUser } : {}),
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
@@ -59,14 +73,24 @@ export class HttpApiClient implements ApiClient {
       throw e;
     });
   }
-  async listDemoUsers(): Promise<SessionUser[]> {
-    return [];
+  /** Empty unless the backend runs with AUTH_MODE=demo. */
+  listDemoUsers() {
+    return this.request<SessionUser[]>('GET', '/api/demo/users').catch((e: unknown) => {
+      if (e instanceof ApiError && e.status === 404) return [] as SessionUser[];
+      throw e;
+    });
   }
-  async signIn(): Promise<SessionUser> {
-    throw new ApiError('Sign-in goes through Cognito in HTTP mode.', 501);
+  async signIn(userId: string): Promise<SessionUser> {
+    localStorage.setItem(DEMO_USER_KEY, userId);
+    const user = await this.getSession();
+    if (!user) {
+      localStorage.removeItem(DEMO_USER_KEY);
+      throw new ApiError('Sign-in failed', 401);
+    }
+    return user;
   }
   async signOut() {
-    // Cognito sign-out is handled by the auth library.
+    localStorage.removeItem(DEMO_USER_KEY);
   }
 
   getLessonState() {
@@ -96,5 +120,16 @@ export class HttpApiClient implements ApiClient {
   }
   getStudentTrace(studentId: string) {
     return this.request<StudentTrace>('GET', `/api/teacher/students/${encodeURIComponent(studentId)}`);
+  }
+
+  // Demo controls (backend AUTH_MODE=demo only)
+  async getFaultInjection() {
+    return (await this.request<{ on: boolean }>('GET', '/api/demo/fault')).on;
+  }
+  async setFaultInjection(on: boolean) {
+    await this.request('POST', '/api/demo/fault', { on });
+  }
+  async resetDemo() {
+    await this.request('POST', '/api/demo/reset', {});
   }
 }

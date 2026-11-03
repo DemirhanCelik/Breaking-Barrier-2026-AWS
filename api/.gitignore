@@ -1,0 +1,11 @@
+/.bundle
+/vendor/bundle
+/log/*
+/tmp/*
+/storage/*
+/config/master.key
+/config/credentials/*.key
+.env
+.env.*
+!.env.example
+benchmark/results/

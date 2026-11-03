@@ -14,14 +14,19 @@ export function SignInPage() {
   const navigate = useNavigate();
   const [users, setUsers] = useState<SessionUser[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    api.listDemoUsers().then(setUsers).catch((e: Error) => setError(e.message));
+    api
+      .listDemoUsers()
+      .then(setUsers)
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoaded(true));
   }, []);
 
   if (user) return <Navigate to={user.role === 'teacher' ? '/teacher' : '/student'} replace />;
 
-  if (api.mode === 'http') {
+  if (api.mode === 'http' && loaded && users.length === 0 && !error) {
     return (
       <Container sx={{ py: 6 }}>
         <Alert severity="info">Sign-in uses Amazon Cognito in this environment. Cognito is not wired up in the frontend yet.</Alert>

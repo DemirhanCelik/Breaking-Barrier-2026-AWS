@@ -1,0 +1,30 @@
+source "https://rubygems.org"
+
+ruby "~> 3.3.0"
+
+# Only the Rails frameworks this API uses (no ActiveRecord, mailers, cable, storage).
+gem "railties", "~> 7.1.6"
+gem "actionpack", "~> 7.1.6"
+gem "activemodel", "~> 7.1.6"
+gem "puma", ">= 5.0", group: :development # local server only; Lambda uses Lamby
+gem "rack-cors", "~> 2.0"
+gem "rake"
+
+# Rails on AWS Lambda (API Gateway HTTP API events)
+gem "lamby", "~> 7.0"
+
+# AWS: Bedrock (rubric eval, coaching, Guardrails) and the Aurora Data API
+gem "aws-sdk-bedrockruntime", "~> 1.90"
+gem "aws-sdk-rdsdataservice", "~> 1.97"
+
+# Local Postgres driver (dev). Production talks to Aurora through the Data API.
+gem "pg", "~> 1.6"
+
+# Cognito ID token verification
+gem "jwt", "~> 3.1"
+
+gem "tzinfo-data", platforms: %i[ windows jruby ]
+
+group :development do
+  gem "debug", platforms: %i[ mri windows ]
+end

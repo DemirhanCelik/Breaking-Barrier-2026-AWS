@@ -557,16 +557,16 @@ export class MockApiClient implements ApiClient, DemoControls {
 
   // Demo controls -------------------------------------------------------------
 
-  getFaultInjection() {
+  async getFaultInjection() {
     return this.store.fault;
   }
 
-  setFaultInjection(on: boolean) {
+  async setFaultInjection(on: boolean) {
     this.store.fault = on;
     this.persist();
   }
 
-  resetDemo() {
+  async resetDemo() {
     const sessionUserId = this.store.sessionUserId;
     this.store = { ...seed(), sessionUserId };
     this.persist();
