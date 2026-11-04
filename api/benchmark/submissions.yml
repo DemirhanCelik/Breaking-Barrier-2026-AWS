@@ -48,3 +48,103 @@ items:
   # c2 Test and refine AI output, L13 (2 -> 3)
   - { id: b25, level: l13, concept: c2, from: 2, human: 3, text: "Test 1: If I RSVP to event 4 with the name Sam, it should add Sam and say You are in. Test 2: If I enter a blank name, it should show an error instead of adding an empty attendee. Test 3: If the same name RSVPs twice, the duplicate should be rejected." }
   - { id: b26, level: l13, concept: c2, from: 2, human: 2, text: "Test: if I enter my name it should say You are in." }
+
+  # c1 Decompose a design, L1 (0 -> 1)
+  - { id: b27, level: l1, concept: c1, from: 0, human: 1, text: "- Header - the club name\n- Events - when we meet" }
+
+  # c1 Decompose a design, L12 (2 -> 3)
+  - { id: b28, level: l12, concept: c1, from: 2, human: 3, text: "- First, the RSVP data store - holds who is attending each event\n- Then the RSVP button - lets a member join an event, and it needs the data store first\n- Last, the attendee count - shows how many people are going, and it depends on the data store too" }
+
+  # c3 AI collaboration, L14 (2 -> 3)
+  - { id: b29, level: l14, concept: c3, from: 2, human: 3, text: "Prompt 1: Create a color scheme using only blue and gold, because that locks the look before anything else changes. Prompt 2: Then restyle the header and events list to match, so that the layout stays the same and only the styling changes. Prompt 3: Next, if the club name is too long on a phone, wrap it onto two lines, which gets the page closer to what the club wants on small screens." }
+
+  # c4 Responsible design, L15 (2 -> 3)
+  - { id: b30, level: l15, concept: c4, from: 2, human: 2, text: "I would remove the video. Students on slow phones would wait a long time for the page to load, and blind students get nothing from a video, so I would use one photo with alt text instead." }
+
+  # ---- Batch 2 (b31-b80): wider coverage of every task level --------------
+
+  # c1 Decompose a design, L1 (0 -> 1)
+  - { id: b31, level: l1, concept: c1, from: 0, human: 2, text: "- Header - shows the club name and logo\n- Events list - shows the next meetups\n- Sign-up form - lets new members join" }
+  - { id: b32, level: l1, concept: c1, from: 0, human: 0, text: "I would just ask the AI to make the whole thing." }
+  - { id: b33, level: l1, concept: c1, from: 0, human: 1, text: "- header\n- calendar\n- contact form" }
+  - { id: b34, level: l1, concept: c1, from: 0, human: 0, text: "No idea where to start." }
+  - { id: b35, level: l1, concept: c1, from: 0, human: 1, text: "The page needs a top part, a list of dates, and somewhere to sign up." }
+
+  # c2 Test and refine AI output, L2 (0 -> 1)
+  - { id: b36, level: l2, concept: c2, from: 0, human: 1, text: "The form has no email box." }
+  - { id: b37, level: l2, concept: c2, from: 0, human: 2, text: "The club asked for a name, an email and a confirmation. The form has no email field and nothing happens on submit, so I would add an email input and show a thank you message." }
+  - { id: b38, level: l2, concept: c2, from: 0, human: 0, text: "It's fine, it's a form." }
+
+  # c3 AI collaboration, L3 (0 -> 1)
+  - { id: b39, level: l3, concept: c3, from: 0, human: 1, text: "Make a header that shows the Robotics Club name at the top of the page." }
+  - { id: b40, level: l3, concept: c3, from: 0, human: 0, text: "do the header thing" }
+  - { id: b41, level: l3, concept: c3, from: 0, human: 2, text: "Create a header with the club name. It must use only blue and gold. If the name is too long on a phone, wrap it onto a second line." }
+
+  # c4 Responsible design, L4 (0 -> 1)
+  - { id: b42, level: l4, concept: c4, from: 0, human: 1, text: "Colorblind students might not be able to tell the buttons apart." }
+  - { id: b43, level: l4, concept: c4, from: 0, human: 0, text: "I don't think anyone would have a problem with it." }
+  - { id: b44, level: l4, concept: c4, from: 0, human: 2, text: "Students using screen readers can't use photos without alt text, so I would add alt text to every photo." }
+
+  # c1 Decompose a design, L5 (1 -> 2)
+  - { id: b45, level: l5, concept: c1, from: 1, human: 2, text: "- Header - shows the club name\n- Events list - shows upcoming meetups with date and room\n- Sign-up form - lets students join\n- Footer - holds contact info" }
+  - { id: b46, level: l5, concept: c1, from: 1, human: 1, text: "- Top bar\n- Events\n- Join" }
+  - { id: b47, level: l5, concept: c1, from: 1, human: 1, text: "- Header - shows the name\n- Menu bar - has the header links\n- Navigation - links to pages" }
+
+  # c3 AI collaboration, L6 (1 -> 2)
+  - { id: b48, level: l6, concept: c3, from: 1, human: 2, text: "Create an events list showing the next 5 meetups with date and room. It must use only our two school colors. If there are no events, show 'Nothing scheduled yet'." }
+  - { id: b49, level: l6, concept: c3, from: 1, human: 1, text: "Make an events list that shows the date and room for every meetup." }
+  - { id: b50, level: l6, concept: c3, from: 1, human: 0, text: "events please" }
+
+  # c2 Test and refine AI output, L7 (1 -> 2)
+  - { id: b51, level: l7, concept: c2, from: 1, human: 2, text: "The club asked for newest first with date, time and room. The list is oldest first and has no date or time. I would sort it newest first and add the date and time to each item." }
+  - { id: b52, level: l7, concept: c2, from: 1, human: 1, text: "The list doesn't have the dates in it." }
+  - { id: b53, level: l7, concept: c2, from: 1, human: 0, text: "Looks right to me." }
+
+  # c3 AI collaboration, L8 (1 -> 2)
+  - { id: b54, level: l8, concept: c3, from: 1, human: 2, text: "Update the sign-up form to collect a name and email. It must only accept real-looking emails. If the name field is blank, show 'Please enter your name'." }
+  - { id: b55, level: l8, concept: c3, from: 1, human: 1, text: "Make the sign-up form better so it collects emails." }
+
+  # c2 Test and refine AI output, L8 (1 -> 2)
+  - { id: b56, level: l8, concept: c2, from: 1, human: 3, text: "Test 1: If I enter a blank email, the page should show an error. Test 2: If I enter an email with no @ sign, it should be rejected. Test 3: If I sign up twice with the same email, the second one should be refused as a duplicate." }
+  - { id: b57, level: l8, concept: c2, from: 1, human: 1, text: "I would try it and see if it works." }
+
+  # c3 AI collaboration, L9 (1 -> 2)
+  - { id: b58, level: l9, concept: c3, from: 1, human: 2, text: "I wanted a sign-up form but the AI gave me a photo gallery instead. Change only the gallery: replace it with a sign-up form with name and email, and keep the rest of the page the same." }
+  - { id: b59, level: l9, concept: c3, from: 1, human: 1, text: "The AI did it wrong. Make it again with a sign-up form." }
+
+  # c1 Decompose a design, L9 (1 -> 2)
+  - { id: b60, level: l9, concept: c1, from: 1, human: 2, text: "- Name field - lets the member type their name\n- Email field - collects the member's email\n- Join button - sends the sign-up\n- Confirmation message - tells them they joined" }
+  - { id: b61, level: l9, concept: c1, from: 1, human: 1, text: "- Sign-up\n- Form stuff" }
+
+  # c4 Responsible design, L10 (1 -> 2)
+  - { id: b62, level: l10, concept: c4, from: 1, human: 2, text: "Low vision students can't read light gray text on white. I would make the text dark and increase the contrast, and add alt text to the photos for blind students." }
+  - { id: b63, level: l10, concept: c4, from: 1, human: 1, text: "People who can't see well." }
+  - { id: b64, level: l10, concept: c4, from: 1, human: 0, text: "Everyone can read it fine." }
+
+  # c3 AI collaboration, L11 (1 -> 2)
+  - { id: b65, level: l11, concept: c3, from: 1, human: 2, text: "I wanted the button to say 'Join the club' but the AI wrote 'Submit query'. Change only the button text to 'Join the club' and keep the rest of the form the same." }
+  - { id: b66, level: l11, concept: c3, from: 1, human: 1, text: "Fix the button. Change it to say join." }
+
+  # c2 Test and refine AI output, L11 (1 -> 2)
+  - { id: b67, level: l11, concept: c2, from: 1, human: 2, text: "The club asked for the button to say 'Join the club' but it says 'Submit query'. I would change the label to what they asked for, then reload the page to check it." }
+  - { id: b68, level: l11, concept: c2, from: 1, human: 1, text: "The button has the wrong words." }
+
+  # c1 Decompose a design, L12 (2 -> 3)
+  - { id: b69, level: l12, concept: c1, from: 2, human: 3, text: "- First, the RSVP list - holds who is going to each event\n- Then the RSVP form - lets a member add their name, and it needs the list first\n- Then the count - shows how many are going, which depends on the list" }
+  - { id: b70, level: l12, concept: c1, from: 2, human: 2, text: "- RSVP list - stores who is going\n- RSVP form - lets a member join an event\n- Attendee count - shows how many people are going" }
+  - { id: b71, level: l12, concept: c1, from: 2, human: 1, text: "- RSVP\n- Count\n- Names" }
+
+  # c2 Test and refine AI output, L13 (2 -> 3)
+  - { id: b72, level: l13, concept: c2, from: 2, human: 3, text: "Test 1: If I RSVP to event 2 as Maya, it should add Maya and say You are in. Test 2: If I leave the name blank, it should show an error. Test 3: If I RSVP to an event that doesn't exist, it should fail with a message, not crash." }
+  - { id: b73, level: l13, concept: c2, from: 2, human: 2, text: "The function never checks for a blank name, so an empty name would be added as an attendee. I would add a check that rejects empty names." }
+  - { id: b74, level: l13, concept: c2, from: 2, human: 1, text: "I would run it and see if it breaks." }
+
+  # c3 AI collaboration, L14 (2 -> 3)
+  - { id: b75, level: l14, concept: c3, from: 2, human: 3, text: "Prompt 1: Make a plan for the new look using only blue and gold, because it sets the colors before any code changes. Prompt 2: Then restyle the events list to match, so that the structure stays the same. Prompt 3: Next, if there are no events, show a friendly message, which gets the page closer to what the club wants." }
+  - { id: b76, level: l14, concept: c3, from: 2, human: 2, text: "Prompt 1: Redesign the header in blue and gold. Prompt 2: Redesign the events list in blue and gold. Prompt 3: Redesign the footer in blue and gold." }
+  - { id: b77, level: l14, concept: c3, from: 2, human: 1, text: "Make the whole page look better." }
+
+  # c4 Responsible design, L15 (2 -> 3)
+  - { id: b78, level: l15, concept: c4, from: 2, human: 3, text: "I would drop the video on the homepage and keep it on a separate page. The video looks exciting, but students on slow phones would wait a long time and blind students get nothing from it. The trade-off is less wow factor on the first screen, but it is still the right call because every student can use the homepage." }
+  - { id: b79, level: l15, concept: c4, from: 2, human: 2, text: "I would remove the video because slow phones can't load it, and I would use a small photo with alt text instead." }
+  - { id: b80, level: l15, concept: c4, from: 2, human: 1, text: "Slow phones might have trouble with the video." }
