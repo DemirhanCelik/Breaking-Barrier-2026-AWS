@@ -105,6 +105,22 @@ export interface AssistantReply {
   withheld: boolean;
 }
 
+/** Formative practice (POST /api/student/levels/:id/practice). Never affects the lesson path. */
+export interface PracticeItem {
+  id: string;
+  title: string;
+  scenario: string;
+  task: string;
+  tip: string;
+  /** True when written by AI for this student (passed the safety filter and quality check). */
+  aiGenerated: boolean;
+}
+
+export interface PracticeFeedback {
+  feedback: string;
+  withheld: boolean;
+}
+
 // ---------------------------------------------------------------------------
 // Teacher-facing (GET /api/teacher/...) - teacher group + class ownership only
 // ---------------------------------------------------------------------------
@@ -173,16 +189,107 @@ export interface RoadmapStep {
   targets: ConceptId[];
 }
 
+export interface QualityResult {
+  passed: boolean;
+  /** Curriculum-quality rubric scores, 1-4 per criterion (empty when only pre-checks ran). */
+  scores: Record<string, number>;
+  notes: string;
+  prechecks: string[];
+  judge: 'model' | 'skipped' | 'error';
+}
+
+export type PracticeOrigin = 'generated' | 'bank' | 'authored';
+
+export interface PracticeRecord {
+  id: string;
+  at: string;
+  levelCode: string;
+  conceptId: ConceptId;
+  fromStage: Stage;
+  targetStage: Stage;
+  title: string;
+  origin: PracticeOrigin;
+  /** Why live generation was not used (filter, judge, model, or fault). */
+  fallbackReason: string | null;
+  quality: QualityResult | null;
+  attempts: number;
+}
+
 export interface StudentTrace extends StudentAttainment {
   bar: Stage;
   concepts: TeacherConcept[];
   roadmap: RoadmapStep[];
   decisions: RouteDecision[];
   validations: ValidationRecord[];
+  /** Formative practice: excluded from the mastery signal and routing. */
+  practice: PracticeRecord[];
 }
 
+// AI-assisted authoring (GET/POST /api/teacher/authoring...)
+export type ContentStatus = 'pending' | 'approved' | 'rejected';
+
+export interface ContentItem {
+  id: string;
+  conceptId: ConceptId;
+  fromStage: Stage;
+  targetStage: Stage;
+  title: string;
+  scenario: string;
+  task: string;
+  tip: string;
+  status: ContentStatus;
+  version: number;
+  sourceTitle: string | null;
+  /** Provenance: the passage of the source this draft is based on. */
+  sourceQuote: string | null;
+  /** True when the quote was found verbatim in the source. */
+  quoteVerified: boolean;
+  quality: QualityResult | null;
+  filter: { ok: boolean; source: string; redactions?: number } | null;
+  reviewerNote: string | null;
+  createdBy: string;
+  reviewedBy: string | null;
+  at: string;
+}
+
+export interface BankSlot {
+  conceptId: ConceptId;
+  fromStage: Stage;
+  targetStage: Stage;
+  authored: number;
+  approved: number;
+}
+
+export interface PracticeStats {
+  generated: number;
+  fromApprovedBank: number;
+  fromAuthored: number;
+  fellBack: number;
+}
+
+export interface AuthoringState {
+  items: ContentItem[];
+  bank: BankSlot[];
+  practice: PracticeStats;
+}
+
+export interface DraftRequest {
+  concept: ConceptId;
+  fromStage: Stage;
+  sourceTitle: string;
+  sourceText: string;
+  count: number;
+}
+
+export interface DraftResult {
+  items: ContentItem[];
+  redactions: number;
+}
+
+export type ContentEdits = Partial<Pick<ContentItem, 'title' | 'scenario' | 'task' | 'tip'>>;
+
 // Filter audit log (GET /api/teacher/safety, BRD M7). Outcomes only, no text.
-export type FilterContext = 'submission' | 'assistant' | 'coaching';
+export type FilterContext = 'submission' | 'assistant' | 'coaching' | 'practice' | 'practice_answer';
 export type FilterOutcome = 'pass' | 'blocked' | 'error';
 
 export interface FilterCount {
@@ -208,7 +315,7 @@ export interface FilterEvent {
 export interface FilterAudit {
   inputs: FilterTotals;
   outputs: FilterTotals;
-  coverage: { submissions: FilterCount; coaching: FilterCount; assistantReplies: FilterCount };
+  coverage: { submissions: FilterCount; coaching: FilterCount; assistantReplies: FilterCount; practice: FilterCount };
   bySource: { direction: 'input' | 'output'; outcome: FilterOutcome; source: string; count: number }[];
   recent: FilterEvent[];
 }

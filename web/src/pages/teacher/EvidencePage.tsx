@@ -144,7 +144,7 @@ export function EvidencePage() {
 
   // M7: from the filter audit log.
   const m7Gaps = audit
-    ? [audit.coverage.submissions, audit.coverage.coaching, audit.coverage.assistantReplies].reduce(
+    ? [audit.coverage.submissions, audit.coverage.coaching, audit.coverage.assistantReplies, audit.coverage.practice].reduce(
         (n, c) => n + c.required - c.checked,
         0,
       )

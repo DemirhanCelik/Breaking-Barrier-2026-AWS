@@ -1,5 +1,12 @@
 import type {
   AssistantReply,
+  AuthoringState,
+  ContentEdits,
+  ContentItem,
+  DraftRequest,
+  DraftResult,
+  PracticeFeedback,
+  PracticeItem,
   ClassAttainment,
   DiagnosticAnswers,
   FilterAudit,
@@ -32,11 +39,18 @@ export interface ApiClient {
   getSubmission(submissionId: string): Promise<SubmissionOutcome>;
   chooseDepth(optionId: string): Promise<LessonState>;
   askAssistant(levelId: string, message: string): Promise<AssistantReply>;
+  /** Formative practice for the current level; never changes the lesson path. */
+  createPractice(levelId: string): Promise<PracticeItem>;
+  answerPractice(practiceId: string, response: string): Promise<PracticeFeedback>;
 
   // Teacher-scoped: 403 for student tokens
   getClassAttainment(): Promise<ClassAttainment>;
   getStudentTrace(studentId: string): Promise<StudentTrace>;
   getFilterAudit(): Promise<FilterAudit>;
+  // AI-assisted authoring: AI drafts, a human approves
+  getAuthoring(): Promise<AuthoringState>;
+  draftContent(req: DraftRequest): Promise<DraftResult>;
+  reviewContent(id: string, decision: 'approve' | 'reject', edits?: ContentEdits, note?: string): Promise<ContentItem>;
 }
 
 /** Demo-only controls: mock mode, or HTTP mode against a backend with AUTH_MODE=demo. */

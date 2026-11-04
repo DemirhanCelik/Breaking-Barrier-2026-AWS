@@ -137,6 +137,64 @@ export const SCHEMA_STATEMENTS: string[] = [
   `CREATE INDEX IF NOT EXISTS filter_event_ref_idx ON filter_event (ref_id)`,
 
   `CREATE INDEX IF NOT EXISTS filter_event_student_idx ON filter_event (student_id, created_at)`,
+
+  // --- AI-assisted authoring bank (design §7B) -----------------------------
+  `CREATE TABLE IF NOT EXISTS content_item (
+     id              text PRIMARY KEY,
+     concept         text NOT NULL,
+     from_stage      smallint NOT NULL,
+     to_stage        smallint NOT NULL,
+     title           text NOT NULL,
+     scenario        text NOT NULL,
+     task            text NOT NULL,
+     tip             text NOT NULL,
+     status          text NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')),
+     version         integer NOT NULL DEFAULT 1,
+     source_title    text,
+     source_quote    text,
+     quote_verified  boolean NOT NULL DEFAULT false,
+     quality_json    jsonb,
+     filter_json     jsonb,
+     reviewer_note   text,
+     created_by      text NOT NULL,
+     reviewed_by     text,
+     created_at      timestamptz NOT NULL DEFAULT now(),
+     reviewed_at     timestamptz
+   )`,
+
+  `CREATE INDEX IF NOT EXISTS content_item_status_idx ON content_item (status, concept, from_stage)`,
+
+  // --- Formative practice (design §7A); never feeds the mastery signal -----
+  `CREATE TABLE IF NOT EXISTS practice_item (
+     id               text PRIMARY KEY,
+     student_id       text NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+     level_id         text NOT NULL,
+     concept          text NOT NULL,
+     from_stage       smallint NOT NULL,
+     to_stage         smallint NOT NULL,
+     title            text NOT NULL,
+     scenario         text NOT NULL,
+     task             text NOT NULL,
+     tip              text NOT NULL,
+     origin           text NOT NULL CHECK (origin IN ('generated', 'bank', 'authored')),
+     content_item_id  text,
+     fallback_reason  text,
+     quality_json     jsonb,
+     model_meta_json  jsonb,
+     created_at       timestamptz NOT NULL DEFAULT now()
+   )`,
+
+  `CREATE INDEX IF NOT EXISTS practice_item_student_idx ON practice_item (student_id, created_at)`,
+
+  `CREATE TABLE IF NOT EXISTS practice_attempt (
+     id           text PRIMARY KEY,
+     practice_id  text NOT NULL REFERENCES practice_item(id) ON DELETE CASCADE,
+     student_id   text NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+     content      text,
+     feedback     text NOT NULL,
+     withheld     boolean NOT NULL DEFAULT false,
+     created_at   timestamptz NOT NULL DEFAULT now()
+   )`,
 ];
 
 /**
@@ -150,7 +208,10 @@ export const SCHEMA_STATEMENTS: string[] = [
  * Keep one statement per entry (Data API limit). Append only; don't edit
  * entries that have already been deployed.
  */
-export const MIGRATION_STATEMENTS: string[] = [];
+export const MIGRATION_STATEMENTS: string[] = [
+  // filter_event contexts are validated in the app (FilterAudit::CONTEXTS); adds practice contexts.
+  `ALTER TABLE filter_event DROP CONSTRAINT IF EXISTS filter_event_context_check`,
+];
 
 /** All DDL in execution order: base tables first, then migrations. */
 const ALL_STATEMENTS: string[] = [...SCHEMA_STATEMENTS, ...MIGRATION_STATEMENTS];

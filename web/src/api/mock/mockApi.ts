@@ -16,7 +16,17 @@ import {
   type AttainmentStatus,
   type ClassAttainment,
   type DiagnosticAnswers,
+  type AuthoringState,
+  type ContentEdits,
+  type ContentItem,
   type DiagnosticForm,
+  type DraftRequest,
+  type DraftResult,
+  type PracticeFeedback,
+  type PracticeItem,
+  type PracticeRecord,
+  type QualityResult,
+  type Stage,
   type FilterAudit,
   type FilterContext,
   type FilterEvent,
@@ -33,7 +43,18 @@ import {
   type TeacherConcept,
   type ValidationRecord,
 } from '../types';
-import { CHECKS, CLASS_INFO, CONCEPTS, DIAGNOSTIC, PROJECT_LEVEL_ID, conceptById, levelById } from './curriculum';
+import {
+  CHECKS,
+  CLASS_INFO,
+  CONCEPTS,
+  DIAGNOSTIC,
+  LEVELS,
+  PROJECT_LEVEL_ID,
+  REQUIRED_CONCEPTS,
+  conceptById,
+  levelById,
+} from './curriculum';
+import { PRACTICE_BANK, type BankItem } from './practiceBank';
 import {
   MAX_ATTEMPTS_PER_LEVEL,
   MAX_FAILS_PER_TRANSITION,
@@ -74,10 +95,19 @@ interface StoredFilterEvent extends Omit<FilterEvent, 'displayName'> {
   refId: string;
 }
 
+interface StoredPractice extends PracticeRecord {
+  studentId: string;
+  item: PracticeItem;
+}
+
 interface Store {
   sessionUserId: string | null;
   fault: boolean;
   students: Record<string, StudentRecord>;
+  /** Formative practice served (optional so older saved stores still load). */
+  practice?: Record<string, StoredPractice>;
+  /** Authoring queue; survives demo reset like the API's content_item table. */
+  content?: ContentItem[];
   /** Filter audit log (M7); optional so stores saved before it existed still load. */
   filterEvents?: StoredFilterEvent[];
 }
@@ -369,6 +399,7 @@ export class MockApiClient implements ApiClient, DemoControls {
     const u = this.user();
     if (!u) throw new ApiError('Not signed in', 401);
     if (u.role !== 'teacher') throw new ApiError('Forbidden: teacher-scoped endpoint', 403);
+    return u;
   }
 
   // Session -----------------------------------------------------------------
@@ -585,6 +616,10 @@ export class MockApiClient implements ApiClient, DemoControls {
       roadmap: steps,
       decisions: [...s.decisions].reverse(),
       validations: [...s.validations].reverse(),
+      practice: Object.values(this.store.practice ?? {})
+        .filter((p) => p.studentId === s.id)
+        .reverse()
+        .map(({ studentId: _sid, item: _item, ...r }) => r),
     };
   }
 
@@ -605,6 +640,12 @@ export class MockApiClient implements ApiClient, DemoControls {
     const submissions = { required: subIds.length, checked: subIds.filter((id) => has(id, 'submission', 'input')).length };
     const coaching = { required: coachedIds.length, checked: coachedIds.length };
     const assistantReplies = { required: passed.length, checked: passed.filter((e) => has(e.refId, 'assistant', 'output')).length };
+    const practiceAnswers = events.filter((e) => e.context === 'practice_answer');
+    const practicePassed = practiceAnswers.filter((e) => e.outcome === 'pass');
+    const practiceReplies = {
+      required: practicePassed.length,
+      checked: practicePassed.filter((e) => has(e.refId, 'practice', 'output')).length,
+    };
     const bySource = new Map<string, FilterAudit['bySource'][number]>();
     for (const e of events) {
       const key = `${e.direction}|${e.outcome}|${e.source}`;
@@ -614,18 +655,26 @@ export class MockApiClient implements ApiClient, DemoControls {
     }
     return {
       inputs: {
-        required: submissions.required + asked.length,
-        checked: submissions.checked + asked.length,
+        required: submissions.required + asked.length + practiceAnswers.length,
+        checked: submissions.checked + asked.length + practiceAnswers.length,
         blocked: count('input', 'blocked'),
         errors: count('input', 'error'),
       },
       outputs: {
-        required: coaching.required + assistantReplies.required,
-        checked: coaching.checked + assistantReplies.checked,
+        required: coaching.required + assistantReplies.required + practiceReplies.required,
+        checked: coaching.checked + assistantReplies.checked + practiceReplies.checked,
         blocked: count('output', 'blocked'),
         errors: count('output', 'error'),
       },
-      coverage: { submissions, coaching, assistantReplies },
+      coverage: {
+        submissions,
+        coaching,
+        assistantReplies,
+        practice: {
+          required: practiceAnswers.length + practiceReplies.required,
+          checked: practiceAnswers.length + practiceReplies.checked,
+        },
+      },
       bySource: [...bySource.values()],
       recent: [...events]
         .reverse()
@@ -645,9 +694,213 @@ export class MockApiClient implements ApiClient, DemoControls {
     this.persist();
   }
 
+  // Formative practice ------------------------------------------------------
+  // The mock has no model, so it serves approved drafts first, then the authored bank
+  // (the API generates live, gates it, and falls back the same way).
+
+  async createPractice(levelId: string): Promise<PracticeItem> {
+    await delay(500);
+    const s = this.requireStudent();
+    if (s.currentLevelId !== levelId) throw new ApiError('That step is not current.', 409);
+    const level = levelById(levelId);
+    const t = applicableTransitions(level, s.stages)[0] ?? lowestBelow(s.stages);
+    if (!t) throw new ApiError('No practice available for this step.', 404);
+    const approved = (this.store.content ?? []).filter(
+      (c) => c.status === 'approved' && c.conceptId === t.concept && c.fromStage === t.from,
+    );
+    const fromBank = approved.length ? pick(approved) : null;
+    const authored =
+      pick(PRACTICE_BANK.filter((b) => b.concept === t.concept && b.from === t.from)) ??
+      PRACTICE_BANK.find((b) => b.concept === t.concept)!;
+    const src: Pick<BankItem, 'title' | 'scenario' | 'task' | 'tip'> = fromBank ?? authored;
+    const item: PracticeItem = {
+      id: newId(),
+      title: src.title,
+      scenario: src.scenario,
+      task: src.task,
+      tip: src.tip,
+      aiGenerated: false,
+    };
+    (this.store.practice ??= {})[item.id] = {
+      id: item.id,
+      at: nowIso(),
+      levelCode: level.code,
+      conceptId: t.concept,
+      fromStage: t.from,
+      targetStage: t.to,
+      title: item.title,
+      origin: fromBank ? 'bank' : 'authored',
+      fallbackReason: 'mock mode: no live generation',
+      quality: null,
+      attempts: 0,
+      studentId: s.id,
+      item,
+    };
+    this.persist();
+    return item;
+  }
+
+  async answerPractice(practiceId: string, response: string): Promise<PracticeFeedback> {
+    await delay(500);
+    const s = this.requireStudent();
+    const p = this.store.practice?.[practiceId];
+    if (!p || p.studentId !== s.id) throw new ApiError('Practice not found', 404);
+    if (!response.trim()) throw new ApiError('Response is empty', 422);
+    const attemptId = newId();
+    const input = filterText(response);
+    this.audit(s.id, 'practice_answer', 'input', attemptId, input);
+    p.attempts += 1;
+    if (!input.ok) {
+      this.persist();
+      return { feedback: input.message, withheld: true };
+    }
+    const checks =
+      LEVELS.flatMap((l) => l.transitions).find((t) => t.concept === p.conceptId && t.to === p.targetStage)?.checks ?? [];
+    const missing = checks.map((id) => CHECKS[id]).filter((c) => !c.test(response));
+    const feedback = missing.length
+      ? `Good start. Next, try this: ${missing[0].hint}`
+      : 'Nice work. You covered what this practice was about. Ready to go back to your task?';
+    this.audit(s.id, 'practice', 'output', attemptId, filterText(feedback));
+    this.persist();
+    return { feedback, withheld: false };
+  }
+
+  // Authoring ----------------------------------------------------------------
+
+  async getAuthoring(): Promise<AuthoringState> {
+    await delay();
+    this.requireTeacher();
+    const content = this.store.content ?? [];
+    const practice = Object.values(this.store.practice ?? {});
+    return {
+      items: [...content].reverse(),
+      bank: REQUIRED_CONCEPTS.flatMap((cid) =>
+        ([0, 1, 2] as const).map((from) => ({
+          conceptId: cid,
+          fromStage: from,
+          targetStage: (from + 1) as Stage,
+          authored: PRACTICE_BANK.filter((b) => b.concept === cid && b.from === from).length,
+          approved: content.filter((c) => c.status === 'approved' && c.conceptId === cid && c.fromStage === from).length,
+        })),
+      ),
+      practice: {
+        generated: practice.filter((p) => p.origin === 'generated').length,
+        fromApprovedBank: practice.filter((p) => p.origin === 'bank').length,
+        fromAuthored: practice.filter((p) => p.origin === 'authored').length,
+        fellBack: practice.filter((p) => p.origin !== 'generated').length,
+      },
+    };
+  }
+
+  /** Mock drafting: templated items grounded in source sentences (the API uses Bedrock). */
+  async draftContent(req: DraftRequest): Promise<DraftResult> {
+    await delay(900);
+    const teacher = this.requireTeacher();
+    const text = req.sourceText.trim();
+    if (text.length < 40) throw new ApiError('Paste at least a few sentences of source material', 422);
+    let redactions = 0;
+    const redact = () => {
+      redactions += 1;
+      return '[redacted]';
+    };
+    const redacted = text
+      .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, redact)
+      .replace(/(\+?\d{1,2}[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/g, redact);
+    const sentences = redacted.split(/(?<=[.!?])\s+/).filter((x) => x.split(/\s+/).length >= 5);
+    const concept = conceptById(req.concept);
+    const to = (req.fromStage + 1) as Stage;
+    const settings = ['the school library page', 'a food drive sign-up page', 'the band concert schedule'];
+    const items = Array.from({ length: Math.min(Math.max(req.count, 1), 3) }, (_, i): ContentItem => {
+      const quote = (sentences[i % Math.max(sentences.length, 1)] ?? redacted).split(/\s+/).slice(0, 25).join(' ');
+      const draft = {
+        title: `${concept.name}: ${settings[i]}`,
+        scenario: `A student group is building ${settings[i]} with help from an AI.`,
+        task: `Using the idea from your notes, show this for ${settings[i]}: ${concept.descriptors[to].toLowerCase()}`,
+        tip: 'Start with one concrete example from the page before you write.',
+      };
+      return {
+        id: newId(),
+        conceptId: req.concept,
+        fromStage: req.fromStage,
+        targetStage: to,
+        ...draft,
+        status: 'pending',
+        version: 1,
+        sourceTitle: req.sourceTitle || null,
+        sourceQuote: quote,
+        quoteVerified: true,
+        quality: mockQuality(draft),
+        filter: { ok: true, source: 'local', redactions },
+        reviewerNote: null,
+        createdBy: teacher.id,
+        reviewedBy: null,
+        at: nowIso(),
+      };
+    });
+    (this.store.content ??= []).push(...items);
+    this.persist();
+    return { items, redactions };
+  }
+
+  async reviewContent(
+    id: string,
+    decision: 'approve' | 'reject',
+    edits?: ContentEdits,
+    note?: string,
+  ): Promise<ContentItem> {
+    await delay();
+    const teacher = this.requireTeacher();
+    const item = (this.store.content ?? []).find((c) => c.id === id);
+    if (!item) throw new ApiError('Item not found', 404);
+    if (decision === 'approve') {
+      const fields = ['title', 'scenario', 'task', 'tip'] as const;
+      const next = { ...item };
+      for (const f of fields) if (edits?.[f]?.trim()) next[f] = edits[f]!.trim();
+      if (fields.some((f) => next[f] !== item[f])) {
+        const q = mockQuality(next);
+        if (q.prechecks.length) throw new ApiError(`Edit not allowed: ${q.prechecks.join('; ')}`, 422);
+        Object.assign(item, next, { version: item.version + 1, quality: q });
+      }
+      item.status = 'approved';
+    } else {
+      item.status = 'rejected';
+    }
+    item.reviewerNote = note?.trim() || null;
+    item.reviewedBy = teacher.id;
+    this.persist();
+    return item;
+  }
+
   async resetDemo() {
     const sessionUserId = this.store.sessionUserId;
-    this.store = { ...seed(), sessionUserId };
+    this.store = { ...seed(), sessionUserId, content: this.store.content };
     this.persist();
   }
+}
+
+const pick = <T>(xs: T[]): T | undefined => xs[Math.floor(Math.random() * xs.length)];
+
+const EVALUATIVE = /\b(stages?|scores?|scored|grades?|graded|points?|rank(ed|ing)?|percent(ile)?|level \d|pass(ed)?|fail(ed)?)\b/i;
+
+/** Mock of the API's quality pre-checks (the API adds the LLM judge). */
+function mockQuality(item: { title: string; scenario: string; task: string; tip: string }): QualityResult {
+  const text = [item.title, item.scenario, item.task, item.tip].join(' ');
+  const prechecks: string[] = [];
+  const m = text.match(EVALUATIVE);
+  if (m) prechecks.push(`mentions evaluation ("${m[0]}")`);
+  if (item.task.split(/\s+/).filter(Boolean).length < 8) prechecks.push('task is too short');
+  return {
+    passed: prechecks.length === 0,
+    scores: {},
+    notes: prechecks.length ? `Failed pre-checks: ${prechecks.join('; ')}` : 'Pre-checks only (mock mode has no model judge).',
+    prechecks,
+    judge: 'skipped',
+  };
+}
+
+/** Lowest concept still below Exceeding (practice target when the level has no open transition). */
+function lowestBelow(stages: StageVector) {
+  const cid = [...REQUIRED_CONCEPTS].sort((a, b) => stages[a] - stages[b])[0];
+  const from = stages[cid];
+  return from < 3 ? { concept: cid, from, to: (from + 1) as Stage, checks: [] as string[] } : undefined;
 }

@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Box, Button, InputBase, LinearProgress, Typography } from '@mui/material';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
+import FitnessCenterOutlinedIcon from '@mui/icons-material/FitnessCenterOutlined';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import { api, type StudentLevel, type SubmissionOutcome } from '../../api';
 import { PaneHeader, SpeechBubble } from '../../components/brand';
 import { brand } from '../../theme';
 import { AssistantDrawer } from './AssistantDrawer';
+import { PracticeDialog } from './PracticeDialog';
 
 const POLL_MS = 400;
 const POLL_TIMEOUT_MS = 20_000;
@@ -31,6 +33,7 @@ export function LevelView({
   const [response, setResponse] = useState('');
   const [feedback, setFeedback] = useState<Feedback>({ kind: 'none' });
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const [practiceOpen, setPracticeOpen] = useState(false);
   const cancelled = useRef(false);
 
   useEffect(() => {
@@ -161,19 +164,29 @@ export function LevelView({
           title="Your work"
           right={
             !canContinue && (
-              <Button
-                size="small"
-                startIcon={<LightbulbOutlinedIcon />}
-                onClick={() => setAssistantOpen(true)}
-                sx={{
-                  color: brand.charcoal,
-                  ...(outcome?.status === 'done' && outcome.offerAssistant
-                    ? { bgcolor: '#fff3d6', '&:hover': { bgcolor: '#ffe9b3' } }
-                    : {}),
-                }}
-              >
-                Hint
-              </Button>
+              <Box sx={{ display: 'flex', gap: 0.5 }}>
+                <Button
+                  size="small"
+                  startIcon={<FitnessCenterOutlinedIcon />}
+                  onClick={() => setPracticeOpen(true)}
+                  sx={{ color: brand.charcoal }}
+                >
+                  Practice
+                </Button>
+                <Button
+                  size="small"
+                  startIcon={<LightbulbOutlinedIcon />}
+                  onClick={() => setAssistantOpen(true)}
+                  sx={{
+                    color: brand.charcoal,
+                    ...(outcome?.status === 'done' && outcome.offerAssistant
+                      ? { bgcolor: '#fff3d6', '&:hover': { bgcolor: '#ffe9b3' } }
+                      : {}),
+                  }}
+                >
+                  Hint
+                </Button>
+              </Box>
             )
           }
         />
@@ -264,6 +277,7 @@ export function LevelView({
       </Box>
 
       <AssistantDrawer open={assistantOpen} onClose={() => setAssistantOpen(false)} level={level} />
+      <PracticeDialog open={practiceOpen} onClose={() => setPracticeOpen(false)} level={level} />
     </Box>
   );
 }

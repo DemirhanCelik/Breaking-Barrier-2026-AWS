@@ -9,6 +9,7 @@ import { StudentLessonPage } from './pages/student/StudentLessonPage';
 import { TeacherDashboardPage } from './pages/teacher/TeacherDashboardPage';
 import { SafetyPage } from './pages/teacher/SafetyPage';
 import { EvidencePage } from './pages/teacher/EvidencePage';
+import { AuthoringPage } from './pages/teacher/AuthoringPage';
 import { StudentTracePage } from './pages/teacher/StudentTracePage';
 
 const homeFor = (role: Role) => (role === 'teacher' ? '/teacher' : '/student');
@@ -56,6 +57,14 @@ export function App() {
           element={
             <RequireRole role="teacher">
               <TeacherDashboardPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/teacher/authoring"
+          element={
+            <RequireRole role="teacher">
+              <AuthoringPage />
             </RequireRole>
           }
         />

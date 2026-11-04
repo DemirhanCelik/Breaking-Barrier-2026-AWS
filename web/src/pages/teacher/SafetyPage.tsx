@@ -17,13 +17,19 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { api, type FilterAudit, type FilterCount, type FilterOutcome } from '../../api';
+import { api, type FilterAudit, type FilterContext, type FilterCount, type FilterOutcome } from '../../api';
 import { brand } from '../../theme';
 import { HeaderStat, TeacherHeader } from './TeacherHeader';
 
 const pct = (c: FilterCount) => (c.required === 0 ? '—' : `${Math.floor((c.checked / c.required) * 100)}%`);
 
-const CONTEXT_LABEL = { submission: 'Student work', assistant: 'AI assistant', coaching: 'Coaching' } as const;
+const CONTEXT_LABEL: Record<FilterContext, string> = {
+  submission: 'Student work',
+  assistant: 'AI assistant',
+  coaching: 'Coaching',
+  practice: 'Practice (AI output)',
+  practice_answer: 'Practice answer',
+};
 const SOURCE_LABEL: Record<string, string> = {
   guardrail: 'Bedrock Guardrail',
   local: 'Local check',
@@ -68,7 +74,12 @@ export function SafetyPage() {
     );
   }
 
-  const gaps = [data.coverage.submissions, data.coverage.coaching, data.coverage.assistantReplies].reduce(
+  const gaps = [
+    data.coverage.submissions,
+    data.coverage.coaching,
+    data.coverage.assistantReplies,
+    data.coverage.practice,
+  ].reduce(
     (n, c) => n + (c.required - c.checked),
     0,
   );
@@ -87,6 +98,11 @@ export function SafetyPage() {
       label: 'AI assistant replies',
       count: data.coverage.assistantReplies,
       note: 'Every reply to a question that passed the input check',
+    },
+    {
+      label: 'Practice',
+      count: data.coverage.practice,
+      note: 'Every AI-written practice item, practice answer, and practice reply',
     },
   ];
 

@@ -23,6 +23,13 @@ class StudentController < ApplicationController
     render json: service.ask_assistant(student, params[:level_id], params.require(:message))
   end
 
+  # Formative practice (design §7A): never feeds the mastery signal.
+  def create_practice = render(json: PracticeService.new.create(student, params[:level_id]), status: :created)
+
+  def answer_practice
+    render json: PracticeService.new.answer(student, params[:id], params.require(:response))
+  end
+
   private
 
   def student

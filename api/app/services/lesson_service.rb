@@ -141,6 +141,7 @@ class LessonService
       bar: cur.bar, concepts: teacher_concepts, roadmap: roadmap[:steps],
       decisions: s.decisions.map { |d| { at: StudentRecord.iso(d["at_ms"]), levelCode: d["level_code"], levelTitle: d["level_title"], rule: d["rule"], vector: d["vector_json"] } },
       validations: s.validations.map { |v| { at: StudentRecord.iso(v["at_ms"]), levelCode: v["level_code"], mode: v["mode"], results: v["results_json"] } },
+      practice: PracticeService.new.for_student(s.id),
     )
   end
 

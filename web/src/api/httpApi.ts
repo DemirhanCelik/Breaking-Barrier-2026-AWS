@@ -13,7 +13,14 @@ import {
   type AssistantReply,
   type ClassAttainment,
   type DiagnosticAnswers,
+  type AuthoringState,
+  type ContentEdits,
+  type ContentItem,
   type DiagnosticForm,
+  type DraftRequest,
+  type DraftResult,
+  type PracticeFeedback,
+  type PracticeItem,
   type FilterAudit,
   type LessonState,
   type SessionUser,
@@ -124,6 +131,25 @@ export class HttpApiClient implements ApiClient, DemoControls {
   }
   getFilterAudit() {
     return this.request<FilterAudit>('GET', '/api/teacher/safety');
+  }
+  createPractice(levelId: string) {
+    return this.request<PracticeItem>('POST', `/api/student/levels/${encodeURIComponent(levelId)}/practice`);
+  }
+  answerPractice(practiceId: string, response: string) {
+    return this.request<PracticeFeedback>('POST', `/api/student/practice/${encodeURIComponent(practiceId)}/answers`, { response });
+  }
+  getAuthoring() {
+    return this.request<AuthoringState>('GET', '/api/teacher/authoring');
+  }
+  draftContent(req: DraftRequest) {
+    return this.request<DraftResult>('POST', '/api/teacher/authoring/drafts', req);
+  }
+  reviewContent(id: string, decision: 'approve' | 'reject', edits?: ContentEdits, note?: string) {
+    return this.request<ContentItem>('POST', `/api/teacher/authoring/items/${encodeURIComponent(id)}/review`, {
+      decision,
+      edits,
+      note,
+    });
   }
 
   // Demo controls (backend AUTH_MODE=demo only)

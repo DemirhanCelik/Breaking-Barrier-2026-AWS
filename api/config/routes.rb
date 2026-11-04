@@ -12,12 +12,17 @@ Rails.application.routes.draw do
       get "submissions/:id", action: :show_submission
       post "depth", action: :depth
       post "levels/:level_id/assistant", action: :assistant
+      post "levels/:level_id/practice", action: :create_practice
+      post "practice/:id/answers", action: :answer_practice
     end
 
     scope :teacher, controller: :teacher do
       get "class", action: :show_class
       get "students/:id", action: :show_student
       get "safety", action: :safety
+      get "authoring", action: :authoring
+      post "authoring/drafts", action: :draft
+      post "authoring/items/:id/review", action: :review
     end
 
     scope :demo, controller: :demo do

@@ -1,0 +1,84 @@
+# Curriculum-quality rubric for AI-generated learning content.
+#
+# STATUS: DRAFT, written by the engineering team for the hackathon. The vision
+# doc says "defining what good curriculum looks like is required for any
+# evaluation system"; Teaching & Learning should own and revise this file.
+#
+# Used by QualityJudge (LLM-as-judge) as the gate for:
+#   - live-generated formative practice (student path)
+#   - AI-drafted items in the authoring review queue (shown to the reviewer)
+# Each criterion is scored 1-4. An item passes when every criterion scores at
+# least `pass_min`. Deterministic pre-checks run first and can fail an item
+# without a model call.
+
+pass_min: 3
+
+criteria:
+  - id: alignment
+    name: Objective alignment
+    description: >-
+      Practices exactly the given concept at the target stage descriptor. Does not drift to other
+      concepts or demand behaviors from a higher stage.
+    levels:
+      1: Practices a different skill or concept.
+      2: Related to the concept but misses what the target stage asks for.
+      3: Practices the target stage behavior.
+      4: Practices the target stage behavior directly and nothing beyond it.
+  - id: scaffolding
+    name: Stage-appropriate scaffolding
+    description: >-
+      Difficulty fits a student moving from the "from" stage to the "to" stage. Gives enough
+      structure (a concrete scenario, a clear ask) for that student to start.
+    levels:
+      1: Far too hard or trivially easy for this transition.
+      2: Noticeably mismatched, or no foothold to start.
+      3: Appropriate difficulty with a clear starting point.
+      4: Well-pitched, and the tip gives a useful foothold without doing the work.
+  - id: clarity
+    name: Clarity for grades 9-12
+    description: >-
+      Plain, concrete language a high-school student can follow. One task, unambiguous about what
+      to write.
+    levels:
+      1: Confusing or several competing tasks.
+      2: Understandable but vague about what to produce.
+      3: Clear single task.
+      4: Clear, concise, and concrete.
+  - id: no_giveaway
+    name: Does not give away the answer
+    description: >-
+      The student still has to do the thinking. The scenario and tip must not contain a complete
+      answer, a finished prompt, or the solution to the lesson's scored task.
+    levels:
+      1: Contains the full answer or solves the scored task.
+      2: Gives most of the answer away.
+      3: Leaves the core thinking to the student.
+      4: Leaves all the thinking to the student while still guiding.
+  - id: safety_inclusion
+    name: Safe and inclusive
+    description: >-
+      Appropriate for minors; no personal data requests; no stereotypes; scenarios welcome students
+      of any background, ability, or school context.
+    levels:
+      1: Unsafe or inappropriate content.
+      2: Stereotyped, exclusionary, or asks for personal information.
+      3: Safe and neutral.
+      4: Safe and actively inclusive.
+  - id: formative_tone
+    name: Formative, not evaluative
+    description: >-
+      Feels like low-stakes practice. Never mentions scores, grades, stages, levels, ranking, or
+      comparison to other students (BRD FR13).
+    levels:
+      1: Mentions scores, stages, grades, or comparison.
+      2: Feels like a test.
+      3: Low-stakes practice.
+      4: Encouraging, curious, low-stakes.
+
+prechecks:
+  # Student-facing text must never surface evaluation (FR13). Case-insensitive.
+  forbidden_pattern: '\b(stages?|scores?|scored|grades?|graded|points?|rank(ed|ing)?|percent(ile)?|level \d|pass(ed)?|fail(ed)?)\b'
+  min_task_words: 8
+  max_total_words: 170
+  # Authoring: an 8-word run copied verbatim from the source counts as republishing it.
+  max_copied_run_words: 8

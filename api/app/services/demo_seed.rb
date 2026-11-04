@@ -10,7 +10,7 @@ module DemoSeed
   module_function
 
   def run!
-    Db.execute("TRUNCATE filter_event, route_decision, validation_result, submission, diagnostic_result, mastery_state, student_progress, enrollment, klass, app_user, app_setting")
+    Db.execute("TRUNCATE practice_attempt, practice_item, filter_event, route_decision, validation_result, submission, diagnostic_result, mastery_state, student_progress, enrollment, klass, app_user, app_setting")
     cur = Curriculum.current
     insert_user(TEACHER[:id], TEACHER[:name], "teacher")
     Db.execute("INSERT INTO klass (id, teacher_id, name, bar_stage) VALUES (:id, :t, :name, :bar)",

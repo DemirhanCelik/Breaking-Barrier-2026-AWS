@@ -187,6 +187,35 @@ export function StudentTracePage() {
             </Box>
           )}
         </Panel>
+
+        <Panel
+          title="Extra practice"
+          note="Formative only: practice never changes stages or the route. AI-written items passed the safety filter and the quality rubric; otherwise approved practice was served."
+        >
+          {(trace.practice ?? []).length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              No practice rounds yet.
+            </Typography>
+          ) : (
+            <Box component="ul" sx={{ m: 0, pl: 2.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {trace.practice.map((p) => (
+                <li key={p.id}>
+                  <Typography variant="body2">
+                    <b>{time(p.at)}</b> · {p.levelCode} · {name(p.conceptId)} {STAGE_NAMES[p.fromStage]} →{' '}
+                    {STAGE_NAMES[p.targetStage]} · <i>{p.title}</i> ·{' '}
+                    {p.origin === 'generated' ? 'AI-generated' : p.origin === 'bank' ? 'approved draft' : 'authored'} ·{' '}
+                    {p.attempts} answer(s)
+                  </Typography>
+                  {p.origin !== 'generated' && p.fallbackReason && (
+                    <Typography variant="caption" color="text.secondary">
+                      Fallback reason: {p.fallbackReason}
+                    </Typography>
+                  )}
+                </li>
+              ))}
+            </Box>
+          )}
+        </Panel>
       </Container>
     </Box>
   );

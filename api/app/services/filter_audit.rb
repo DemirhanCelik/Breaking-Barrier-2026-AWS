@@ -12,7 +12,7 @@
 #   - every assistant question that passed the input filter must have an output
 #     event with the same ref_id (so no reply was delivered unchecked)
 module FilterAudit
-  CONTEXTS = %w[submission assistant coaching].freeze
+  CONTEXTS = %w[submission assistant coaching practice practice_answer].freeze
 
   module_function
 
@@ -24,6 +24,7 @@ module FilterAudit
   # Never raises: an audit write failure must not change what the student gets
   # (the filter already decided). A missing row then shows up as a coverage gap.
   def record!(result, student_id:, context:, direction:, ref_id:)
+    raise ArgumentError, "unknown filter context #{context}" unless CONTEXTS.include?(context)
     Db.execute(<<~SQL, s: student_id, c: context, d: direction, o: outcome_for(result), src: result.source.to_s, ref: ref_id)
       INSERT INTO filter_event (student_id, context, direction, outcome, source, ref_id)
       VALUES (:s, :c, :d, :o, :src, :ref)
@@ -58,6 +59,20 @@ module FilterAudit
       FROM filter_event i
       WHERE i.context = 'assistant' AND i.direction = 'input' AND i.#{in_class}
     SQL
+    # Practice (formative): every generated item served and every practice reply
+    # had an output check; every practice answer had an input check.
+    practice = Db.query(<<~SQL, k).first
+      SELECT
+        (SELECT count(*) FROM practice_item p WHERE p.origin = 'generated' AND p.#{in_class}) AS gen,
+        (SELECT count(*) FROM practice_item p WHERE p.origin = 'generated' AND p.#{in_class} AND EXISTS (SELECT 1 FROM filter_event f
+           WHERE f.ref_id = p.id AND f.context = 'practice' AND f.direction = 'output' AND f.outcome = 'pass')) AS gen_checked,
+        (SELECT count(*) FROM practice_attempt a WHERE a.#{in_class}) AS answers,
+        (SELECT count(*) FROM practice_attempt a WHERE a.#{in_class} AND EXISTS (SELECT 1 FROM filter_event f
+           WHERE f.ref_id = a.id AND f.context = 'practice_answer' AND f.direction = 'input')) AS answers_checked,
+        (SELECT count(*) FROM practice_attempt a WHERE a.#{in_class} AND NOT a.withheld) AS replies,
+        (SELECT count(*) FROM practice_attempt a WHERE a.#{in_class} AND NOT a.withheld AND EXISTS (SELECT 1 FROM filter_event f
+           WHERE f.ref_id = a.id AND f.context = 'practice' AND f.direction = 'output')) AS replies_checked
+    SQL
     totals = Db.query(<<~SQL, k)
       SELECT direction, outcome, source, count(*) AS n
       FROM filter_event WHERE #{in_class}
@@ -71,10 +86,10 @@ module FilterAudit
     SQL
 
     i = ->(row, key) { row[key].to_i }
-    inputs_required = i.(subs, "required") + i.(assistant, "asked")
-    inputs_checked = i.(subs, "checked") + i.(assistant, "asked")
-    outputs_required = i.(coaching, "required") + i.(assistant, "passed")
-    outputs_checked = i.(coaching, "checked") + i.(assistant, "replied_checked")
+    inputs_required = i.(subs, "required") + i.(assistant, "asked") + i.(practice, "answers")
+    inputs_checked = i.(subs, "checked") + i.(assistant, "asked") + i.(practice, "answers_checked")
+    outputs_required = i.(coaching, "required") + i.(assistant, "passed") + i.(practice, "gen") + i.(practice, "replies")
+    outputs_checked = i.(coaching, "checked") + i.(assistant, "replied_checked") + i.(practice, "gen_checked") + i.(practice, "replies_checked")
     count = ->(dir, outcome) { totals.select { |t| t["direction"] == dir && t["outcome"] == outcome }.sum { |t| t["n"].to_i } }
 
     {
@@ -84,6 +99,8 @@ module FilterAudit
         submissions: { required: i.(subs, "required"), checked: i.(subs, "checked") },
         coaching: { required: i.(coaching, "required"), checked: i.(coaching, "checked") },
         assistantReplies: { required: i.(assistant, "passed"), checked: i.(assistant, "replied_checked") },
+        practice: { required: i.(practice, "gen") + i.(practice, "answers") + i.(practice, "replies"),
+                    checked: i.(practice, "gen_checked") + i.(practice, "answers_checked") + i.(practice, "replies_checked") },
       },
       bySource: totals.map { |t| { direction: t["direction"], outcome: t["outcome"], source: t["source"], count: t["n"].to_i } },
       recent: recent.map do |r|
