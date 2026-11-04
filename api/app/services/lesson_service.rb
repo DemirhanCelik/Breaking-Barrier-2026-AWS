@@ -168,6 +168,21 @@ class LessonService
       appointedStudents: ids.size, students: students.map { |s| attainment(s) } }
   end
 
+  # Every appointed student's route through the unit, side by side (teacher-only).
+  # Students never see this: their own view stays free of levels and comparisons.
+  # Per level: done, current, ahead (projected by the rules), or skipped (placement
+  # or progress already covers what it teaches).
+  def class_paths(teacher_id)
+    ids = TeachingAppointment.student_ids_for(teacher_id: teacher_id, unit_id: cur.id)
+    students = ids.filter_map { |id| StudentRecord.find(id) }.sort_by(&:display_name)
+    levels = cur.levels.map do |l|
+      { code: l.code, title: l.title, project: l.project?,
+        teaches: l.transitions.map { |t| { conceptId: t.concept, from: t.from, to: t.to } } }
+    end
+    { unit: unit_info, bar: cur.bar, concepts: teacher_concepts, levels: levels,
+      students: students.map { |s| student_path(s) } }
+  end
+
   def filter_audit(teacher_id) = FilterAudit.report(cur.klass["id"], student_ids: appointed_ids(teacher_id))
   def insights(teacher_id) = InsightsService.new.report(cur.klass["id"], student_ids: appointed_ids(teacher_id))
 
@@ -458,6 +473,31 @@ class LessonService
              end
     { studentId: s.id, displayName: s.display_name, status: status, stages: s.stages.dup,
       diagnostic: s.diagnostic&.dup, flags: s.flags.dup, stepsCompleted: s.completed_order.size }
+  end
+
+  def student_path(s)
+    base = attainment(s)
+    return base.merge(path: {}, ahead: [], why: nil) unless s.diagnostic
+
+    path = {}
+    s.completed_order.each_with_index do |id, i|
+      next unless cur.level?(id)
+      status = s.level_status.dig(id, "status")
+      path[cur.level(id).code] = { state: status == "passed" ? "done" : "moved-on", order: i + 1 }
+    end
+    if s.current_level_id && cur.level?(s.current_level_id)
+      path[cur.level(s.current_level_id).code] = { state: "current", order: path.size + 1 }
+    end
+    ahead = s.complete ? [] : Engine.build_roadmap(s.engine_state)[:steps].map { |st| st[:levelCode] }.reject { |c| path.key?(c) }
+    ahead.each_with_index { |code, i| path[code] = { state: "ahead", order: path.size + 1 } }
+    cur.levels.each do |l|
+      next if path.key?(l.code)
+      path[l.code] = l.project? && !s.complete ? { state: "ahead", order: path.count { |_, v| v[:order] } + 1 } : { state: "skipped" }
+    end
+
+    last = s.decisions.first
+    why = last && { levelCode: last["level_code"], rule: last["rule"], advisor: last.dig("advisor_json", "reason") }
+    base.merge(path: path, ahead: ahead, why: why)
   end
 
   def teacher_concepts

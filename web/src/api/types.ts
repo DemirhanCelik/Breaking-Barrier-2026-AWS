@@ -182,6 +182,31 @@ export interface ClassAttainment {
   students: StudentAttainment[];
 }
 
+/** GET /api/teacher/paths: every student's route through the unit, side by side. */
+export type PathState = 'done' | 'moved-on' | 'current' | 'ahead' | 'skipped';
+
+export interface PathLevel {
+  code: string;
+  title: string;
+  project: boolean;
+  teaches: { conceptId: ConceptId; from: Stage; to: Stage }[];
+}
+
+export interface StudentPath extends StudentAttainment {
+  /** Level code -> state; `order` is the step number on this student's path. */
+  path: Record<string, { state: PathState; order?: number }>;
+  ahead: string[];
+  why: { levelCode: string; rule: string; advisor?: string | null } | null;
+}
+
+export interface ClassPaths {
+  unit?: UnitInfo;
+  bar: Stage;
+  concepts: TeacherConcept[];
+  levels: PathLevel[];
+  students: StudentPath[];
+}
+
 /** AI routing advisor record: what it proposed vs what the rules would pick. */
 export interface RouteAdvisor {
   mode: 'advised';

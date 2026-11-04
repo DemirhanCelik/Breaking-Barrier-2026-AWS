@@ -20,6 +20,7 @@ import type {
   LessonState,
   SessionUser,
   StudentTrace,
+  ClassPaths,
   SubmissionOutcome,
   SubmitResult,
   Assignment,
@@ -67,6 +68,7 @@ export interface ApiClient {
   // Teacher-scoped: 403 for student tokens
   getClassAttainment(): Promise<ClassAttainment>;
   getStudentTrace(studentId: string): Promise<StudentTrace>;
+  getClassPaths(): Promise<ClassPaths>;
   getFilterAudit(): Promise<FilterAudit>;
   /** Who needs help now and small groups by shared gap (teacher-only). */
   getInsights(): Promise<ClassInsights>;

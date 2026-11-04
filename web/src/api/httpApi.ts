@@ -31,6 +31,7 @@ import {
   type LessonState,
   type SessionUser,
   type StudentTrace,
+  type ClassPaths,
   type SubmissionOutcome,
   type SubmitResult,
   type Assignment,
@@ -201,6 +202,9 @@ export class HttpApiClient implements ApiClient, DemoControls {
 
   getClassAttainment() {
     return this.request<ClassAttainment>('GET', '/api/teacher/class');
+  }
+  getClassPaths() {
+    return this.request<ClassPaths>('GET', '/api/teacher/paths');
   }
   getStudentTrace(studentId: string) {
     return this.request<StudentTrace>('GET', `/api/teacher/students/${encodeURIComponent(studentId)}`);

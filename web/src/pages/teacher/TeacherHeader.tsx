@@ -40,6 +40,7 @@ export function TeacherHeader({
 
 const TABS = [
   { path: '/teacher', label: 'Class' },
+  { path: '/teacher/paths', label: 'Paths' },
   { path: '/teacher/courses', label: 'Courses' },
   { path: '/teacher/insights', label: 'Insights' },
   { path: '/teacher/assignments', label: 'Assignments' },

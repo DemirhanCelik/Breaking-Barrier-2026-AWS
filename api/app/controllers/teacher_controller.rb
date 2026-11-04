@@ -5,6 +5,7 @@ class TeacherController < ApplicationController
   around_action :with_class_course
 
   def show_class = render(json: service.class_attainment(current_user.id))
+  def paths = render(json: service.class_paths(current_user.id))
   def show_student = render(json: service.student_trace(current_user.id, params[:id]))
   # Filter audit log + coverage (BRD M7). Outcomes only, never student text.
   def safety = render(json: service.filter_audit(current_user.id))

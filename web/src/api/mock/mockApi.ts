@@ -50,6 +50,7 @@ import {
   type StudentAttainment,
   type StudentLevel,
   type StudentTrace,
+  type ClassPaths,
   type SubmissionOutcome,
   type SubmitResult,
   type TeacherConcept,
@@ -622,6 +623,44 @@ export class MockApiClient implements ApiClient, DemoControls {
       bar: CLASS_INFO.bar,
       concepts: teacherConcepts(),
       students: Object.values(this.store.students).map(toAttainment),
+    };
+  }
+
+  async getClassPaths(): Promise<ClassPaths> {
+    await delay();
+    this.requireTeacher();
+    const students = Object.values(this.store.students).map((s) => {
+      const base = toAttainment(s);
+      if (!s.diagnostic) return { ...base, path: {}, ahead: [], why: null };
+      const path: ClassPaths['students'][number]['path'] = {};
+      s.completedOrder.forEach((id, i) => {
+        const l = LEVELS.find((x) => x.id === id);
+        if (l) path[l.code] = { state: s.levelStatus[id]?.status === 'passed' ? 'done' : 'moved-on', order: i + 1 };
+      });
+      const current = LEVELS.find((x) => x.id === s.currentLevelId);
+      if (current) path[current.code] = { state: 'current', order: Object.keys(path).length + 1 };
+      const ahead = s.complete ? [] : buildRoadmap(s).steps.map((st) => st.levelCode).filter((c) => !path[c]);
+      for (const c of ahead) path[c] = { state: 'ahead', order: Object.keys(path).length + 1 };
+      for (const l of LEVELS) {
+        if (path[l.code]) continue;
+        path[l.code] =
+          l.kind === 'project' && !s.complete
+            ? { state: 'ahead', order: Object.values(path).filter((v) => v.order != null).length + 1 }
+            : { state: 'skipped' };
+      }
+      const last = s.decisions[s.decisions.length - 1];
+      return { ...base, path, ahead, why: last ? { levelCode: last.levelCode, rule: last.rule, advisor: last.advisor?.reason ?? null } : null };
+    });
+    return {
+      bar: CLASS_INFO.bar,
+      concepts: teacherConcepts(),
+      levels: LEVELS.map((l) => ({
+        code: l.code,
+        title: l.title,
+        project: l.kind === 'project',
+        teaches: l.transitions.map((t) => ({ conceptId: t.concept, from: t.from, to: t.to })),
+      })),
+      students: students.sort((a, b) => a.displayName.localeCompare(b.displayName)),
     };
   }
 

@@ -13,6 +13,7 @@ import { SafetyPage } from './pages/teacher/SafetyPage';
 import { EvidencePage } from './pages/teacher/EvidencePage';
 import { AuthoringPage } from './pages/teacher/AuthoringPage';
 import { InsightsPage } from './pages/teacher/InsightsPage';
+import { PathsPage } from './pages/teacher/PathsPage';
 import { StudentTracePage } from './pages/teacher/StudentTracePage';
 import { AssignmentsPage } from './pages/teacher/AssignmentsPage';
 import { AdminHomePage } from './pages/admin/AdminHomePage';
@@ -76,6 +77,14 @@ export function App() {
           element={
             <RequireRole role="teacher">
               <TeacherDashboardPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/teacher/paths"
+          element={
+            <RequireRole role="teacher">
+              <PathsPage />
             </RequireRole>
           }
         />
