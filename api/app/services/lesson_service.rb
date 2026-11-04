@@ -317,7 +317,7 @@ class LessonService
     p = ->(t) { s ? personalize(t, s) : t }
     { id: l.id, kind: l.kind, title: p.(l.title), intro: p.(l.intro), instructions: l.instructions.map(&p), aiOutput: p.(l.ai_output),
       responseLabel: p.(l.response_label), responsePlaceholder: p.(l.response_placeholder),
-      interaction: student_interaction(l) }.compact
+      interaction: student_interaction(l), preview: l.preview || nil }.compact
   end
 
   # Scaffolded task types (Intro to Python): never sends the solution order or answers.

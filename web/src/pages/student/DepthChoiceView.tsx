@@ -34,7 +34,7 @@ export function DepthChoiceView({ options, onChosen }: { options: DepthOption[];
       <SpeechBubble sx={{ mb: 4 }}>
         <Typography>
           You've covered everything for today's page. Choose a challenge to explore, or go straight to building your
-          own club page. You'll build it either way.
+          own project. You'll build it either way.
         </Typography>
       </SpeechBubble>
       {error && (

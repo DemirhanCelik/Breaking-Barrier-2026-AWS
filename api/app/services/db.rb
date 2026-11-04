@@ -9,6 +9,7 @@
 #   Db.query("SELECT * FROM app_user WHERE id = :id", id: "s-ava")
 #   Db.json(hash) -> pass as CAST(:x AS jsonb)
 require "json"
+require "monitor"
 
 module Db
   class Error < StandardError; end
@@ -50,6 +51,9 @@ module Db
     def initialize
       require "pg"
       @url = ENV.fetch("DATABASE_URL", "postgres://codeai:codeai@localhost:5432/codeai")
+      # One shared connection, used by one request at a time: a PG connection must not
+      # run concurrent queries (local Puma serves several requests at once).
+      @lock = Monitor.new
     end
 
     def query(sql, params)
@@ -61,9 +65,11 @@ module Db
         "$#{names.index(name) + 1}"
       end
       values = names.map { |n| encode(params[n]) }
-      result = connection.exec_params(pg_sql, values)
-      types = result.fields.each_with_index.to_h { |f, i| [f, result.ftype(i)] }
-      result.map { |row| row.to_h { |k, v| [k, decode(v, types[k])] } }
+      @lock.synchronize do
+        result = connection.exec_params(pg_sql, values)
+        types = result.fields.each_with_index.to_h { |f, i| [f, result.ftype(i)] }
+        result.map { |row| row.to_h { |k, v| [k, decode(v, types[k])] } }
+      end
     rescue PG::ConnectionBad, PG::UnableToSend
       @conn = nil
       raise

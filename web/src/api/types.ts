@@ -53,6 +53,22 @@ export interface StudentLevel {
   aiOutput?: string;
   responseLabel: string;
   responsePlaceholder: string;
+  /** Scaffolded task type; absent means a free-text answer. Never includes the solution. */
+  interaction?: LevelInteraction;
+  /** "Try it": the student can see what an AI builds from their prompt (formative only). */
+  preview?: boolean;
+}
+
+export type PreviewResult = { withheld: false; html: string } | { withheld: true; message: string };
+
+/** Drag the shuffled lines into a working order, or fill the ____ blanks in the code. */
+export type LevelInteraction = { type: 'parsons'; lines: string[] } | { type: 'fill'; code: string; blanks: number };
+
+/** The class's active unit (curriculum). */
+export interface UnitInfo {
+  id: string;
+  name: string;
+  summary?: string;
 }
 
 export type PathItemStatus = 'done' | 'current' | 'upcoming';
@@ -70,7 +86,10 @@ export interface DepthOption {
   description: string;
 }
 
-export type LessonState =
+export type LessonState = LessonPhase & { unit?: UnitInfo };
+
+export type LessonPhase =
+  | { phase: 'topic'; topics: string[] }
   | { phase: 'diagnostic' }
   | {
       phase: 'level';
@@ -155,6 +174,7 @@ export interface StudentAttainment {
 export interface ClassAttainment {
   classId: string;
   className: string;
+  unit?: UnitInfo;
   bar: Stage;
   concepts: TeacherConcept[];
   students: StudentAttainment[];

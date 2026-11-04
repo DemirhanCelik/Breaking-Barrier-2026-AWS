@@ -12,7 +12,7 @@
 #   - every assistant question that passed the input filter must have an output
 #     event with the same ref_id (so no reply was delivered unchecked)
 module FilterAudit
-  CONTEXTS = %w[submission assistant coaching practice practice_answer].freeze
+  CONTEXTS = %w[submission assistant coaching practice practice_answer preview].freeze
 
   module_function
 

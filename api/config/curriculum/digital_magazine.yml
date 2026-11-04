@@ -261,6 +261,7 @@ levels:
 - id: l3
   code: L3
   kind: task
+  preview: true
   title: Ask the AI for your cover page
   intro: Time to talk to the AI. You want a cover page for your magazine about {{topic}}.
   instructions:
@@ -339,6 +340,7 @@ levels:
 - id: l6
   code: L6
   kind: task
+  preview: true
   title: Give the AI a goal, a limit, and a what-if
   intro: Vague prompts get vague results. Your magazine needs an article list page.
   instructions:
@@ -417,6 +419,7 @@ levels:
 - id: l9
   code: L9
   kind: task
+  preview: true
   title: Check the AI's page against your plan
   intro: 'You asked the AI for: "An article page with readable text on phones, a working search, and a short summary at the top of every article." Here is what it made.'
   instructions:
@@ -479,6 +482,7 @@ levels:
 - id: l11
   code: L11
   kind: task
+  preview: true
   title: Make it work on a phone
   intro: On Jordan's phone, the AI-made article cards overlap and the menu covers the title.
   instructions:

@@ -29,7 +29,7 @@ class Curriculum
   end
   Transition = Struct.new(:concept, :from, :to, :checks, keyword_init: true)
   Level = Struct.new(:id, :code, :kind, :title, :intro, :instructions, :ai_output,
-                     :response_label, :response_placeholder, :transitions, :interaction, keyword_init: true) do
+                     :response_label, :response_placeholder, :transitions, :interaction, :preview, keyword_init: true) do
     def project? = kind == "project"
     # Scaffolded task types (parsons, fill) are graded deterministically, with no model call.
     def deterministic? = interaction.present?
@@ -124,7 +124,7 @@ class Curriculum
       Level.new(
         id: l["id"], code: l["code"], kind: l["kind"], title: l["title"], intro: l["intro"],
         instructions: l["instructions"], ai_output: l["ai_output"],
-        response_label: l["response_label"], response_placeholder: l["response_placeholder"], interaction: l["interaction"],
+        response_label: l["response_label"], response_placeholder: l["response_placeholder"], interaction: l["interaction"], preview: l["preview"] == true,
         transitions: (l["transitions"] || []).map { |t| Transition.new(concept: t["concept"], from: t["from"], to: t["to"], checks: t["checks"]) },
       )
     end

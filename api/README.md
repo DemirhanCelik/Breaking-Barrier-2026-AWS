@@ -67,7 +67,7 @@ docker run --rm --network codeai-dev -u $(id -u):$(id -g) -e HOME=/tmp -e BUNDLE
   sh -c 'bundle install && bundle exec rake db:setup'
 
 # serve on :3000 (VALIDATION_MODE=probes needs no AWS credentials)
-docker run --rm --name codeai-api --network codeai-dev -p 3000:3000 -u $(id -u):$(id -g) -e HOME=/tmp \
+docker run --rm --name codeai-api --network codeai-dev -p 3000:3000 -u $(id -u):$(id -g) -e HOME=/tmp -e RAILS_MAX_THREADS=1 \
   -e BUNDLE_PATH=/w/vendor/bundle -e DATABASE_URL=postgres://codeai:codeai@codeai-db:5432/codeai \
   -e AUTH_MODE=demo -e VALIDATION_MODE=probes -e ALLOWED_ORIGINS=http://localhost:5173 \
   -v "$PWD":/w -w /w ruby:3.3 bundle exec rails server -b 0.0.0.0 -p 3000

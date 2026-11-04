@@ -9,6 +9,8 @@ import type {
   PracticeItem,
   ClassAttainment,
   ClassInsights,
+  UnitInfo,
+  PreviewResult,
   MiniLesson,
   WorkSignals,
   DiagnosticAnswers,
@@ -41,6 +43,10 @@ export interface ApiClient {
   submitWork(levelId: string, response: string, signals?: WorkSignals): Promise<SubmitResult>;
   getSubmission(submissionId: string): Promise<SubmissionOutcome>;
   chooseDepth(optionId: string): Promise<LessonState>;
+  /** Pick the topic that personalizes the lesson (before the diagnostic). */
+  chooseTopic(topic: string): Promise<LessonState>;
+  /** What an AI builds from the student's prompt; rendered in a sandboxed frame. */
+  previewPrompt(levelId: string, prompt: string): Promise<PreviewResult>;
   askAssistant(levelId: string, message: string): Promise<AssistantReply>;
   /** Formative practice for the current level; never changes the lesson path. */
   createPractice(levelId: string): Promise<PracticeItem>;
@@ -66,5 +72,8 @@ export interface DemoControls {
   /** AI-advised vs rules-only routing; `available` is false without a model (mock, probes mode). */
   getRoutingMode(): Promise<{ mode: 'advised' | 'rules'; available: boolean }>;
   setRoutingMode(mode: 'advised' | 'rules'): Promise<void>;
+  /** The class's unit; switching reseeds the demo class. */
+  getUnits(): Promise<{ current: string; units: UnitInfo[] }>;
+  setUnit(unitId: string): Promise<void>;
   resetDemo(): Promise<void>;
 }

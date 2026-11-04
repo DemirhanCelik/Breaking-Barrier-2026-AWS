@@ -42,9 +42,12 @@ function DemoMenu() {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [fault, setFault] = useState(false);
   const [routing, setRouting] = useState<{ mode: 'advised' | 'rules'; available: boolean } | null>(null);
+  const [units, setUnits] = useState<{ current: string; units: { id: string; name: string }[] } | null>(null);
+  const [switching, setSwitching] = useState(false);
   useEffect(() => {
     controls?.getFaultInjection().then(setFault).catch(() => setFault(false));
     controls?.getRoutingMode().then(setRouting).catch(() => setRouting(null));
+    controls?.getUnits().then(setUnits).catch(() => setUnits(null));
   }, [controls]);
   if (!controls) return null;
 
@@ -120,6 +123,35 @@ function DemoMenu() {
           </Typography>
         </Box>
         <Divider />
+        {units && units.units.length > 1 && (
+          <>
+            <Box sx={{ px: 2, pt: 1, pb: 0.5 }}>
+              <Typography variant="overline" color="text.secondary">
+                Unit for this class
+              </Typography>
+              <Typography variant="caption" color="text.secondary" display="block">
+                Switching resets the demo class.
+              </Typography>
+            </Box>
+            {units.units.map((u) => (
+              <MenuItem
+                key={u.id}
+                selected={u.id === units.current}
+                disabled={switching}
+                onClick={async () => {
+                  if (u.id === units.current) return;
+                  setSwitching(true);
+                  await controls.setUnit(u.id).catch(() => undefined);
+                  window.location.reload();
+                }}
+              >
+                {u.id === units.current ? '● ' : ''}
+                {u.name}
+              </MenuItem>
+            ))}
+            <Divider />
+          </>
+        )}
         <MenuItem
           onClick={async () => {
             await controls.resetDemo().catch(() => undefined);

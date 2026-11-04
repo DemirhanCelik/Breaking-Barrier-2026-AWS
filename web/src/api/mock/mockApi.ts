@@ -775,6 +775,28 @@ export class MockApiClient implements ApiClient, DemoControls {
     return this.store.fault;
   }
 
+  async previewPrompt(_levelId: string, prompt: string) {
+    await delay(500);
+    const esc = prompt.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+    return {
+      withheld: false as const,
+      html: `<body style="font-family:sans-serif;padding:24px"><h1>Preview (offline)</h1><blockquote>${esc}</blockquote></body>`,
+    };
+  }
+
+  async chooseTopic(): Promise<LessonState> {
+    // The offline mock has one unit and no topics.
+    return lessonState(this.requireStudent());
+  }
+
+  async getUnits() {
+    return { current: 'mock', units: [{ id: 'mock', name: CLASS_INFO.name, summary: 'Offline demo unit' }] };
+  }
+
+  async setUnit() {
+    // No-op: units live in the API.
+  }
+
   async getRoutingMode() {
     // The mock has no model, so routing is always rule-based.
     return { mode: 'rules' as const, available: false };

@@ -4,12 +4,11 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { api, type DiagnosticAnswers, type DiagnosticForm, type LessonState } from '../../api';
 import { SpeechBubble } from '../../components/brand';
 import { brand } from '../../theme';
-import { LESSON_NAME } from './lesson';
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
 
 /** Short warm-up that places the student per concept (FR1). Framed as a warm-up, never as a test. */
-export function DiagnosticView({ onDone }: { onDone: (s: LessonState) => void }) {
+export function DiagnosticView({ onDone, unitName }: { onDone: (s: LessonState) => void; unitName?: string }) {
   const [form, setForm] = useState<DiagnosticForm | null>(null);
   const [answers, setAnswers] = useState<DiagnosticAnswers>({});
   const [submitting, setSubmitting] = useState(false);
@@ -46,7 +45,7 @@ export function DiagnosticView({ onDone }: { onDone: (s: LessonState) => void })
       <Box sx={{ bgcolor: brand.purple, color: '#fff', py: { xs: 4, md: 5 } }}>
         <Container maxWidth="md">
           <Typography variant="overline" sx={{ opacity: 0.85 }}>
-            {LESSON_NAME}
+            {unitName ?? 'Lesson'}
           </Typography>
           <Typography variant="h1" sx={{ fontSize: { xs: '2rem', md: '2.6rem' }, mt: 0.5 }}>
             Warm-up: how would you do it?

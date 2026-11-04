@@ -14,6 +14,7 @@ Rails.application.routes.draw do
       post "topic", action: :topic
       post "levels/:level_id/assistant", action: :assistant
       post "levels/:level_id/practice", action: :create_practice
+      post "levels/:level_id/preview", action: :preview
       post "practice/:id/answers", action: :answer_practice
     end
 

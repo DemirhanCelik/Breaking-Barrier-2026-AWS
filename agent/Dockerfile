@@ -10,7 +10,7 @@ FROM --platform=linux/arm64 python:3.12.4-slim
 WORKDIR /app
 COPY --from=builder /install /usr/local
 COPY agent/main.py .
-COPY api/config/curriculum/ai_generated_design.yml api/config/curriculum/practice_bank.yml ./curriculum/
+COPY api/config/curriculum/*.yml ./curriculum/
 RUN useradd --create-home --uid 1000 bit
 USER bit
 ENV PYTHONUNBUFFERED=1 \

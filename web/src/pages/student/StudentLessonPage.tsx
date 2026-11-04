@@ -8,11 +8,11 @@ import { ProgressBubbles } from './ProgressBubbles';
 import { DepthChoiceView } from './DepthChoiceView';
 import { CompleteView } from './CompleteView';
 
-import { LESSON_NAME } from './lesson';
+import { TopicPicker } from './TopicPicker';
 
-function useLessonHeader(path: PathItem[] | null) {
-  const key = path ? path.map((p) => `${p.levelId}:${p.status}`).join('|') : 'none';
-  useHeaderSlot(path ? <ProgressBubbles path={path} lessonName={LESSON_NAME} /> : null, key);
+function useLessonHeader(path: PathItem[] | null, lessonName: string) {
+  const key = path ? `${lessonName}|${path.map((p) => `${p.levelId}:${p.status}`).join('|')}` : 'none';
+  useHeaderSlot(path ? <ProgressBubbles path={path} lessonName={lessonName} /> : null, key);
 }
 
 /**
@@ -36,7 +36,10 @@ export function StudentLessonPage() {
     void load();
   }, [load]);
 
-  useLessonHeader(state && (state.phase === 'level' || state.phase === 'choose-depth') ? state.path : null);
+  useLessonHeader(
+    state && (state.phase === 'level' || state.phase === 'choose-depth') ? state.path : null,
+    state?.unit?.name ?? 'Lesson',
+  );
 
   if (error) {
     return (
@@ -63,8 +66,10 @@ export function StudentLessonPage() {
   }
 
   switch (state.phase) {
+    case 'topic':
+      return <TopicPicker topics={state.topics} unitName={state.unit?.name} onChosen={setState} />;
     case 'diagnostic':
-      return <DiagnosticView onDone={setState} />;
+      return <DiagnosticView onDone={setState} unitName={state.unit?.name} />;
     case 'complete':
       return <CompleteView state={state} />;
     case 'choose-depth':

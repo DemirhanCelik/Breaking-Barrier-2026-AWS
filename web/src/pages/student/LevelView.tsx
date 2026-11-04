@@ -2,13 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { Box, Button, InputBase, LinearProgress, Typography } from '@mui/material';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import FitnessCenterOutlinedIcon from '@mui/icons-material/FitnessCenterOutlined';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import { api, type StudentLevel, type SubmissionOutcome } from '../../api';
 import { PaneHeader, SpeechBubble } from '../../components/brand';
 import { brand } from '../../theme';
 import { AssistantDrawer } from './AssistantDrawer';
+import { FillEditor, ParsonsEditor } from './InteractionEditors';
 import { PracticeDialog } from './PracticeDialog';
+import { PreviewPanel } from './PreviewPanel';
 
 const POLL_MS = 400;
 const POLL_TIMEOUT_MS = 20_000;
@@ -34,6 +37,8 @@ export function LevelView({
   const [feedback, setFeedback] = useState<Feedback>({ kind: 'none' });
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [practiceOpen, setPracticeOpen] = useState(false);
+  // "Try it": the prompt the preview was made from (null = panel closed).
+  const [previewOf, setPreviewOf] = useState<string | null>(null);
   const cancelled = useRef(false);
   // Quiet formative signals (never shown to the student): time on this attempt,
   // separate editing bursts, and pastes. Sent with the submission for the teacher
@@ -176,6 +181,17 @@ export function LevelView({
           right={
             !canContinue && (
               <Box sx={{ display: 'flex', gap: 0.5 }}>
+                {level.preview && (
+                  <Button
+                    size="small"
+                    startIcon={<VisibilityOutlinedIcon />}
+                    disabled={!response.trim()}
+                    onClick={() => setPreviewOf(promptPart(response))}
+                    sx={{ color: brand.charcoal, fontWeight: 800 }}
+                  >
+                    Try it
+                  </Button>
+                )}
                 <Button
                   size="small"
                   startIcon={<FitnessCenterOutlinedIcon />}
@@ -201,63 +217,79 @@ export function LevelView({
             )
           }
         />
-        <Box sx={{ px: 2, pt: 1.5, pb: 1, bgcolor: '#fff', borderBottom: `1px solid ${brand.borderLight}` }}>
-          <Typography component="label" htmlFor="workspace-editor" sx={{ fontWeight: 700, fontSize: 14 }}>
-            {level.responseLabel}
-          </Typography>
-        </Box>
-
-        <Box sx={{ flex: 1, overflowY: 'auto', bgcolor: '#fff', display: 'flex', alignItems: 'stretch' }}>
-          <Box
-            aria-hidden
-            sx={{
-              py: 1.5,
-              px: 1,
-              minWidth: 44,
-              textAlign: 'right',
-              bgcolor: '#f7f8f9',
-              borderRight: `1px solid ${brand.borderLight}`,
-              color: '#9aa3ab',
-              fontFamily: MONO,
-              fontSize: 14,
-              lineHeight: '24px',
-              userSelect: 'none',
-            }}
-          >
-            {Array.from({ length: lineCount }, (_, i) => (
-              <div key={i}>{i + 1}</div>
-            ))}
+        {level.interaction ? (
+          <Box sx={{ flex: 1, overflowY: 'auto', bgcolor: brand.bg }}>
+            {level.interaction.type === 'parsons' ? (
+              <ParsonsEditor lines={level.interaction.lines} disabled={checking || canContinue} onChange={setResponse} />
+            ) : (
+              <FillEditor code={level.interaction.code} disabled={checking || canContinue} onChange={setResponse} />
+            )}
           </Box>
-          <InputBase
-            id="workspace-editor"
-            multiline
-            fullWidth
-            minRows={lineCount}
-            value={response}
-            onChange={(e) => {
-              const sig = signals.current;
-              const now = Date.now();
-              if (now - sig.lastEditAt > 3000) sig.edits += 1;
-              sig.lastEditAt = now;
-              setResponse(e.target.value);
-            }}
-            onPaste={(e) => {
-              signals.current.pastes += 1;
-              signals.current.pastedChars += e.clipboardData.getData('text').length;
-            }}
-            placeholder={level.responsePlaceholder}
-            disabled={checking || canContinue}
-            sx={{
-              alignItems: 'flex-start',
-              px: 1.5,
-              py: 1.5,
-              fontFamily: MONO,
-              fontSize: 14,
-              '& textarea': { lineHeight: '24px', whiteSpace: 'pre-wrap' },
-              '& textarea::placeholder': { color: '#9aa3ab', opacity: 1 },
-            }}
-          />
-        </Box>
+        ) : (
+          <>
+          <Box sx={{ px: 2, pt: 1.5, pb: 1, bgcolor: '#fff', borderBottom: `1px solid ${brand.borderLight}` }}>
+            <Typography component="label" htmlFor="workspace-editor" sx={{ fontWeight: 700, fontSize: 14 }}>
+              {level.responseLabel}
+            </Typography>
+          </Box>
+
+          <Box sx={{ flex: 1, overflowY: 'auto', bgcolor: '#fff', display: 'flex', alignItems: 'stretch' }}>
+            <Box
+              aria-hidden
+              sx={{
+                py: 1.5,
+                px: 1,
+                minWidth: 44,
+                textAlign: 'right',
+                bgcolor: '#f7f8f9',
+                borderRight: `1px solid ${brand.borderLight}`,
+                color: '#9aa3ab',
+                fontFamily: MONO,
+                fontSize: 14,
+                lineHeight: '24px',
+                userSelect: 'none',
+              }}
+            >
+              {Array.from({ length: lineCount }, (_, i) => (
+                <div key={i}>{i + 1}</div>
+              ))}
+            </Box>
+            <InputBase
+              id="workspace-editor"
+              multiline
+              fullWidth
+              minRows={lineCount}
+              value={response}
+              onChange={(e) => {
+                const sig = signals.current;
+                const now = Date.now();
+                if (now - sig.lastEditAt > 3000) sig.edits += 1;
+                sig.lastEditAt = now;
+                setResponse(e.target.value);
+              }}
+              onPaste={(e) => {
+                signals.current.pastes += 1;
+                signals.current.pastedChars += e.clipboardData.getData('text').length;
+              }}
+              placeholder={level.responsePlaceholder}
+              disabled={checking || canContinue}
+              sx={{
+                alignItems: 'flex-start',
+                px: 1.5,
+                py: 1.5,
+                fontFamily: MONO,
+                fontSize: 14,
+                '& textarea': { lineHeight: '24px', whiteSpace: 'pre-wrap' },
+                '& textarea::placeholder': { color: '#9aa3ab', opacity: 1 },
+              }}
+            />
+          </Box>
+          </>
+        )}
+
+        {previewOf !== null && (
+          <PreviewPanel key={previewOf} levelId={level.id} prompt={previewOf} onClose={() => setPreviewOf(null)} />
+        )}
 
         {checking && <LinearProgress color="warning" aria-label="Reading your work" />}
         <Box
@@ -276,7 +308,13 @@ export function LevelView({
               ? 'Bit is reading your work…'
               : canContinue
                 ? 'Your work is saved.'
-                : wordLabel(response)}
+                : level.interaction?.type === 'parsons'
+                  ? 'Check the order when you are ready.'
+                  : level.interaction?.type === 'fill'
+                    ? response
+                      ? 'All blanks filled.'
+                      : 'Fill every blank to check.'
+                    : wordLabel(response)}
           </Typography>
           {canContinue ? (
             <Button variant="contained" size="large" endIcon={<ArrowForwardIcon />} onClick={onAdvance}>
@@ -301,6 +339,20 @@ export function LevelView({
       <PracticeDialog open={practiceOpen} onClose={() => setPracticeOpen(false)} level={level} />
     </Box>
   );
+}
+
+/**
+ * The prompt part of an answer: students often write "Prompt: ..." plus other parts
+ * ("Who might have trouble: ..."). Sends only the prompt to "Try it"; falls back to all text.
+ */
+function promptPart(text: string) {
+  const lines = text.split('\n');
+  const start = lines.findIndex((l) => /^\s*(follow-up\s+)?prompt\s*(\d+)?\s*:/i.test(l));
+  if (start < 0) return text;
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex((l) => /^\s*[A-Z][\w '’-]{1,30}:/.test(l));
+  const block = [lines[start].replace(/^\s*(follow-up\s+)?prompt\s*(\d+)?\s*:\s*/i, ''), ...(end < 0 ? rest : rest.slice(0, end))];
+  return block.join('\n').trim() || text;
 }
 
 function wordLabel(text: string) {

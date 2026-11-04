@@ -23,14 +23,30 @@ from strands import Agent, tool
 from strands.models import BedrockModel
 
 CURRICULUM_DIR = Path(os.environ.get("CURRICULUM_DIR", Path(__file__).parent / "curriculum"))
-CURRICULUM = yaml.safe_load((CURRICULUM_DIR / "ai_generated_design.yml").read_text())
-PRACTICE = yaml.safe_load((CURRICULUM_DIR / "practice_bank.yml").read_text())["items"]
-CONCEPTS = {c["id"]: c for c in CURRICULUM["concepts"]}
-CHECKS = CURRICULUM["checks"]
-LEVELS = {lvl["code"].upper(): lvl for lvl in CURRICULUM["levels"]}
+DEFAULT_UNIT = "digital_magazine"
+_UNITS: dict = {}
 
-SYSTEM_PROMPT = """You are Bit, a friendly tutor for high-school students (grades 9-12) in a lesson about directing
-an AI to build a club webpage. Use your tools to look up the lesson before you answer: find the step the student
+
+def load_unit(unit_id: str) -> dict:
+    """One unit's curriculum (same YAML files as the API), cached."""
+    unit_id = unit_id if (CURRICULUM_DIR / f"{unit_id}.yml").exists() and unit_id.replace("_", "").isalnum() else DEFAULT_UNIT
+    if unit_id not in _UNITS:
+        data = yaml.safe_load((CURRICULUM_DIR / f"{unit_id}.yml").read_text())
+        practice = data.get("practice") or yaml.safe_load((CURRICULUM_DIR / "practice_bank.yml").read_text())["items"]
+        _UNITS[unit_id] = {
+            "data": data,
+            "practice": practice,
+            "concepts": {c["id"]: c for c in data["concepts"]},
+            "checks": data["checks"],
+            "levels": {lvl["code"].upper(): lvl for lvl in data["levels"]},
+        }
+    return _UNITS[unit_id]
+
+
+# The unit for the request being served (set in invoke; one request per runtime session).
+UNIT = load_unit(DEFAULT_UNIT)
+
+SYSTEM_PROMPT = """You are Bit, a friendly tutor for high-school students (grades 9-12) in {context}. Use your tools to look up the lesson before you answer: find the step the student
 is on, read its instructions and what a strong answer includes, and offer a practice item if they want more practice.
 Give one short nudge (2-4 sentences, plain language) and ask a guiding question when useful.
 Never write the answer or a full prompt for them. Never mention scores, stages, levels as difficulty, grades, or how
@@ -45,9 +61,9 @@ def list_lesson_steps() -> list[dict]:
         {
             "code": lvl["code"],
             "title": lvl["title"],
-            "skills": sorted({CONCEPTS[t["concept"]]["name"] for t in lvl.get("transitions", [])}),
+            "skills": sorted({UNIT["concepts"][t["concept"]]["name"] for t in lvl.get("transitions", [])}),
         }
-        for lvl in CURRICULUM["levels"]
+        for lvl in UNIT["data"]["levels"]
     ]
 
 
@@ -58,13 +74,13 @@ def get_step_guidance(step_code: str) -> dict:
     Args:
         step_code: The step code, for example "L5".
     """
-    lvl = LEVELS.get(step_code.strip().upper())
+    lvl = UNIT["levels"].get(step_code.strip().upper())
     if not lvl:
         return {"error": f"No step {step_code}. Call list_lesson_steps to see the codes."}
     hints = []
     for t in lvl.get("transitions", []):
         for check_id in t["checks"]:
-            hint = CHECKS[check_id]["hint"]
+            hint = UNIT["checks"][check_id]["hint"]
             if hint not in hints:
                 hints.append(hint)
     return {
@@ -84,11 +100,12 @@ def get_practice_item(skill: str) -> dict:
         skill: A skill name or id, for example "AI collaboration" or "c3".
     """
     key = skill.strip().lower()
-    concept = next((c for c in CONCEPTS.values() if key in (c["id"], c["name"].lower())), None)
+    concepts = UNIT["concepts"].values()
+    concept = next((c for c in concepts if key in (c["id"], c["name"].lower())), None)
     if not concept:
-        names = ", ".join(c["name"] for c in CONCEPTS.values())
+        names = ", ".join(c["name"] for c in concepts)
         return {"error": f"Unknown skill. Try one of: {names}."}
-    items = [i for i in PRACTICE if i["concept"] == concept["id"]]
+    items = [i for i in UNIT["practice"] if i["concept"] == concept["id"]]
     item = items[1] if len(items) > 1 else items[0]  # the middle-difficulty item
     return {k: item[k] for k in ("title", "scenario", "task", "tip")}
 
@@ -124,7 +141,10 @@ def invoke(payload: dict) -> dict:
     draft = str(payload.get("draft", "")).strip()[:2000]
     if draft:
         prompt += f"\n\n<my_draft>\n{draft}\n</my_draft>"
-    agent = Agent(model=MODEL, system_prompt=SYSTEM_PROMPT, tools=TOOLS, callback_handler=None)
+    global UNIT
+    UNIT = load_unit(str(payload.get("unit", DEFAULT_UNIT))[:40])
+    context = UNIT["data"]["unit"].get("context") or "a computer science lesson"
+    agent = Agent(model=MODEL, system_prompt=SYSTEM_PROMPT.format(context=context), tools=TOOLS, callback_handler=None)
     result = agent(prompt)
     try:
         used = sorted(result.metrics.tool_metrics.keys())

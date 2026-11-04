@@ -13,6 +13,8 @@ import {
   type AssistantReply,
   type ClassAttainment,
   type ClassInsights,
+  type UnitInfo,
+  type PreviewResult,
   type MiniLesson,
   type WorkSignals,
   type DiagnosticAnswers,
@@ -136,6 +138,12 @@ export class HttpApiClient implements ApiClient, DemoControls {
   getSubmission(submissionId: string) {
     return this.request<SubmissionOutcome>('GET', `/api/student/submissions/${encodeURIComponent(submissionId)}`);
   }
+  previewPrompt(levelId: string, prompt: string) {
+    return this.request<PreviewResult>('POST', `/api/student/levels/${encodeURIComponent(levelId)}/preview`, { prompt });
+  }
+  chooseTopic(topic: string) {
+    return this.request<LessonState>('POST', '/api/student/topic', { topic });
+  }
   chooseDepth(optionId: string) {
     return this.request<LessonState>('POST', '/api/student/depth', { optionId });
   }
@@ -185,6 +193,12 @@ export class HttpApiClient implements ApiClient, DemoControls {
   }
   async setFaultInjection(on: boolean) {
     await this.request('POST', '/api/demo/fault', { on });
+  }
+  async getUnits() {
+    return this.request<{ current: string; units: UnitInfo[] }>('GET', '/api/demo/units');
+  }
+  async setUnit(unitId: string) {
+    await this.request('POST', '/api/demo/unit', { unit: unitId });
   }
   async getRoutingMode() {
     return this.request<{ mode: 'advised' | 'rules'; available: boolean }>('GET', '/api/demo/routing');

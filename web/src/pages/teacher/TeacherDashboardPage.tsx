@@ -63,7 +63,7 @@ export function TeacherDashboardPage() {
   return (
     <Box sx={{ flex: 1 }}>
       <TeacherHeader
-        eyebrow="AI-Generated Design · Robotics Club Page"
+        eyebrow={data.unit?.name ?? 'Class'}
         title={data.className}
         subtitle="Everyone reaches Meeting on every concept. Exceeding is optional depth. Students never see this page."
         right={

@@ -21,6 +21,11 @@ class StudentController < ApplicationController
   def depth = render(json: service.choose_depth(student, params.require(:optionId).to_s))
   def topic = render(json: service.choose_topic(student, params.require(:topic).to_s))
 
+  # "Try it": what an AI builds from the student's prompt (formative, sandboxed).
+  def preview
+    render json: PreviewService.new.preview(student, params[:level_id], params.require(:prompt), topic: service.topic_for(student))
+  end
+
   def assistant
     # X-Agent-Token: the student's Cognito access token, forwarded to the AgentCore tutor.
     render json: service.ask_assistant(student, params[:level_id], params.require(:message),
