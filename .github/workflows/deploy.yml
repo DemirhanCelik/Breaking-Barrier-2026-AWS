@@ -70,6 +70,12 @@ jobs:
             done
           fi
 
+      # The Bit agent image (agent/) is ARM64 for AgentCore Runtime; the runner is x86.
+      - name: Set up QEMU for ARM64 builds
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
       - name: Install infra dependencies
         working-directory: infra
         run: npm ci

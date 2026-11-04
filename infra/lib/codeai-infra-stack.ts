@@ -10,7 +10,9 @@ import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as bedrock from 'aws-cdk-lib/aws-bedrock';
-import { Platform } from 'aws-cdk-lib/aws-ecr-assets';
+import { DockerImageAsset, Platform } from 'aws-cdk-lib/aws-ecr-assets';
+import * as agentcore from 'aws-cdk-lib/aws-bedrockagentcore';
+import { IgnoreMode } from 'aws-cdk-lib';
 import * as path from 'path';
 import { DatabaseSchema } from './database-schema';
 
@@ -582,6 +584,103 @@ export class CodeAiInfraStack extends cdk.Stack {
     });
     new cdk.CfnOutput(this, 'GitHubDeployRoleArn', { value: deployRole.roleArn });
     new cdk.CfnOutput(this, 'KmsKeyArn', { value: dataKey.keyArn });
+    // ---------------------------------------------------------------------------
+    // Bit tutor agent on Amazon Bedrock AgentCore Runtime (agent/).
+    // A Strands agent with 3 curriculum tools, ARM64 container, HTTP protocol.
+    // Inbound auth: Cognito JWT (access tokens from the web app client); a call
+    // without a valid token is rejected by the runtime. ADOT tracing on.
+    // ---------------------------------------------------------------------------
+    const agentImage = new DockerImageAsset(this, 'BitAgentImage', {
+      directory: path.join(__dirname, '../..'),
+      file: 'agent/Dockerfile',
+      platform: Platform.LINUX_ARM64,
+      ignoreMode: IgnoreMode.DOCKER,
+      // Build context is the repo root; ship only the agent and the curriculum YAML.
+      exclude: ['*', '!agent', '!api', 'api/*', '!api/config', 'api/config/*', '!api/config/curriculum'],
+    });
+
+    const agentRuntimeName = 'codeai_bit_tutor';
+    const agentRole = new iam.Role(this, 'BitAgentRole', {
+      description: 'Execution role for the Bit tutor agent on AgentCore Runtime',
+      assumedBy: new iam.ServicePrincipal('bedrock-agentcore.amazonaws.com', {
+        // Confused-deputy protection.
+        conditions: {
+          StringEquals: { 'aws:SourceAccount': this.account },
+          ArnLike: { 'aws:SourceArn': `arn:aws:bedrock-agentcore:${this.region}:${this.account}:*` },
+        },
+      }),
+    });
+    agentImage.repository.grantPull(agentRole);
+    agentRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents', 'logs:DescribeLogStreams'],
+        resources: [`arn:aws:logs:${this.region}:${this.account}:log-group:/aws/bedrock-agentcore/runtimes/*`],
+      }),
+    );
+    agentRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['logs:DescribeLogGroups'],
+        resources: [`arn:aws:logs:${this.region}:${this.account}:log-group:*`],
+      }),
+    );
+    agentRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['xray:PutTraceSegments', 'xray:PutTelemetryRecords', 'xray:GetSamplingRules', 'xray:GetSamplingTargets'],
+        resources: ['*'],
+      }),
+    );
+    agentRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['cloudwatch:PutMetricData'],
+        resources: ['*'],
+        conditions: { StringEquals: { 'cloudwatch:namespace': 'bedrock-agentcore' } },
+      }),
+    );
+    agentRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
+        resources: [
+          'arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0',
+          `arn:aws:bedrock:${this.region}:${this.account}:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0`,
+        ],
+      }),
+    );
+    agentRole.addToPolicy(
+      new iam.PolicyStatement({ actions: ['bedrock:ApplyGuardrail'], resources: [guardrail.attrGuardrailArn] }),
+    );
+    agentRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['bedrock-agentcore:GetWorkloadAccessToken', 'bedrock-agentcore:GetWorkloadAccessTokenForJWT'],
+        resources: [
+          `arn:aws:bedrock-agentcore:${this.region}:${this.account}:workload-identity-directory/default`,
+          `arn:aws:bedrock-agentcore:${this.region}:${this.account}:workload-identity-directory/default/workload-identity/${agentRuntimeName}-*`,
+        ],
+      }),
+    );
+
+    const bitAgent = new agentcore.CfnRuntime(this, 'BitAgentRuntime', {
+      agentRuntimeName,
+      description: 'Bit, the CodeAI lesson tutor (Strands agent with curriculum tools)',
+      agentRuntimeArtifact: { containerConfiguration: { containerUri: agentImage.imageUri } },
+      roleArn: agentRole.roleArn,
+      networkConfiguration: { networkMode: 'PUBLIC' },
+      protocolConfiguration: 'HTTP',
+      authorizerConfiguration: {
+        customJwtAuthorizer: {
+          discoveryUrl: `https://cognito-idp.${this.region}.amazonaws.com/${userPool.userPoolId}/.well-known/openid-configuration`,
+          allowedClients: [userPoolClient.userPoolClientId],
+        },
+      },
+      environmentVariables: {
+        BEDROCK_MODEL_ID: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
+        GUARDRAIL_ID: guardrail.attrGuardrailId,
+        GUARDRAIL_VERSION: 'DRAFT',
+      },
+    });
+    bitAgent.node.addDependency(agentRole);
+
+    new cdk.CfnOutput(this, 'BitAgentRuntimeArn', { value: bitAgent.attrAgentRuntimeArn });
+
     new cdk.CfnOutput(this, 'GuardrailId', { value: guardrail.attrGuardrailId });
     new cdk.CfnOutput(this, 'GuardrailArn', {
       value: guardrail.attrGuardrailArn,

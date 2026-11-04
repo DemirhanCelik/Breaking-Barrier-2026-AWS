@@ -1,0 +1,5 @@
+# Pinned to releases at least two weeks old.
+bedrock-agentcore==1.24.1
+strands-agents[otel]==1.61.0
+aws-opentelemetry-distro==0.21.0
+pyyaml==6.0.3
