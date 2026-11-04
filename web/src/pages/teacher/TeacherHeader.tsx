@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Box, Container, Tab, Tabs, Typography } from '@mui/material';
 import { brand } from '../../theme';
 
-/** Purple band used on teacher pages (teacher surfaces are visually distinct from the student lesson). */
+/** Shared overview and navigation for teacher pages. */
 export function TeacherHeader({
   eyebrow,
   title,
@@ -16,8 +16,8 @@ export function TeacherHeader({
   right?: ReactNode;
 }) {
   return (
-    <Box sx={{ bgcolor: brand.purple, color: '#fff' }}>
-      <Container maxWidth="xl" sx={{ pt: 3.5, pb: 2 }}>
+    <Box sx={{ bgcolor: '#263d39', color: '#fff', borderBottom: `1px solid ${brand.borderLight}` }}>
+      <Container maxWidth="xl" sx={{ pt: 5, pb: 3 }}>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 3 }}>
           <Box sx={{ flex: 1, minWidth: 260 }}>
             {eyebrow && (
@@ -84,7 +84,7 @@ function TeacherTabs() {
 
 export function HeaderStat({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <Box sx={{ px: 2.5, py: 1.25, borderRadius: 1.5, bgcolor: 'rgba(255,255,255,0.12)', minWidth: 120 }}>
+    <Box sx={{ px: 2.5, py: 1.25, borderRadius: 1.5, bgcolor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', minWidth: 120 }}>
       <Typography sx={{ fontSize: '1.7rem', fontWeight: 800, lineHeight: 1.1 }}>{value}</Typography>
       <Typography variant="body2" sx={{ opacity: 0.85 }}>
         {label}

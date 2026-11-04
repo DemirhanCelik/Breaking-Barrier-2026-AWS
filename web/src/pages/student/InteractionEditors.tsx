@@ -3,6 +3,7 @@ import { Box, IconButton, Tooltip, Typography } from '@mui/material';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import { useSessionDraft } from '../../hooks/useSessionDraft';
 import { brand } from '../../theme';
 
 const MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
@@ -14,22 +15,25 @@ const MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
  */
 export function ParsonsEditor({
   lines,
+  draftKey,
   disabled,
   onChange,
 }: {
   lines: string[];
+  draftKey: string;
   disabled?: boolean;
   onChange: (response: string) => void;
 }) {
-  const [order, setOrder] = useState(() => lines.map((text, id) => ({ id, text })));
+  const [ids, setIds] = useSessionDraft<number[]>(draftKey, lines.map((_, id) => id), (v): v is number[] => Array.isArray(v) && v.length === lines.length && new Set(v).size === lines.length && v.every((id) => Number.isInteger(id) && id >= 0 && id < lines.length));
+  const order = ids.map((id) => ({ id, text: lines[id] }));
   const dragFrom = useRef<number | null>(null);
   const [announce, setAnnounce] = useState('');
 
-  useEffect(() => onChange(order.map((l) => l.text).join('\n')), [order, onChange]);
+  useEffect(() => onChange(ids.map((id) => lines[id]).join('\n')), [ids, lines, onChange]);
 
   const move = (from: number, to: number) => {
-    if (to < 0 || to >= order.length || from === to) return;
-    setOrder((o) => {
+    if (disabled || to < 0 || to >= order.length || from === to) return;
+    setIds((o) => {
       const next = [...o];
       const [item] = next.splice(from, 1);
       next.splice(to, 0, item);
@@ -126,15 +130,17 @@ export function ParsonsEditor({
  */
 export function FillEditor({
   code,
+  draftKey,
   disabled,
   onChange,
 }: {
   code: string;
+  draftKey: string;
   disabled?: boolean;
   onChange: (response: string) => void;
 }) {
   const parts = code.split('____');
-  const [values, setValues] = useState<string[]>(() => parts.slice(1).map(() => ''));
+  const [values, setValues] = useSessionDraft<string[]>(draftKey, parts.slice(1).map(() => ''), (v): v is string[] => Array.isArray(v) && v.length === parts.length - 1 && v.every((item) => typeof item === 'string'));
 
   useEffect(
     () => onChange(values.every((v) => v.trim()) ? JSON.stringify({ blanks: values.map((v) => v.trim()) }) : ''),

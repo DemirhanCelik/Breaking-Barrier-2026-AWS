@@ -5,6 +5,8 @@ import FitnessCenterOutlinedIcon from '@mui/icons-material/FitnessCenterOutlined
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
+import { useSession } from '../../session';
+import { clearSessionDraft, useSessionDraft } from '../../hooks/useSessionDraft';
 import { api, type StudentLevel, type SubmissionOutcome } from '../../api';
 import { PaneHeader, SpeechBubble } from '../../components/brand';
 import { brand } from '../../theme';
@@ -30,12 +32,16 @@ export function LevelView({
   level,
   stepNumber,
   onAdvance,
+  unitId,
 }: {
   level: StudentLevel;
   stepNumber: number;
   onAdvance: () => void;
+  unitId?: string;
 }) {
-  const [response, setResponse] = useState('');
+  const { user } = useSession();
+  const draftKey = `codeai-draft:${user?.id}:${unitId ?? 'default'}:${level.id}`;
+  const [response, setResponse, draftSaved] = useSessionDraft<string>(draftKey, '', (v): v is string => typeof v === 'string');
   const [feedback, setFeedback] = useState<Feedback>({ kind: 'none' });
   // Resizable panes, remembered per browser (drag, arrow keys, or double-click to reset).
   const outer = useRef<HTMLDivElement>(null);
@@ -51,7 +57,7 @@ export function LevelView({
       return value;
     });
   const [sidePct, setSidePct, sideMin, sideMax] = usePaneSize('side', 32, 22, 55);
-  const [hintSignal, setHintSignal] = useState(0);
+  const hintSignal = 0;
   // Your work always keeps at least 30% of the width: the side panel and then the
   // instructions give way, so nothing is ever squeezed under a neighbor.
   const sideEff = side ? Math.min(sidePct, 100 - 30 - 25) : 0;
@@ -60,6 +66,7 @@ export function LevelView({
   // "Try it": the prompt the preview was made from (null = panel closed).
   const [previewOf, setPreviewOf] = useState<string | null>(null);
   const cancelled = useRef(false);
+  const feedbackArea = useRef<HTMLDivElement>(null);
   // Quiet formative signals (never shown to the student): time on this attempt,
   // separate editing bursts, and pastes. Sent with the submission for the teacher
   // view and the routing advisor.
@@ -106,6 +113,13 @@ export function LevelView({
     }
   };
 
+  useEffect(() => {
+    if (feedback.kind === 'outcome' || feedback.kind === 'error') {
+      feedbackArea.current?.focus({ preventScroll: true });
+      feedbackArea.current?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [feedback]);
+
   const outcome = feedback.kind === 'outcome' ? feedback.outcome : null;
   const canContinue = outcome?.status === 'done' && outcome.nextAction === 'continue';
   const checking = feedback.kind === 'checking';
@@ -123,7 +137,9 @@ export function LevelView({
           md: `minmax(0, ${leftEff}%) 6px minmax(0, 1fr)${side ? ` 6px minmax(0, ${sideEff}%)` : ''}`,
         },
         gridTemplateRows: { xs: 'auto', md: '1fr' },
-        height: { md: 'calc(100vh - 60px)' },
+        height: { md: 'calc(100vh - 76px)' },
+        p: { xs: 1, md: 2 },
+        gap: { xs: 1, md: 0 },
         bgcolor: brand.bg,
         minWidth: 0,
       }}
@@ -133,7 +149,7 @@ export function LevelView({
         <Box
           component="section"
           aria-label="Instructions"
-          sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, bgcolor: '#fff' }}
+          sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, bgcolor: '#fff', border: `1px solid ${brand.borderLight}`, borderRadius: 3, overflow: 'hidden' }}
         >
           <PaneHeader
             title="Instructions"
@@ -173,8 +189,8 @@ export function LevelView({
                       width: 26,
                       height: 26,
                       borderRadius: '50%',
-                      bgcolor: brand.purple,
-                      color: '#fff',
+                      bgcolor: brand.tealLight,
+                      color: brand.tealDark,
                       fontWeight: 800,
                       fontSize: 13,
                       display: 'grid',
@@ -212,7 +228,6 @@ export function LevelView({
               </Box>
             )}
 
-            <Feedback feedback={feedback} />
           </Box>
         </Box>
       </Box>
@@ -238,10 +253,13 @@ export function LevelView({
           minHeight: { xs: 420, md: 0 },
           minWidth: 0,
           overflow: 'hidden',
+          borderRadius: 3,
+          border: `1px solid ${brand.borderLight}`,
+          bgcolor: '#fff',
         }}
       >
         <PaneHeader
-          title="Your work"
+          title="Create & explore"
           right={
             !canContinue && (
               <Box sx={{ display: 'flex', gap: 0.5 }}>
@@ -272,7 +290,6 @@ export function LevelView({
                   startIcon={<LightbulbOutlinedIcon />}
                   aria-expanded={side === 'bit'}
                   onClick={() => {
-                    if (side !== 'bit') setHintSignal((n) => n + 1);
                     setSide((s) => (s === 'bit' ? null : 'bit'));
                   }}
                   sx={{
@@ -282,7 +299,7 @@ export function LevelView({
                       : {}),
                   }}
                 >
-                  Hint
+                  Ask Bit
                 </Button>
               </Box>
             )
@@ -292,12 +309,13 @@ export function LevelView({
           <Box sx={{ flex: 1, overflowY: 'auto', bgcolor: brand.bg }}>
             {level.interaction.type === 'parsons' ? (
               <ParsonsEditor
+                draftKey={`${draftKey}:order`}
                 lines={level.interaction.lines}
                 disabled={checking || canContinue}
                 onChange={setResponse}
               />
             ) : (
-              <FillEditor code={level.interaction.code} disabled={checking || canContinue} onChange={setResponse} />
+              <FillEditor draftKey={`${draftKey}:blanks`} code={level.interaction.code} disabled={checking || canContinue} onChange={setResponse} />
             )}
           </Box>
         ) : (
@@ -306,29 +324,10 @@ export function LevelView({
               <Typography component="label" htmlFor="workspace-editor" sx={{ fontWeight: 700, fontSize: 14 }}>
                 {level.responseLabel}
               </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>Start with your own words. You can revise your response after feedback.</Typography>
             </Box>
 
             <Box sx={{ flex: 1, overflowY: 'auto', bgcolor: '#fff', display: 'flex', alignItems: 'stretch' }}>
-              <Box
-                aria-hidden
-                sx={{
-                  py: 1.5,
-                  px: 1,
-                  minWidth: 44,
-                  textAlign: 'right',
-                  bgcolor: '#f7f8f9',
-                  borderRight: `1px solid ${brand.borderLight}`,
-                  color: '#9aa3ab',
-                  fontFamily: MONO,
-                  fontSize: 14,
-                  lineHeight: '24px',
-                  userSelect: 'none',
-                }}
-              >
-                {Array.from({ length: lineCount }, (_, i) => (
-                  <div key={i}>{i + 1}</div>
-                ))}
-              </Box>
               <InputBase
                 id="workspace-editor"
                 multiline
@@ -350,11 +349,11 @@ export function LevelView({
                 disabled={checking || canContinue}
                 sx={{
                   alignItems: 'flex-start',
-                  px: 1.5,
-                  py: 1.5,
-                  fontFamily: MONO,
-                  fontSize: 14,
-                  '& textarea': { lineHeight: '24px', whiteSpace: 'pre-wrap' },
+                  px: 3,
+                  py: 2.5,
+                  fontFamily: 'inherit',
+                  fontSize: 16,
+                  '& textarea': { lineHeight: '28px', whiteSpace: 'pre-wrap' },
                   '& textarea::placeholder': { color: '#9aa3ab', opacity: 1 },
                 }}
               />
@@ -362,6 +361,7 @@ export function LevelView({
           </>
         )}
 
+        {feedback.kind !== 'none' && feedback.kind !== 'checking' && <Box ref={feedbackArea} tabIndex={-1} aria-label="Feedback on your work" sx={{ px: 2, py: 2, borderTop: `1px solid ${brand.borderLight}`, maxHeight: { md: '35vh' }, overflowY: 'auto' }}><Feedback feedback={feedback} /></Box>}
         {checking && <LinearProgress color="warning" aria-label="Reading your work" />}
         <Box
           sx={{
@@ -385,11 +385,11 @@ export function LevelView({
                     ? response
                       ? 'All blanks filled.'
                       : 'Fill every blank to check.'
-                    : wordLabel(response)}
+                    : `${wordLabel(response)} · ${draftSaved ? 'Draft saved in this tab' : 'Keep this page open to preserve your draft'}`}
           </Typography>
           {canContinue ? (
-            <Button variant="contained" size="large" endIcon={<ArrowForwardIcon />} onClick={onAdvance}>
-              Continue
+            <Button variant="contained" size="large" endIcon={<ArrowForwardIcon />} onClick={() => { clearSessionDraft(draftKey); clearSessionDraft(`${draftKey}:order`); clearSessionDraft(`${draftKey}:blanks`); onAdvance(); }}>
+              Next step
             </Button>
           ) : (
             <Button
@@ -400,7 +400,7 @@ export function LevelView({
               disabled={checking || response.trim().length === 0}
               onClick={submit}
             >
-              {outcome?.status === 'done' ? 'Check again' : 'Check my work'}
+              {checking ? 'Reading your work…' : outcome?.status === 'done' ? 'Check my changes' : 'Get feedback'}
             </Button>
           )}
         </Box>

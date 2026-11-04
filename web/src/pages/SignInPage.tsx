@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { Alert, Box, Button, Container, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Container, Tab, Tabs, TextField, Typography } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { api, authMode, type SessionUser } from '../api';
 import { cognitoConfigured } from '../auth/cognito';
@@ -19,6 +19,8 @@ export function SignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(cognito);
   const [busy, setBusy] = useState(false);
+  const [role, setRole] = useState<'student' | 'teacher'>('student');
+  const [showAllStudents, setShowAllStudents] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -68,10 +70,13 @@ export function SignInPage() {
   const students = users.filter((u) => u.role === 'student');
 
   return (
-    <Box sx={{ flex: 1 }}>
+    <Box sx={{ flex: 1, display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 0.85fr) minmax(0, 1fr)' } }}>
       <Box
         sx={{
-          bgcolor: brand.tealDark,
+          bgcolor: brand.charcoal,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
           color: '#fff',
           position: 'relative',
           overflow: 'hidden',
@@ -82,15 +87,17 @@ export function SignInPage() {
           sx={{
             position: 'absolute',
             inset: 0,
-            backgroundImage: 'radial-gradient(rgba(255,255,255,0.14) 1.5px, transparent 1.5px)',
-            backgroundSize: '22px 22px',
+            backgroundImage: 'radial-gradient(ellipse at 10% 90%, rgba(33,182,168,0.18), transparent 65%), radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px)',
+            backgroundSize: '100% 100%, 24px 24px',
           }}
         />
         <Container
           maxWidth="lg"
           sx={{
             position: 'relative',
-            py: { xs: 5, md: 7 },
+            py: { xs: 3, md: 8 },
+            px: { xs: 3, md: 6, xl: 8 },
+            flexDirection: 'column',
             display: 'flex',
             alignItems: 'center',
             gap: 4,
@@ -98,31 +105,43 @@ export function SignInPage() {
         >
           <Box sx={{ flex: 1 }}>
             <Typography variant="overline" sx={{ color: brand.orange }}>
-              CodeAI · Adaptive lessons
+              BREAKING BARRIERS 2026 · CODEAI
             </Typography>
             <Typography
               variant="h1"
               sx={{
-                fontSize: { xs: '2.4rem', md: '3.4rem' },
+                fontSize: { xs: '2.2rem', md: '3.8rem', xl: '4.4rem' },
                 mt: 1,
                 mb: 2,
                 maxWidth: 640,
               }}
             >
-              Every student, their own path to the same goal
+              Big ideas.
+              Your own way there.
             </Typography>
             <Typography sx={{ fontSize: '1.1rem', opacity: 0.92, maxWidth: 560 }}>
-              Lessons adapt to what each student shows, with an AI tutor beside them and a teacher view that shows who needs help.{' '}
-              {users.length > 0 ? 'Pick a demo account to try it.' : 'Sign in to continue.'}
+              Learn to code. Create with AI. Build something that feels like you, with a little guidance whenever you need it.
             </Typography>
           </Box>
-          <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-            <Bit size={180} />
+          <Box sx={{ display: { xs: 'none', lg: 'block' }, width: '100%', mt: 2, p: 3, border: '1px solid #42605c', borderRadius: 4, bgcolor: 'rgba(255,255,255,0.04)' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+              <Bit size={52} />
+              <Box><Typography fontWeight={700}>Meet Bit, your learning sidekick</Typography><Typography variant="body2" sx={{ color: '#bdd4ce' }}>A nudge when you need it. Space to figure it out.</Typography></Box>
+            </Box>
+            {['Choose a topic you care about', 'Find your starting point', 'Make, try, and grow at your pace'].map((text, i) => (
+              <Box key={text} sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
+                <Box sx={{ width: 28, height: 28, borderRadius: '50%', bgcolor: '#314d48', color: '#9fe1c9', display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 700 }}>{i + 1}</Box>
+                <Typography variant="body2" sx={{ color: '#e1eee8' }}>{text}</Typography>
+              </Box>
+            ))}
           </Box>
         </Container>
       </Box>
 
-      <Container maxWidth="lg" sx={{ py: 5 }}>
+      <Container maxWidth="lg" sx={{ py: { xs: 4, md: 6 }, px: { xs: 3, md: 5, xl: 7 }, alignSelf: 'center' }}>
+        <Typography variant="overline" color="primary">YOUR NEXT CHAPTER</Typography>
+        <Typography variant="h2" sx={{ mt: 1, mb: 1, fontSize: { xs: '2rem', md: '2.5rem' } }}>Welcome to your learning studio.</Typography>
+        <Typography color="text.secondary" sx={{ mb: 4 }}>{users.length > 0 ? 'Try the student experience or explore the teacher workspace.' : 'Welcome back. Sign in to keep building.'}</Typography>
         {error && (
           <Alert severity="error" sx={{ mb: 3 }}>
             {error}
@@ -168,64 +187,25 @@ export function SignInPage() {
         )}
 
         {users.length > 0 && (
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' },
-              gap: 4,
-            }}
-          >
-            <Box>
-              <Typography variant="h2" sx={{ mb: 0.5 }}>
-                I'm a student
-              </Typography>
-              <Typography color="text.secondary" sx={{ mb: 2 }}>
-                Ava and Ben start fresh. The others already have some progress.
-              </Typography>
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-                  gap: 1.5,
-                }}
-              >
-                {students.map((u) => (
-                  <AccountButton
-                    key={u.id}
-                    user={u}
-                    accent={brand.teal}
-                    note={FRESH.has(u.id) ? 'Starts fresh' : 'In progress'}
-                    onSelect={choose}
-                  />
-                ))}
-              </Box>
+          <Box>
+            <Tabs value={role} onChange={(_, value: 'student' | 'teacher') => setRole(value)} aria-label="Choose your demo experience" sx={{ mb: 3, borderBottom: `1px solid ${brand.borderLight}` }}>
+              <Tab value="student" label="Student experience" sx={{ textTransform: 'none', fontWeight: 700 }} />
+              <Tab value="teacher" label="Teacher workspace" sx={{ textTransform: 'none', fontWeight: 700 }} />
+            </Tabs>
+            <Typography variant="h2" sx={{ mb: 1 }}>{role === 'student' ? 'Start with a learner’s perspective.' : 'See the whole class. Know who needs you.'}</Typography>
+            <Typography color="text.secondary" variant="body2" sx={{ mb: 3 }}>{role === 'student' ? 'Choose a learner. Their home shows where to begin or resume.' : 'Explore progress, understand each learning path, and plan focused support.'}</Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: role === 'student' ? '1fr 1fr' : '1fr' }, gap: 1.5 }}>
+              {(role === 'student' ? students.filter((u) => showAllStudents || FRESH.has(u.id)) : teachers).map((u) => <AccountButton key={u.id} user={u} accent={role === 'student' ? brand.teal : brand.purple} note={role === 'teacher' ? 'Explore the class overview' : 'Open learning home'} onSelect={choose} disabled={busy} />)}
             </Box>
-            <Box>
-              <Typography variant="h2" sx={{ mb: 0.5 }}>
-                I'm a teacher
-              </Typography>
-              <Typography color="text.secondary" sx={{ mb: 2 }}>
-                See where every student is against the class bar.
-              </Typography>
-              <Box sx={{ display: 'grid', gap: 1.5 }}>
-                {teachers.map((u) => (
-                  <AccountButton
-                    key={u.id}
-                    user={u}
-                    accent={brand.purple}
-                    note="Period 3 · 7 students"
-                    onSelect={choose}
-                  />
-                ))}
-              </Box>
-            </Box>
+            {role === 'student' && students.some((u) => !FRESH.has(u.id)) && <Button onClick={() => setShowAllStudents((shown) => !shown)} aria-expanded={showAllStudents} sx={{ mt: 2, px: 0 }}>{showAllStudents ? 'Show fewer demo profiles' : 'Explore more demo learners'}</Button>}
+            <Box sx={{ mt: 4, p: 2.5, bgcolor: '#eaf0e6', borderRadius: 2 }}><Typography variant="body2" fontWeight={700}>{role === 'student' ? 'What happens next?' : 'Built around the moments that matter.'}</Typography><Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{role === 'student' ? 'Visit your learning home, find your starting point, then work through a path that adapts as you learn.' : 'Start with students who may need a check-in, then review the evidence behind their learning paths.'}</Typography></Box>
           </Box>
         )}
 
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 5 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 4, pt: 3, borderTop: `1px solid ${brand.borderLight}`, fontSize: 12 }}>
           {cognito
-            ? 'Signed in with Amazon Cognito; your role comes from your group. Demo accounts are synthetic users with no real student data.'
-            : "Demo sign-in with synthetic users. Production signs in with Amazon Cognito, and the role comes from the user's group."}
+            ? 'Demo profiles use synthetic data. No real student information.'
+            : 'Hackathon demo · Synthetic profiles · No real student data'}
         </Typography>
       </Container>
     </Box>
@@ -237,20 +217,24 @@ function AccountButton({
   accent,
   note,
   onSelect,
+  disabled,
 }: {
   user: SessionUser;
   accent: string;
   note: string;
   onSelect: (id: string) => void;
+  disabled: boolean;
 }) {
   return (
     <Box
       component="button"
       type="button"
+      disabled={disabled}
       onClick={() => onSelect(user.id)}
       sx={{
         all: 'unset',
-        cursor: 'pointer',
+        cursor: disabled ? 'wait' : 'pointer',
+        opacity: disabled ? 0.6 : 1,
         display: 'flex',
         alignItems: 'center',
         gap: 1.5,
@@ -259,10 +243,11 @@ function AccountButton({
         bgcolor: '#fff',
         borderRadius: 1.5,
         border: `1px solid ${brand.borderLight}`,
-        borderLeft: `5px solid ${accent}`,
+
         transition: 'box-shadow 120ms, transform 120ms',
         '&:hover': {
-          boxShadow: '0 4px 14px rgba(41,47,54,0.12)',
+          borderColor: accent,
+          boxShadow: '0 6px 20px rgba(24,46,48,0.06)',
           transform: 'translateY(-1px)',
         },
         '&:hover .go': { color: accent },

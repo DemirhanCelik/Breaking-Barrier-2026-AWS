@@ -69,14 +69,14 @@ export function StudentLessonPage() {
     case 'topic':
       return <TopicPicker topics={state.topics} unitName={state.unit?.name} onChosen={setState} />;
     case 'diagnostic':
-      return <DiagnosticView onDone={setState} unitName={state.unit?.name} />;
+      return <DiagnosticView key={state.unit?.id ?? 'default'} unitId={state.unit?.id} onDone={setState} unitName={state.unit?.name} />;
     case 'complete':
       return <CompleteView state={state} />;
     case 'choose-depth':
       return <DepthChoiceView options={state.options} onChosen={setState} />;
     case 'level':
       return (
-        <LevelView key={state.level.id} level={state.level} stepNumber={state.stepsCompleted + 1} onAdvance={load} />
+        <LevelView key={`${state.unit?.id ?? 'default'}:${state.level.id}`} unitId={state.unit?.id} level={state.level} stepNumber={state.stepsCompleted + 1} onAdvance={load} />
       );
   }
 }

@@ -5,6 +5,7 @@ import type { Role } from './api';
 import { AppShell } from './components/AppShell';
 import { useSession } from './session';
 import { SignInPage } from './pages/SignInPage';
+import { StudentHomePage } from './pages/student/StudentHomePage';
 import { StudentLessonPage } from './pages/student/StudentLessonPage';
 import { TeacherDashboardPage } from './pages/teacher/TeacherDashboardPage';
 import { SafetyPage } from './pages/teacher/SafetyPage';
@@ -49,10 +50,11 @@ export function App() {
           path="/student"
           element={
             <RequireRole role="student">
-              <StudentLessonPage />
+              <StudentHomePage />
             </RequireRole>
           }
         />
+        <Route path="/student/lesson" element={<RequireRole role="student"><StudentLessonPage /></RequireRole>} />
         <Route
           path="/teacher"
           element={

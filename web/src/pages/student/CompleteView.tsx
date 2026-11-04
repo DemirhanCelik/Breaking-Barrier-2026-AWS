@@ -1,4 +1,6 @@
-import { Box, Container, Typography } from '@mui/material';
+import { Box, Button, Container, Typography } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom';
+import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import type { LessonState } from '../../api';
 import { Bit } from '../../components/brand';
 import { brand } from '../../theme';
@@ -58,6 +60,7 @@ export function CompleteView({ state }: { state: Extract<LessonState, { phase: '
         <Typography variant="overline" sx={{ color: brand.tealDark }}>
           {state.stepsCompleted} steps done
         </Typography>
+        <Box sx={{ mt: 3 }}><Button component={RouterLink} to="/student" variant="contained" startIcon={<ArrowBackRoundedIcon />}>Back to my learning</Button></Box>
       </Box>
     </Container>
   );

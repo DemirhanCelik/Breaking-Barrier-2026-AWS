@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
-import { Box, Button, CircularProgress, Container, LinearProgress, Typography } from '@mui/material';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Box, Button, CircularProgress, Container, LinearProgress, Typography } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import { useSession } from '../../session';
+import { clearSessionDraft, useSessionDraft } from '../../hooks/useSessionDraft';
 import { api, type DiagnosticAnswers, type DiagnosticForm, type LessonState } from '../../api';
 import { SpeechBubble } from '../../components/brand';
 import { brand } from '../../theme';
@@ -11,25 +13,25 @@ const MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 
 /**
  * Warm-up that places the student per concept (FR1). One question at a time, like
- * a quick quiz card, never framed as a test: no right/wrong is shown. Picking an
- * answer moves on; Back lets them change it. Keys 1-4 or A-D pick an answer.
+ * a quick quiz card, never framed as a test: no right/wrong is shown. Students
+ * confirm with Next so they can consider or change their answer. Keys 1-4 or A-D pick an answer.
  */
-export function DiagnosticView({ onDone, unitName }: { onDone: (s: LessonState) => void; unitName?: string }) {
+export function DiagnosticView({ onDone, unitName, unitId }: { onDone: (s: LessonState) => void; unitName?: string; unitId?: string }) {
   const [form, setForm] = useState<DiagnosticForm | null>(null);
-  const [answers, setAnswers] = useState<DiagnosticAnswers>({});
+  const { user } = useSession();
+  const draftKey = `codeai-warmup:${user?.id}:${unitId ?? unitName ?? 'default'}`;
+  const [answers, setAnswers, saved] = useSessionDraft<DiagnosticAnswers>(draftKey, {}, (v): v is DiagnosticAnswers => typeof v === 'object' && v !== null && !Array.isArray(v) && Object.values(v).every((answer) => typeof answer === 'string'));
   const [index, setIndex] = useState(-1); // -1 = intro card
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const advance = useRef<number | undefined>(undefined);
   const heading = useRef<HTMLHeadingElement>(null);
 
-  useEffect(() => {
-    api
-      .getDiagnostic()
-      .then(setForm)
-      .catch((e: Error) => setError(e.message));
-    return () => window.clearTimeout(advance.current);
+  const loadForm = useCallback(async () => {
+    setError(null);
+    try { setForm(await api.getDiagnostic()); }
+    catch { setError('We couldn’t load your warm-up. Please try again.'); }
   }, []);
+  useEffect(() => { void loadForm(); }, [loadForm]);
 
   useEffect(() => {
     heading.current?.focus();
@@ -37,18 +39,16 @@ export function DiagnosticView({ onDone, unitName }: { onDone: (s: LessonState) 
 
   const total = form?.items.length ?? 0;
   const item = form && index >= 0 ? form.items[index] : null;
-  const done = form ? form.items.every((i) => answers[i.id]) : false;
+  const done = form ? form.items.every((i) => i.options.some((option) => option.id === answers[i.id])) : false;
 
   const choose = (optionId: string) => {
-    if (!item) return;
+    if (!item || submitting) return;
     setAnswers((a) => ({ ...a, [item.id]: optionId }));
-    window.clearTimeout(advance.current);
-    if (index < total - 1) advance.current = window.setTimeout(() => setIndex((i) => i + 1), 280);
   };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!item || e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey) return;
+      if (!item || submitting || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
       const pos = /^[1-9]$/.test(k) ? Number(k) - 1 : 'abcde'.indexOf(k);
       if (pos >= 0 && pos < item.options.length) choose(item.options[pos].id);
@@ -61,7 +61,9 @@ export function DiagnosticView({ onDone, unitName }: { onDone: (s: LessonState) 
     setSubmitting(true);
     setError(null);
     try {
-      onDone(await api.submitDiagnostic(answers));
+      const next = await api.submitDiagnostic(answers);
+      clearSessionDraft(draftKey);
+      onDone(next);
     } catch {
       setError("We couldn't save your answers. Please try again.");
       setSubmitting(false);
@@ -72,7 +74,7 @@ export function DiagnosticView({ onDone, unitName }: { onDone: (s: LessonState) 
     return (
       <Box sx={{ display: 'grid', placeItems: 'center', flex: 1, p: 4 }}>
         {error ? (
-          <Typography>We couldn't load the warm-up. Please reload the page.</Typography>
+          <Alert severity="warning" action={<Button color="inherit" onClick={loadForm}>Try again</Button>}>{error}</Alert>
         ) : (
           <CircularProgress aria-label="Loading warm-up" />
         )}
@@ -112,7 +114,7 @@ export function DiagnosticView({ onDone, unitName }: { onDone: (s: LessonState) 
               <Typography>{form.intro}</Typography>
             </SpeechBubble>
             <Typography color="text.secondary">
-              {total} quick questions, one at a time. Go with your best guess; it's fine not to know.
+              {answeredCount ? `${answeredCount} of ${total} answers are saved in this tab. Pick up where you left off.` : `${total} quick questions, one at a time. Go with your best guess; it’s fine not to know.`}
             </Typography>
             <Box>
               <Button
@@ -120,9 +122,9 @@ export function DiagnosticView({ onDone, unitName }: { onDone: (s: LessonState) 
                 color="warning"
                 size="large"
                 endIcon={<ArrowForwardIcon />}
-                onClick={() => setIndex(0)}
+                onClick={() => { const next = form.items.findIndex((q) => !answers[q.id]); setIndex(next < 0 ? total - 1 : next); }}
               >
-                Let's go
+                {answeredCount ? 'Continue my warm-up' : 'Let’s go'}
               </Button>
             </Box>
           </>
@@ -130,7 +132,7 @@ export function DiagnosticView({ onDone, unitName }: { onDone: (s: LessonState) 
           item && (
             <>
               <Typography variant="body2" color="text.secondary" aria-live="polite">
-                Question {index + 1} of {total}
+                Question {index + 1} of {total} · Take your time
               </Typography>
               <Typography
                 ref={heading}
@@ -167,6 +169,7 @@ export function DiagnosticView({ onDone, unitName }: { onDone: (s: LessonState) 
                       key={o.id}
                       component="button"
                       type="button"
+                      disabled={submitting}
                       role="radio"
                       aria-checked={selected}
                       onClick={() => choose(o.id)}
@@ -209,9 +212,11 @@ export function DiagnosticView({ onDone, unitName }: { onDone: (s: LessonState) 
                 })}
               </Box>
 
+              <Typography variant="caption" color="text.secondary">Choose an answer, then select Next. You can go back and change your mind. {saved ? 'Answers are saved in this tab.' : 'Keep this page open to preserve your answers.'}</Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1, flexWrap: 'wrap' }}>
                 <Button
                   startIcon={<ArrowBackIcon />}
+                  disabled={submitting}
                   onClick={() => setIndex((i) => i - 1)}
                   sx={{ color: brand.charcoal }}
                 >
@@ -225,6 +230,7 @@ export function DiagnosticView({ onDone, unitName }: { onDone: (s: LessonState) 
                       key={q.id}
                       component="button"
                       type="button"
+                      disabled={submitting}
                       aria-label={`Go to question ${i + 1}${answers[q.id] ? ' (answered)' : ''}`}
                       onClick={() => setIndex(i)}
                       sx={{
@@ -243,6 +249,7 @@ export function DiagnosticView({ onDone, unitName }: { onDone: (s: LessonState) 
                 <Box sx={{ flex: 1 }} />
                 {index < total - 1 ? (
                   <Button
+                    variant="contained"
                     endIcon={<ArrowForwardIcon />}
                     disabled={!answers[item.id]}
                     onClick={() => setIndex((i) => i + 1)}

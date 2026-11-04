@@ -64,7 +64,7 @@ export function SpeechBubble({
   role?: string;
 }) {
   const border = tone === 'coach' ? brand.teal : tone === 'caution' ? brand.orange : brand.borderLight;
-  const bg = tone === 'coach' ? '#f0fbfc' : tone === 'caution' ? '#fff7e6' : '#fff';
+  const bg = tone === 'coach' ? '#eff8f3' : tone === 'caution' ? '#fff7e6' : '#fff';
   return (
     <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start', ...sx }} role={role}>
       <Bit size={48} mood={mood ?? (tone === 'default' ? 'happy' : 'thinking')} />
@@ -73,7 +73,7 @@ export function SpeechBubble({
           position: 'relative',
           flex: 1,
           bgcolor: bg,
-          border: `2px solid ${border}`,
+          border: `1px solid ${border}`,
           borderRadius: 2,
           px: 2,
           py: 1.5,
@@ -85,8 +85,8 @@ export function SpeechBubble({
             width: 14,
             height: 14,
             bgcolor: bg,
-            borderLeft: `2px solid ${border}`,
-            borderBottom: `2px solid ${border}`,
+            borderLeft: `1px solid ${border}`,
+            borderBottom: `1px solid ${border}`,
             transform: 'rotate(45deg)',
           },
         }}
@@ -105,11 +105,11 @@ export function PaneHeader({ title, right, dark }: { title: string; right?: Reac
         display: 'flex',
         alignItems: 'center',
         gap: 1,
-        minHeight: 40,
+        minHeight: 52,
         px: 2,
-        bgcolor: dark ? brand.slate : brand.strip,
+        bgcolor: dark ? brand.slate : '#fff',
         color: dark ? '#fff' : brand.charcoal,
-        borderBottom: `1px solid ${dark ? brand.slate : brand.border}`,
+        borderBottom: `1px solid ${dark ? brand.slate : brand.borderLight}`,
       }}
     >
       <Typography variant="overline" noWrap sx={{ flex: 1, minWidth: 0 }}>

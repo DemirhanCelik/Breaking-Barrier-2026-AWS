@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -12,6 +12,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import TuneIcon from '@mui/icons-material/Tune';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { api, authMode, demoControls } from '../api';
@@ -49,7 +50,7 @@ function DemoMenu() {
     controls?.getRoutingMode().then(setRouting).catch(() => setRouting(null));
     controls?.getUnits().then(setUnits).catch(() => setUnits(null));
   }, [controls]);
-  if (!controls) return null;
+  if (!controls || user?.role !== 'teacher') return null;
 
   return (
     <>
@@ -207,6 +208,7 @@ function UserMenu() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user } = useSession();
+  const { pathname } = useLocation();
   const [slot, setSlot] = useState<ReactNode>(null);
 
   return (
@@ -218,11 +220,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             position: 'sticky',
             top: 0,
             zIndex: (t) => t.zIndex.appBar,
-            height: 60,
+            height: 76,
+            flexShrink: 0,
+            borderBottom: '1px solid rgba(255,255,255,0.1)',
             px: { xs: 1.5, md: 2.5 },
             display: 'flex',
             alignItems: 'center',
-            gap: 2,
+            gap: { xs: 1, sm: 2 },
             bgcolor: brand.charcoal,
             color: '#fff',
           }}
@@ -235,9 +239,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             <Logo />
           </Box>
+          {user?.role === 'student' && <Button component={RouterLink} to="/student" startIcon={pathname === '/student/lesson' ? <ArrowBackRoundedIcon /> : undefined} sx={{ color: '#d5e5df', whiteSpace: 'nowrap', minWidth: 0, fontSize: 13 }}>{pathname === '/student/lesson' ? 'My learning' : 'Learning home'}</Button>}
+          {!user && <Typography variant="body2" sx={{ color: '#b5cec5', display: { xs: 'none', sm: 'block' }, ml: 2 }}>A place for every kind of mind.</Typography>}
           {user?.role === 'teacher' && (
             <Typography sx={{ color: 'rgba(255,255,255,0.75)', fontWeight: 600, display: { xs: 'none', md: 'block' } }}>
-              Teacher Home
+              Teacher workspace
             </Typography>
           )}
           <Box sx={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'center' }}>{slot}</Box>
