@@ -10,6 +10,8 @@ import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as bedrock from 'aws-cdk-lib/aws-bedrock';
+import { Platform } from 'aws-cdk-lib/aws-ecr-assets';
+import * as path from 'path';
 
 export interface CodeAiInfraStackProps extends cdk.StackProps {
   /** GitHub repo in "owner/name" form used to scope the OIDC trust policy. */
@@ -356,21 +358,27 @@ export class CodeAiInfraStack extends cdk.Stack {
       // 512 MB balances Rails cold-start CPU against cost; tune via context.
       memorySize: props.apiMemoryMb,
       timeout: cdk.Duration.seconds(30),
-      // Placeholder image so the stack deploys before the real Rails image
-      // exists. Swap to your ECR Rails image (with the Lambda Web Adapter) at
-      // deploy time. Uses the AWS base "hello world" image for a valid synth.
-      code: lambda.DockerImageCode.fromImageAsset(`${__dirname}/placeholder-api`),
+      // The Rails API image (api/Dockerfile, Lamby handler app.handler). Built
+      // for linux/amd64 so it matches the function architecture on any host.
+      code: lambda.DockerImageCode.fromImageAsset(path.join(__dirname, '../../api'), {
+        platform: Platform.LINUX_AMD64,
+      }),
       environment: {
-        AWS_LWA_PORT: '8080',
+        DB_DRIVER: 'data_api',
         DB_CLUSTER_ARN: dbCluster.clusterArn,
         DB_SECRET_ARN: dbCluster.secret?.secretArn ?? '',
         DB_NAME: 'codeai',
         ARTIFACTS_BUCKET: artifactsBucket.bucketName,
         BEDROCK_MODEL_ID: props.bedrockModelId,
-        BEDROCK_GUARDRAIL_ID: guardrail.attrGuardrailId,
-        BEDROCK_GUARDRAIL_VERSION: 'DRAFT',
+        GUARDRAIL_ID: guardrail.attrGuardrailId,
+        GUARDRAIL_VERSION: 'DRAFT',
         COGNITO_USER_POOL_ID: userPool.userPoolId,
         COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
+        // demo = synthetic users picked via X-Demo-User header (SPA has no
+        // Cognito sign-in yet). Switch to 'cognito' with -c codeai:authMode=cognito.
+        AUTH_MODE: (this.node.tryGetContext('codeai:authMode') as string | undefined) ?? 'demo',
+        VALIDATION_MODE: 'model',
+        ALLOWED_ORIGINS: `https://${distribution.distributionDomainName},http://localhost:5173`,
       },
     });
 
@@ -378,11 +386,9 @@ export class CodeAiInfraStack extends cdk.Stack {
     // URL auth type is NONE; the function itself enforces the JWT + row scoping.
     const apiFunctionUrl = apiFunction.addFunctionUrl({
       authType: lambda.FunctionUrlAuthType.NONE,
-      cors: {
-        allowedOrigins: ['*'], // tighten to the CloudFront domain post-deploy.
-        allowedMethods: [lambda.HttpMethod.ALL],
-        allowedHeaders: ['*'],
-      },
+      // No Function URL CORS: Rails rack-cors (driven by ALLOWED_ORIGINS) owns
+      // CORS. Configuring both sends duplicate Access-Control-Allow-Origin
+      // headers, which browsers reject.
     });
     // NOTE: The SPA build is deployed to spaBucket by CI (web -> build -> S3 ->
     // CloudFront invalidate), not by this stack. The bucket + distribution are

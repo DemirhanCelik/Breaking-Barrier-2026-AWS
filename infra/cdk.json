@@ -19,7 +19,7 @@
     "codeai:githubRepo": "DemirhanCelik/Breaking-Barrier-2026-AWS",
     "codeai:githubBranch": "main",
     "codeai:bedrockModelId": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
-    "codeai:apiMemoryMb": "512",
+    "codeai:apiMemoryMb": "1024",
 
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
     "@aws-cdk/core:checkSecretUsage": true,
