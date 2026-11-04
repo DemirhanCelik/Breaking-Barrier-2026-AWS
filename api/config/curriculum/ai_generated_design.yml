@@ -111,7 +111,7 @@ checks:
     label: Prompt states a goal
     hint: Start your prompt by telling the AI what you want it to make and why.
     type: regex
-    pattern: '\b(make|create|build|design|write|generate|i want|goal)\b'
+    pattern: '\b(make|create|build|design|write|generate|update|add|change|improve|turn|i want|i need|goal|so that)\b'
   constraint:
     label: Prompt sets a constraint
     hint: Add a limit the AI has to respect, such as "use only our two school colors" or "no more than three sections".

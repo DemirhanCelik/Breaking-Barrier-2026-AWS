@@ -172,7 +172,7 @@ export const CHECKS: Record<string, Check> = {
     id: 'goal',
     label: 'Prompt states a goal',
     hint: 'Start your prompt by telling the AI what you want it to make and why.',
-    test: rx(/\b(make|create|build|design|write|generate|i want|goal)\b/i),
+    test: rx(/\b(make|create|build|design|write|generate|update|add|change|improve|turn|i want|i need|goal|so that)\b/i),
   },
   constraint: {
     id: 'constraint',
