@@ -7,7 +7,7 @@ import { Bit, Initials } from '../components/brand';
 import { useSession } from '../session';
 import { brand } from '../theme';
 
-const FRESH = new Set(['s-ava', 's-ben']);
+const FRESH = new Set(['s-hithesh', 's-tanushree', 's-tzuhan1']);
 
 export function SignInPage() {
   const { user, signIn } = useSession();

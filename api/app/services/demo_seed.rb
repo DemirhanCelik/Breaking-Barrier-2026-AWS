@@ -3,8 +3,8 @@
 module DemoSeed
   TEACHER = { id: "t-rivera", name: "Ms. Rivera (teacher)" }.freeze
   STUDENTS = {
-    "s-ava" => "Ava M.", "s-ben" => "Ben O.", "s-chloe" => "Chloe P.", "s-dev" => "Dev R.",
-    "s-eli" => "Eli S.", "s-fay" => "Fay T.", "s-gus" => "Gus W.",
+    "s-hithesh" => "Hithesh", "s-tanushree" => "Tanushree", "s-demirhan" => "Demirhan", "s-tzuhan" => "Tzuhan",
+    "s-hithesh1" => "Hithesh1", "s-tanushree1" => "Tanushree1", "s-demirhan1" => "Demirhan1", "s-tzuhan1" => "Tzuhan1",
   }.freeze
 
   module_function
@@ -23,26 +23,30 @@ module DemoSeed
     svc = LessonService.new
     place = ->(id, answers) { s = StudentRecord.find(id); svc.submit_diagnostic(s, answers); StudentRecord.find(id) }
 
-    chloe = place.call("s-chloe", { "d1" => "a", "d2" => "b", "d3" => "a", "d4" => "d" })
-    simulate_passes(svc, chloe, 2)
+    # s-hithesh and s-tanushree start fresh (no diagnostic submitted yet).
 
-    place.call("s-dev", { "d1" => "c", "d2" => "a", "d3" => "b", "d4" => "c" })
+    demirhan = place.call("s-demirhan", { "d1" => "a", "d2" => "b", "d3" => "a", "d4" => "d" })
+    simulate_passes(svc, demirhan, 2)
 
-    eli = place.call("s-eli", { "d1" => "a", "d2" => "c", "d3" => "c", "d4" => "b" })
-    simulate_passes(svc, eli, 1)
-    eli.add_validation!(level_code: cur.level(eli.current_level_id).code, mode: "error", model_meta: { error: "seeded fault" })
-    eli.flags << "Validation service unavailable (seeded fault)."
-    svc.send(:close_level, eli, eli.current_level_id, "done")
-    svc.send(:enter_fallback, eli, "validation failed after retry.")
-    svc.send(:advance, eli)
-    eli.save!
+    place.call("s-tzuhan", { "d1" => "c", "d2" => "a", "d3" => "b", "d4" => "c" })
 
-    fay = place.call("s-fay", { "d1" => "c", "d2" => "c", "d3" => "a", "d4" => "b" })
-    fay.transition_fails["c3:1"] = 3
-    fay.level_status[fay.current_level_id] = { "attempts" => 1, "status" => "in-progress" }
-    fay.save!
+    hithesh1 = place.call("s-hithesh1", { "d1" => "a", "d2" => "c", "d3" => "c", "d4" => "b" })
+    simulate_passes(svc, hithesh1, 1)
+    hithesh1.add_validation!(level_code: cur.level(hithesh1.current_level_id).code, mode: "error", model_meta: { error: "seeded fault" })
+    hithesh1.flags << "Validation service unavailable (seeded fault)."
+    svc.send(:close_level, hithesh1, hithesh1.current_level_id, "done")
+    svc.send(:enter_fallback, hithesh1, "validation failed after retry.")
+    svc.send(:advance, hithesh1)
+    hithesh1.save!
 
-    place.call("s-gus", { "d1" => "d", "d2" => "d", "d3" => "d", "d4" => "d" })
+    tanushree1 = place.call("s-tanushree1", { "d1" => "c", "d2" => "c", "d3" => "a", "d4" => "b" })
+    tanushree1.transition_fails["c3:1"] = 3
+    tanushree1.level_status[tanushree1.current_level_id] = { "attempts" => 1, "status" => "in-progress" }
+    tanushree1.save!
+
+    place.call("s-demirhan1", { "d1" => "d", "d2" => "d", "d3" => "d", "d4" => "d" })
+
+    # s-tzuhan1 starts fresh (no diagnostic submitted yet).
   end
 
   def insert_user(id, name, role)

@@ -76,13 +76,14 @@ interface Store {
 const TEACHER: SessionUser = { id: 't-rivera', displayName: 'Ms. Rivera (teacher)', role: 'teacher' };
 
 const STUDENT_NAMES: Record<string, string> = {
-  's-ava': 'Ava M.',
-  's-ben': 'Ben O.',
-  's-chloe': 'Chloe P.',
-  's-dev': 'Dev R.',
-  's-eli': 'Eli S.',
-  's-fay': 'Fay T.',
-  's-gus': 'Gus W.',
+  's-hithesh': 'Hithesh',
+  's-tanushree': 'Tanushree',
+  's-demirhan': 'Demirhan',
+  's-tzuhan': 'Tzuhan',
+  's-hithesh1': 'Hithesh1',
+  's-tanushree1': 'Tanushree1',
+  's-demirhan1': 'Demirhan1',
+  's-tzuhan1': 'Tzuhan1',
 };
 
 const nowIso = () => new Date().toISOString();
@@ -183,27 +184,31 @@ function seed(): Store {
   const students: Record<string, StudentRecord> = {};
   for (const id of Object.keys(STUDENT_NAMES)) students[id] = newStudent(id);
 
-  placeStudent(students['s-chloe'], { d1: 'a', d2: 'b', d3: 'a', d4: 'd' });
-  simulatePasses(students['s-chloe'], 2);
+  // s-hithesh and s-tanushree start fresh (no diagnostic submitted yet).
 
-  placeStudent(students['s-dev'], { d1: 'c', d2: 'a', d3: 'b', d4: 'c' });
+  placeStudent(students['s-demirhan'], { d1: 'a', d2: 'b', d3: 'a', d4: 'd' });
+  simulatePasses(students['s-demirhan'], 2);
 
-  const eli = students['s-eli'];
-  placeStudent(eli, { d1: 'a', d2: 'c', d3: 'c', d4: 'b' });
-  simulatePasses(eli, 1);
-  eli.validations.push({ at: nowIso(), levelCode: levelById(eli.currentLevelId!).code, mode: 'error', results: [] });
-  eli.flags.push('Validation service unavailable (seeded fault).');
-  closeLevel(eli, eli.currentLevelId!, 'done');
-  eli.mode = 'fallback';
-  eli.flags.push('Moved to non-adaptive path: validation failed after retry.');
-  advance(eli);
+  placeStudent(students['s-tzuhan'], { d1: 'c', d2: 'a', d3: 'b', d4: 'c' });
 
-  const fay = students['s-fay'];
-  placeStudent(fay, { d1: 'c', d2: 'c', d3: 'a', d4: 'b' });
-  fay.transitionFails['c3:1'] = 3;
-  fay.levelStatus[fay.currentLevelId!] = { attempts: 1, status: 'in-progress' };
+  const hithesh1 = students['s-hithesh1'];
+  placeStudent(hithesh1, { d1: 'a', d2: 'c', d3: 'c', d4: 'b' });
+  simulatePasses(hithesh1, 1);
+  hithesh1.validations.push({ at: nowIso(), levelCode: levelById(hithesh1.currentLevelId!).code, mode: 'error', results: [] });
+  hithesh1.flags.push('Validation service unavailable (seeded fault).');
+  closeLevel(hithesh1, hithesh1.currentLevelId!, 'done');
+  hithesh1.mode = 'fallback';
+  hithesh1.flags.push('Moved to non-adaptive path: validation failed after retry.');
+  advance(hithesh1);
 
-  placeStudent(students['s-gus'], { d1: 'd', d2: 'd', d3: 'd', d4: 'd' });
+  const tanushree1 = students['s-tanushree1'];
+  placeStudent(tanushree1, { d1: 'c', d2: 'c', d3: 'a', d4: 'b' });
+  tanushree1.transitionFails['c3:1'] = 3;
+  tanushree1.levelStatus[tanushree1.currentLevelId!] = { attempts: 1, status: 'in-progress' };
+
+  placeStudent(students['s-demirhan1'], { d1: 'd', d2: 'd', d3: 'd', d4: 'd' });
+
+  // s-tzuhan1 starts fresh (no diagnostic submitted yet).
 
   return { sessionUserId: null, fault: false, students };
 }
