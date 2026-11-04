@@ -30,10 +30,12 @@ module DemoSeed
     STUDENTS.each do |id, name|
       insert_user(id, name, "student")
       Db.execute("INSERT INTO enrollment (student_id, klass_id) VALUES (:s, :k)", s: id, k: cur.klass["id"])
-      # Admin appoints the teacher to each student for the active unit. Teaching
-      # appointments are AUTHORITATIVE: without these the teacher sees nothing.
-      Db.execute("INSERT INTO teaching_appointment (teacher_id, student_id, unit_id, created_by) VALUES (:t, :s, :u, :by) ON CONFLICT DO NOTHING",
-                 t: TEACHER[:id], s: id, u: cur.id, by: ADMIN[:id])
+      # Admin appoints the teacher to each student for every course students can
+      # pick. Teaching appointments are AUTHORITATIVE: without these the teacher sees nothing.
+      (Curriculum.selectable.map(&:id) | [cur.id]).each do |unit_id|
+        Db.execute("INSERT INTO teaching_appointment (teacher_id, student_id, unit_id, created_by) VALUES (:t, :s, :u, :by) ON CONFLICT DO NOTHING",
+                   t: TEACHER[:id], s: id, u: unit_id, by: ADMIN[:id])
+      end
     end
 
     svc = LessonService.new

@@ -311,6 +311,9 @@ export const MIGRATION_STATEMENTS: string[] = [
      created_at     timestamptz NOT NULL DEFAULT now(),
      updated_at     timestamptz NOT NULL DEFAULT now()
    )`,
+
+  // Backfill teaching appointments for classes seeded before they existed.
+  readFileSync(path.join(__dirname, '../../api/db/migrations/002_backfill_teaching_appointments.sql'), 'utf8'),
 ];
 
 /** All DDL in execution order: base tables first, then migrations. */
