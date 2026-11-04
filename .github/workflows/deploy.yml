@@ -1,8 +1,8 @@
-name: Deploy infra (CDK)
+name: Deploy (infra + API + web)
 
-# Keyless deploys to the teammate-owned AWS account via GitHub OIDC.
-# The stack must have been bootstrapped + deployed once from a machine with
-# credentials first (that creates the OIDC provider + deploy role this uses).
+# Keyless deploys to the AWS account via GitHub OIDC. One job ships everything:
+#   wake Aurora -> cdk deploy (infra + Rails API image) -> build SPA -> S3 sync
+#   -> CloudFront invalidation -> smoke test.
 #
 # Required repo configuration:
 #   - Variable  AWS_DEPLOY_ROLE_ARN  = the GitHubDeployRoleArn stack output
@@ -15,6 +15,7 @@ on:
     paths:
       - 'infra/**'
       - 'api/**'
+      - 'web/**'
       - '.github/workflows/deploy.yml'
   workflow_dispatch: {}
 
@@ -26,35 +27,84 @@ concurrency:
   group: infra-deploy
   cancel-in-progress: false
 
+env:
+  AWS_REGION: us-east-1
+  STACK: CodeAiAdaptiveEngineMvp
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     # No `environment:` here: it changes the OIDC sub claim to
-    # repo:...:environment:<name>, which the deploy role (trusting
-    # repo:...:ref:refs/heads/main) rejects.
+    # repo:...:environment:<name>, which the deploy role does not trust.
     steps:
       - uses: actions/checkout@v4
 
+      # Node 22: Vite 7 (web) needs 20.19+; CDK is fine on 22 too.
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
-          cache-dependency-path: infra/package-lock.json
-
-      - name: Install dependencies
-        working-directory: infra
-        run: npm ci
+          cache-dependency-path: |
+            infra/package-lock.json
+            web/package-lock.json
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: CDK synth
+      # Aurora auto-pauses after 5 idle minutes; the schema custom resource in
+      # the stack fails if it hits a paused cluster. Any DB-backed API call
+      # resumes it (can take ~30s), so do that before deploying.
+      - name: Wake Aurora
+        run: |
+          URL=$(aws cloudformation describe-stacks --stack-name "$STACK" \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiFunctionUrl'].OutputValue" --output text || true)
+          if [ -n "$URL" ] && [ "$URL" != "None" ]; then
+            for i in 1 2 3; do
+              code=$(curl -s -m 60 -o /dev/null -w '%{http_code}' "${URL%/}/api/demo/users" || true)
+              echo "wake attempt $i -> $code"; [ "$code" = "200" ] && break; sleep 10
+            done
+          fi
+
+      - name: Install infra dependencies
         working-directory: infra
-        run: npx cdk synth
+        run: npm ci
 
       - name: CDK deploy
         working-directory: infra
-        run: npx cdk deploy --require-approval never
+        run: npx cdk deploy --require-approval never --outputs-file cdk-outputs.json
+
+      - name: Read stack outputs
+        run: |
+          o() { jq -r --arg k "$1" '.[env.STACK][$k]' infra/cdk-outputs.json; }
+          URL=$(o ApiFunctionUrl)
+          {
+            echo "API_URL=${URL%/}"
+            echo "SPA_BUCKET=$(o SpaBucketName)"
+            echo "DIST_ID=$(o CloudFrontDistributionId)"
+            echo "SPA_DOMAIN=$(o CloudFrontDomain)"
+          } >> "$GITHUB_ENV"
+
+      - name: Build SPA
+        working-directory: web
+        env:
+          VITE_API_MODE: http
+          VITE_API_URL: ${{ env.API_URL }}
+          VITE_DEMO_CONTROLS: 'true'
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload SPA + invalidate CloudFront
+        run: |
+          aws s3 sync web/dist "s3://$SPA_BUCKET" --delete
+          aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths '/*' \
+            --query Invalidation.Id --output text
+
+      - name: Smoke test
+        run: |
+          curl -fsS -m 60 "$API_URL/health"; echo
+          curl -fsS -m 60 -o /dev/null -w "demo users -> %{http_code}\n" "$API_URL/api/demo/users"
+          curl -fsS -m 30 -o /dev/null -w "SPA https://$SPA_DOMAIN -> %{http_code}\n" "https://$SPA_DOMAIN/"

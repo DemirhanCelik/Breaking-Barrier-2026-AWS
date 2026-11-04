@@ -10,3 +10,4 @@ cdk.context.json
 .cdk.staging/
 *.tsbuildinfo
 .DS_Store
+infra/cdk-outputs.json
