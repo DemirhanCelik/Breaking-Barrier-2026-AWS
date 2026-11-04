@@ -18,6 +18,7 @@ Runs on AWS Lambda behind an API Gateway HTTP API (via the [Lamby](https://lamby
 | `app/services/quality_judge.rb` | LLM-as-judge quality gate over `config/curriculum/quality_rubric.yml` (curriculum-quality rubric), with deterministic pre-checks (no evaluative wording, length, no copying from the source). |
 | `app/services/practice_service.rb` | AI-generated formative practice (design §7A): generated for the student's current concept and stage, filtered and judged, with fallback to approved/authored practice (`config/curriculum/practice_bank.yml`). |
 | `app/services/authoring_service.rb` | AI-assisted authoring (design §7B): drafts grounded in pasted source, provenance quotes verified against it, human approve/edit/reject. |
+| `app/services/bit_agent_client.rb` | Calls the Bit tutor agent on AgentCore Runtime (`agent/`) with the student's own Cognito access token (`X-Agent-Token`); Coach falls back to direct Bedrock, then authored hints. |
 | `app/services/coach.rb` | "Ask Bit" hints, scoped to the current step; authored hints if the model is down (FR8). |
 | `app/services/lesson_service.rb` | Orchestration, fallback, student vs teacher DTOs. |
 | `app/services/auth.rb` | Cognito ID-token verification, or demo header auth. |

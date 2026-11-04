@@ -30,6 +30,7 @@ import {
 } from './types';
 
 export type TokenProvider = () => Promise<string | null>;
+const noToken: TokenProvider = async () => null;
 
 const DEMO_USER_KEY = 'codeai-demo-user';
 
@@ -38,7 +39,8 @@ export class HttpApiClient implements ApiClient, DemoControls {
 
   constructor(
     private readonly baseUrl: string,
-    private readonly getToken: TokenProvider = async () => null,
+    private readonly getToken: TokenProvider = noToken,
+    private readonly getAgentToken: TokenProvider = noToken,
   ) {}
 
   private demoUser(): string | null {
@@ -49,7 +51,12 @@ export class HttpApiClient implements ApiClient, DemoControls {
     }
   }
 
-  private async request<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
+  private async request<T>(
+    method: 'GET' | 'POST',
+    path: string,
+    body?: unknown,
+    extraHeaders: Record<string, string> = {},
+  ): Promise<T> {
     const token = await this.getToken();
     const demoUser = this.demoUser();
     const res = await fetch(`${this.baseUrl.replace(/\/$/, '')}${path}`, {
@@ -59,6 +66,7 @@ export class HttpApiClient implements ApiClient, DemoControls {
         ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(!token && demoUser ? { 'X-Demo-User': demoUser } : {}),
+        ...extraHeaders,
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
@@ -119,8 +127,15 @@ export class HttpApiClient implements ApiClient, DemoControls {
   chooseDepth(optionId: string) {
     return this.request<LessonState>('POST', '/api/student/depth', { optionId });
   }
-  askAssistant(levelId: string, message: string) {
-    return this.request<AssistantReply>('POST', `/api/student/levels/${encodeURIComponent(levelId)}/assistant`, { message });
+  async askAssistant(levelId: string, message: string) {
+    // The student's own access token lets the API call the AgentCore tutor on their behalf.
+    const agentToken = await this.getAgentToken();
+    return this.request<AssistantReply>(
+      'POST',
+      `/api/student/levels/${encodeURIComponent(levelId)}/assistant`,
+      { message },
+      agentToken ? { 'X-Agent-Token': agentToken } : {},
+    );
   }
 
   getClassAttainment() {

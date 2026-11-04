@@ -20,7 +20,9 @@ class StudentController < ApplicationController
   def depth = render(json: service.choose_depth(student, params.require(:optionId).to_s))
 
   def assistant
-    render json: service.ask_assistant(student, params[:level_id], params.require(:message))
+    # X-Agent-Token: the student's Cognito access token, forwarded to the AgentCore tutor.
+    render json: service.ask_assistant(student, params[:level_id], params.require(:message),
+                                       agent_token: request.headers["X-Agent-Token"].to_s[0, 4096].presence)
   end
 
   # Formative practice (design §7A): never feeds the mastery signal.

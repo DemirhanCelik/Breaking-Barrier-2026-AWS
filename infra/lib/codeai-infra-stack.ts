@@ -679,6 +679,9 @@ export class CodeAiInfraStack extends cdk.Stack {
     });
     bitAgent.node.addDependency(agentRole);
 
+    // The API's "Ask Bit" calls this agent with the student's own Cognito access token
+    // (JWT inbound auth; no IAM permission needed), falling back to direct Bedrock.
+    apiFunction.addEnvironment('BIT_AGENT_ARN', bitAgent.attrAgentRuntimeArn);
     new cdk.CfnOutput(this, 'BitAgentRuntimeArn', { value: bitAgent.attrAgentRuntimeArn });
 
     new cdk.CfnOutput(this, 'GuardrailId', { value: guardrail.attrGuardrailId });

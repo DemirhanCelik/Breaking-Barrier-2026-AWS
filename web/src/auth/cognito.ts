@@ -17,12 +17,15 @@ const REFRESH_SKEW_MS = 2 * 60 * 1000;
 
 interface StoredSession {
   idToken: string;
+  /** Access token: carries client_id, which the AgentCore JWT authorizer checks. */
+  accessToken?: string;
   refreshToken: string;
   expiresAt: number; // epoch ms
 }
 
 interface AuthResult {
   IdToken: string;
+  AccessToken?: string;
   RefreshToken?: string;
   ExpiresIn: number;
 }
@@ -97,6 +100,7 @@ export async function signIn(email: string, password: string): Promise<void> {
   }
   save({
     idToken: r.IdToken,
+    accessToken: r.AccessToken,
     refreshToken: r.RefreshToken ?? '',
     expiresAt: Date.now() + r.ExpiresIn * 1000,
   });
@@ -113,6 +117,7 @@ async function refresh(s: StoredSession): Promise<string | null> {
     if (!r) throw new CognitoAuthError('Refresh failed');
     save({
       idToken: r.IdToken,
+      accessToken: r.AccessToken,
       refreshToken: s.refreshToken,
       expiresAt: Date.now() + r.ExpiresIn * 1000,
     });
@@ -136,6 +141,15 @@ export async function getIdToken(): Promise<string | null> {
     refreshing = null;
   });
   return refreshing;
+}
+
+/**
+ * Current access token (refreshed with the ID token). Sent only on "Ask Bit"
+ * requests so the API can call the AgentCore tutor on behalf of this student.
+ */
+export async function getAccessToken(): Promise<string | null> {
+  if (!(await getIdToken())) return null;
+  return memory?.accessToken ?? null;
 }
 
 export function signOut() {

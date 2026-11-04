@@ -16,9 +16,22 @@ class Coach
     @model = model
   end
 
-  def reply(level:, stages:, last_response:, message:)
+  # agent: { token:, student_id: } routes the question to the AgentCore Bit agent
+  # (tool-using, acts on the student's own token); any failure falls back below.
+  def reply(level:, stages:, last_response:, message:, agent: nil)
     hints = Engine.hints_for(level, stages, last_response.to_s)
     return scripted(level, hints) if Validator.mode == "probes"
+
+    if agent && agent[:token].present? && BitAgentClient.configured?
+      begin
+        r = BitAgentClient.new.ask(token: agent[:token], student_id: agent[:student_id], level_code: level.code,
+                                   message: message, draft: last_response)
+        Rails.logger.info("[coach] AgentCore Bit replied (tools: #{r[:tools_used].join(', ').presence || 'none'})")
+        return r[:reply]
+      rescue BitAgentClient::Error => e
+        Rails.logger.warn("[coach] AgentCore Bit unavailable, using direct model: #{e.message}")
+      end
+    end
 
     prompt = <<~P
       Current task: #{level.title}

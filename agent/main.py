@@ -121,6 +121,9 @@ def invoke(payload: dict) -> dict:
     level = str(payload.get("level", "")).strip()[:8]
     if level:
         prompt = f"(I'm on step {level}.) {prompt}"
+    draft = str(payload.get("draft", "")).strip()[:2000]
+    if draft:
+        prompt += f"\n\n<my_draft>\n{draft}\n</my_draft>"
     agent = Agent(model=MODEL, system_prompt=SYSTEM_PROMPT, tools=TOOLS, callback_handler=None)
     result = agent(prompt)
     try:

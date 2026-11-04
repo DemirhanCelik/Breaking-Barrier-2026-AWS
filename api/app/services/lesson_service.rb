@@ -105,7 +105,7 @@ class LessonService
     lesson_state(s)
   end
 
-  def ask_assistant(s, level_id, message)
+  def ask_assistant(s, level_id, message, agent_token: nil)
     raise Error.new("That step is not current.", 409) unless s.current_level_id == level_id
     message = message.to_s.strip[0, 1000]
     raise Error.new("Message is empty", 422) if message.empty?
@@ -114,7 +114,8 @@ class LessonService
     FilterAudit.record!(input, student_id: s.id, context: "assistant", direction: "input", ref_id: ref)
     return { reply: input.message, withheld: true } unless input.ok?
 
-    reply = Coach.new.reply(level: cur.level(level_id), stages: s.stages, last_response: s.last_response[level_id], message: message)
+    reply = Coach.new.reply(level: cur.level(level_id), stages: s.stages, last_response: s.last_response[level_id], message: message,
+                            agent: agent_token.present? ? { token: agent_token, student_id: s.id } : nil)
     output = ContentFilter.check_output(reply)
     FilterAudit.record!(output, student_id: s.id, context: "assistant", direction: "output", ref_id: ref)
     return { reply: "Let me think about that differently. Try rereading the step instructions.", withheld: true } unless output.ok?

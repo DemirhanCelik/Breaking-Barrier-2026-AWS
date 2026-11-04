@@ -4,7 +4,7 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
     origins(*ENV.fetch("ALLOWED_ORIGINS", "http://localhost:5173").split(",").map(&:strip))
     resource "/api/*",
-             headers: %w[Authorization Content-Type X-Demo-User],
+             headers: %w[Authorization Content-Type X-Demo-User X-Agent-Token],
              methods: %i[get post options],
              max_age: 3600
   end
