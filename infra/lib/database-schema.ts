@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as kms from 'aws-cdk-lib/aws-kms';
@@ -121,6 +122,26 @@ export const SCHEMA_STATEMENTS: string[] = [
    )`,
 ];
 
+/**
+ * Idempotent migrations for tables that already exist. `CREATE TABLE IF NOT
+ * EXISTS` never alters an existing table, so column/constraint changes go here
+ * and run after SCHEMA_STATEMENTS. Every entry MUST be safe to re-run, e.g.:
+ *
+ *   `ALTER TABLE klass ADD COLUMN IF NOT EXISTS archived boolean NOT NULL DEFAULT false`
+ *   `CREATE INDEX IF NOT EXISTS klass_teacher_idx ON klass (teacher_id)`
+ *
+ * Keep one statement per entry (Data API limit). Append only; don't edit
+ * entries that have already been deployed.
+ */
+export const MIGRATION_STATEMENTS: string[] = [];
+
+/** All DDL in execution order: base tables first, then migrations. */
+const ALL_STATEMENTS: string[] = [...SCHEMA_STATEMENTS, ...MIGRATION_STATEMENTS];
+
+/** Short content hash of one statement; changes whenever the SQL text changes. */
+const statementHash = (sql: string): string =>
+  createHash('sha256').update(sql).digest('hex').slice(0, 12);
+
 export interface DatabaseSchemaProps {
   /** The Aurora cluster to run the DDL against (must have the Data API enabled). */
   readonly cluster: rds.IDatabaseCluster;
@@ -155,16 +176,18 @@ export class DatabaseSchema extends Construct {
     // this hash, which changes the physical resource id and forces a re-run of
     // the custom resource on the next deploy (new tables / indexes get created).
     const schemaVersion = cdk.Fn.base64(
-      cdk.Lazy.string({ produce: () => `${SCHEMA_STATEMENTS.length}` }),
+      cdk.Lazy.string({ produce: () => `${ALL_STATEMENTS.length}` }),
     );
-    const hash = `${SCHEMA_STATEMENTS.length}-${SCHEMA_STATEMENTS.join('|').length}`;
 
     // One ExecuteStatement call per statement. AwsCustomResource runs a single
     // SDK call, so we chain them as ordered custom resources that depend on one
     // another — guaranteeing CREATE TABLE ordering (FK targets exist first).
     let previous: cr.AwsCustomResource | undefined;
 
-    SCHEMA_STATEMENTS.forEach((sql, index) => {
+    ALL_STATEMENTS.forEach((sql, index) => {
+      // Per-statement content hash: editing ANY statement (even to the same
+      // length) changes its physical id, so CloudFormation re-runs just it.
+      const physicalId = `codeai-ddl-${index}-${statementHash(sql)}`;
       const statement = new cr.AwsCustomResource(this, `Ddl${index}`, {
         // Scope the role to exactly the Data API + secret-read it needs.
         policy: cr.AwsCustomResourcePolicy.fromStatements([
@@ -202,7 +225,7 @@ export class DatabaseSchema extends Construct {
             database: databaseName,
             sql,
           },
-          physicalResourceId: cr.PhysicalResourceId.of(`codeai-ddl-${index}-${hash}`),
+          physicalResourceId: cr.PhysicalResourceId.of(physicalId),
         },
         onUpdate: {
           service: 'RDSDataService',
@@ -213,7 +236,7 @@ export class DatabaseSchema extends Construct {
             database: databaseName,
             sql,
           },
-          physicalResourceId: cr.PhysicalResourceId.of(`codeai-ddl-${index}-${hash}`),
+          physicalResourceId: cr.PhysicalResourceId.of(physicalId),
         },
         // No onDelete: tables are left intact on stack delete decisions made by
         // the cluster's own RemovalPolicy. We never DROP from here.
