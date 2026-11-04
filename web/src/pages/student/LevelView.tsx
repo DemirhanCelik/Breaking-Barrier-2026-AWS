@@ -38,10 +38,10 @@ export function LevelView({
   const [feedback, setFeedback] = useState<Feedback>({ kind: 'none' });
   // Resizable panes, remembered per browser (drag, arrow keys, or double-click to reset).
   const outer = useRef<HTMLDivElement>(null);
-  const leftCol = useRef<HTMLDivElement>(null);
   const [leftPct, setLeftPct, leftMin, leftMax] = usePaneSize('left', 42, 25, 70);
-  const [taskPct, setTaskPct, taskMin, taskMax] = usePaneSize('task', 58, 20, 85);
-  // Bumped by the Hint button: Bit (under the task) is asked for a hint.
+  // Bit opens as its own column on the right (pushes the page, never covers it).
+  // Opening it with Hint also asks Bit for a hint.
+  const [bitOpen, setBitOpen] = useState(false);
   const [hintSignal, setHintSignal] = useState(0);
   const [practiceOpen, setPracticeOpen] = useState(false);
   // "Try it": the prompt the preview was made from (null = panel closed).
@@ -105,28 +105,22 @@ export function LevelView({
       sx={{
         flex: 1,
         display: 'grid',
-        gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: `minmax(0, ${leftPct}%) 6px minmax(0, 1fr)` },
-        gridTemplateRows: { xs: 'auto auto', md: '1fr' },
+        gridTemplateColumns: {
+          xs: 'minmax(0, 1fr)',
+          md: `minmax(0, ${leftPct}%) 6px minmax(0, 1fr)${bitOpen ? ' minmax(300px, 380px)' : ''}`,
+        },
+        gridTemplateRows: { xs: 'auto', md: '1fr' },
         height: { md: 'calc(100vh - 60px)' },
         bgcolor: brand.bg,
         minWidth: 0,
       }}
     >
-      {/* Instructions pane: the task on top, Bit below (both resizable) */}
-      <Box
-        ref={leftCol}
-        sx={{
-          display: 'grid',
-          gridTemplateRows: { xs: 'auto 380px', md: `minmax(0, ${taskPct}%) 6px minmax(0, 1fr)` },
-          gridTemplateColumns: 'minmax(0, 1fr)',
-          minHeight: 0,
-          minWidth: 0,
-        }}
-      >
+      {/* Instructions pane */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 }}>
         <Box
           component="section"
           aria-label="Instructions"
-          sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, bgcolor: '#fff' }}
+          sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, bgcolor: '#fff' }}
         >
           <PaneHeader
             title="Instructions"
@@ -208,17 +202,6 @@ export function LevelView({
             <Feedback feedback={feedback} />
           </Box>
         </Box>
-        <Splitter
-          container={leftCol}
-          axis="y"
-          value={taskPct}
-          min={taskMin}
-          max={taskMax}
-          onChange={setTaskPct}
-          onReset={() => setTaskPct(58)}
-          label="Resize the task and the Bit tutor"
-        />
-        <BitTutorPanel level={level} hintSignal={hintSignal} />
       </Box>
 
       <Splitter
@@ -265,7 +248,11 @@ export function LevelView({
                 <Button
                   size="small"
                   startIcon={<LightbulbOutlinedIcon />}
-                  onClick={() => setHintSignal((n) => n + 1)}
+                  aria-expanded={bitOpen}
+                  onClick={() => {
+                    if (!bitOpen) setHintSignal((n) => n + 1);
+                    setBitOpen((o) => !o);
+                  }}
                   sx={{
                     color: brand.charcoal,
                     ...(outcome?.status === 'done' && outcome.offerAssistant
@@ -399,6 +386,18 @@ export function LevelView({
             </Button>
           )}
         </Box>
+      </Box>
+
+      {/* Bit tutor column: kept mounted so the chat survives closing and reopening */}
+      <Box
+        sx={{
+          display: bitOpen ? 'flex' : 'none',
+          minHeight: { xs: 420, md: 0 },
+          minWidth: 0,
+          borderLeft: { md: `1px solid ${brand.border}` },
+        }}
+      >
+        <BitTutorPanel level={level} hintSignal={hintSignal} onClose={() => setBitOpen(false)} />
       </Box>
 
       <PracticeDialog open={practiceOpen} onClose={() => setPracticeOpen(false)} level={level} />

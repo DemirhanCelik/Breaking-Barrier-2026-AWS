@@ -112,7 +112,7 @@ export function PaneHeader({ title, right, dark }: { title: string; right?: Reac
         borderBottom: `1px solid ${dark ? brand.slate : brand.border}`,
       }}
     >
-      <Typography variant="overline" sx={{ flex: 1 }}>
+      <Typography variant="overline" noWrap sx={{ flex: 1, minWidth: 0 }}>
         {title}
       </Typography>
       {right}

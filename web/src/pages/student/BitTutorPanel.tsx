@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Box, Button, InputBase, Typography } from '@mui/material';
+import { Box, Button, IconButton, InputBase, Typography } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import SendRoundedIcon from '@mui/icons-material/SendRounded';
 import { api, type StudentLevel } from '../../api';
 import { Bit } from '../../components/brand';
@@ -19,7 +20,15 @@ export const HINT_REQUEST = 'Can I get a hint for this step?';
  * the API filters the question and the reply, and Bit never writes the answer.
  * `hintSignal` changes when the student presses "Hint": Bit is asked for a hint here.
  */
-export function BitTutorPanel({ level, hintSignal }: { level: StudentLevel; hintSignal: number }) {
+export function BitTutorPanel({
+  level,
+  hintSignal,
+  onClose,
+}: {
+  level: StudentLevel;
+  hintSignal: number;
+  onClose?: () => void;
+}) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -60,9 +69,10 @@ export function BitTutorPanel({ level, hintSignal }: { level: StudentLevel; hint
       sx={{
         display: 'flex',
         flexDirection: 'column',
+        flex: 1,
         minHeight: 0,
+        minWidth: 0,
         bgcolor: brand.bg,
-        borderTop: `1px solid ${brand.border}`,
       }}
     >
       <Box
@@ -83,6 +93,11 @@ export function BitTutorPanel({ level, hintSignal }: { level: StudentLevel; hint
             Your AI tutor for this step. Bit nudges; it won't write the answer.
           </Typography>
         </Box>
+        {onClose && (
+          <IconButton size="small" aria-label="Close Bit" onClick={onClose}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        )}
       </Box>
 
       <Box
