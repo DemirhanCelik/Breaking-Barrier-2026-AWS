@@ -29,7 +29,9 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: production
+    # No `environment:` here: it changes the OIDC sub claim to
+    # repo:...:environment:<name>, which the deploy role (trusting
+    # repo:...:ref:refs/heads/main) rejects.
     steps:
       - uses: actions/checkout@v4
 
