@@ -6,6 +6,8 @@ namespace :db do
     sql.split(/;\s*$/).map(&:strip).reject { |s| s.empty? || s.lines.all? { |l| l.strip.start_with?("--") || l.strip.empty? } }.each do |stmt|
       Db.execute(stmt)
     end
+    # Migration files are one complete statement each (including DO blocks).
+    Dir[Rails.root.join("db/migrations/*.sql")].sort.each { |file| Db.execute(File.read(file)) }
     puts "Schema applied."
   end
 
@@ -15,6 +17,19 @@ namespace :db do
     puts "Seeded #{DemoSeed::STUDENTS.size} students and 1 teacher."
   end
 
-  desc "schema + seed"
+  desc "Seed a new empty demo database without replacing existing users or work"
+  task seed_if_empty: :environment do
+    if Db.query("SELECT count(*) AS n FROM app_user").first["n"].to_i.zero?
+      DemoSeed.run!
+      puts "Initialized the empty demo database."
+    else
+      puts "Existing users found; preserved all course progress."
+    end
+  end
+
+  desc "Apply schema and initialize demo users only when the database is empty"
+  task initialize: %i[schema seed_if_empty]
+
+  desc "schema + seed (explicitly replaces all demo work)"
   task setup: %i[schema seed]
 end

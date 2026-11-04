@@ -54,10 +54,10 @@ function DemoMenu() {
 
   return (
     <>
-      <Tooltip title="Demo controls">
+      <Tooltip title="Courses and demo controls">
         <IconButton
           onClick={(e) => setAnchor(e.currentTarget)}
-          aria-label="Demo controls"
+          aria-label="Courses and demo controls"
           sx={{ color: fault ? brand.orange : 'rgba(255,255,255,0.8)' }}
         >
           <TuneIcon />
@@ -128,10 +128,10 @@ function DemoMenu() {
           <>
             <Box sx={{ px: 2, pt: 1, pb: 0.5 }}>
               <Typography variant="overline" color="text.secondary">
-                Unit for this class
+                Courses and units
               </Typography>
               <Typography variant="caption" color="text.secondary" display="block">
-                Switching resets the demo class.
+                Changing the class assignment preserves saved progress.
               </Typography>
             </Box>
             {units.units.map((u) => (
@@ -142,8 +142,13 @@ function DemoMenu() {
                 onClick={async () => {
                   if (u.id === units.current) return;
                   setSwitching(true);
-                  await controls.setUnit(u.id).catch(() => undefined);
-                  window.location.reload();
+                  try {
+                    await controls.setUnit(u.id);
+                    window.location.reload();
+                  } catch {
+                    setSwitching(false);
+                    window.alert('Could not switch units. Please try again.');
+                  }
                 }}
               >
                 {u.id === units.current ? '● ' : ''}
@@ -240,7 +245,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Logo />
           </Box>
           {user?.role === 'student' && <Button component={RouterLink} to="/student" startIcon={pathname === '/student/lesson' ? <ArrowBackRoundedIcon /> : undefined} sx={{ color: '#d5e5df', whiteSpace: 'nowrap', minWidth: 0, fontSize: 13 }}>{pathname === '/student/lesson' ? 'My learning' : 'Learning home'}</Button>}
-          {!user && <Typography variant="body2" sx={{ color: '#b5cec5', display: { xs: 'none', sm: 'block' }, ml: 2 }}>A place for every kind of mind.</Typography>}
+          {!user && <Typography variant="body2" sx={{ color: '#b5cec5', display: { xs: 'none', sm: 'block' }, ml: 2 }}>Learn • Create • Practice</Typography>}
           {user?.role === 'teacher' && (
             <Typography sx={{ color: 'rgba(255,255,255,0.75)', fontWeight: 600, display: { xs: 'none', md: 'block' } }}>
               Teacher workspace

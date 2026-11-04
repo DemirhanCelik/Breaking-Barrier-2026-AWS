@@ -2,6 +2,18 @@
 # rubric evaluation, or peer comparison (FR13).
 class StudentController < ApplicationController
   before_action :require_student!
+  around_action :with_student_course
+
+  def courses
+    assigned = Curriculum.assigned_unit_id
+    selected = Curriculum.current_unit_id
+    render json: Curriculum.selectable.map { |c| { id: c.id, name: c.unit["name"], summary: c.unit["summary"], assigned: c.id == assigned, selected: c.id == selected } }
+  end
+
+  def select_course
+    id = CourseSelection.select!(current_user.id, params.require(:courseId))
+    Curriculum.with_unit(id) { render json: service.lesson_state(StudentRecord.find(current_user.id)) }
+  end
 
   def lesson = render(json: service.lesson_state(student))
   def diagnostic = render(json: service.diagnostic_form(student))
@@ -40,6 +52,10 @@ class StudentController < ApplicationController
   end
 
   private
+
+  def with_student_course(&action)
+    Curriculum.with_unit(CourseSelection.current_for(current_user.id), &action)
+  end
 
   def student
     @student ||= StudentRecord.find(current_user.id) || raise(LessonService::Error.new("Student not found", 404))

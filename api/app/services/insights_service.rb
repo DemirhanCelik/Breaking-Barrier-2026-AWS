@@ -70,11 +70,11 @@ class InsightsService
 
   # Latest adaptive attempt per student, with the submitted text and signals.
   def latest_attempts(klass_id)
-    Db.query(<<~SQL, k: klass_id).to_h { |r| [r["student_id"], r] }
+    Db.query(<<~SQL, k: klass_id, unit: cur.id).to_h { |r| [r["student_id"], r] }
       SELECT DISTINCT ON (v.student_id) v.student_id, v.level_code, v.results_json, s.content, s.signals_json,
              CAST(floor(extract(epoch FROM v.created_at) * 1000) AS bigint) AS at_ms
       FROM validation_result v JOIN submission s ON s.id = v.submission_id
-      WHERE v.mode = 'adaptive' AND v.student_id IN (SELECT student_id FROM enrollment WHERE klass_id = :k)
+      WHERE v.unit_id = :unit AND v.mode = 'adaptive' AND v.student_id IN (SELECT student_id FROM enrollment WHERE klass_id = :k)
       ORDER BY v.student_id, v.id DESC
     SQL
   end

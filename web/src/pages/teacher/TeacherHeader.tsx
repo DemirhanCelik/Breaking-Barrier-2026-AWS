@@ -16,7 +16,7 @@ export function TeacherHeader({
   right?: ReactNode;
 }) {
   return (
-    <Box sx={{ bgcolor: '#263d39', color: '#fff', borderBottom: `1px solid ${brand.borderLight}` }}>
+    <Box sx={{ bgcolor: '#7665a0', color: '#fff', borderBottom: `1px solid ${brand.borderLight}` }}>
       <Container maxWidth="xl" sx={{ pt: 5, pb: 3 }}>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 3 }}>
           <Box sx={{ flex: 1, minWidth: 260 }}>
@@ -40,6 +40,7 @@ export function TeacherHeader({
 
 const TABS = [
   { path: '/teacher', label: 'Class' },
+  { path: '/teacher/courses', label: 'Courses' },
   { path: '/teacher/insights', label: 'Insights' },
   { path: '/teacher/authoring', label: 'Authoring' },
   { path: '/teacher/evidence', label: 'Launch gates' },

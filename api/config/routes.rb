@@ -5,6 +5,8 @@ Rails.application.routes.draw do
     get "session", to: "session#show"
 
     scope :student, controller: :student do
+      get "courses", action: :courses
+      post "course", action: :select_course
       get "lesson", action: :lesson
       get "diagnostic", action: :diagnostic
       post "diagnostic", action: :submit_diagnostic

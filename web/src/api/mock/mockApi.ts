@@ -438,6 +438,14 @@ export class MockApiClient implements ApiClient, DemoControls {
 
   // Student -----------------------------------------------------------------
 
+  async selectCourse(courseId: string) {
+    if (courseId !== 'mock') throw new Error('Unknown course');
+    return this.getLessonState();
+  }
+  async getCourses() {
+    return [{ id: 'mock', name: 'Create with code & AI', summary: 'Explore and build with AI.', assigned: true }];
+  }
+
   async getLessonState() {
     await delay();
     return lessonState(this.requireStudent());

@@ -4,7 +4,7 @@
 #   aws lambda invoke --function-name codeai-api --payload '{"codeai_task":"db:schema"}' out.json
 require_relative "config/environment"
 
-ALLOWED_TASKS = %w[db:schema db:seed db:setup].freeze
+ALLOWED_TASKS = %w[db:schema db:seed db:setup db:initialize].freeze
 
 def handler(event:, context:)
   if event.is_a?(Hash) && event.key?("codeai_task")

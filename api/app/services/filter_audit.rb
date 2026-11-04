@@ -25,9 +25,9 @@ module FilterAudit
   # (the filter already decided). A missing row then shows up as a coverage gap.
   def record!(result, student_id:, context:, direction:, ref_id:)
     raise ArgumentError, "unknown filter context #{context}" unless CONTEXTS.include?(context)
-    Db.execute(<<~SQL, s: student_id, c: context, d: direction, o: outcome_for(result), src: result.source.to_s, ref: ref_id)
-      INSERT INTO filter_event (student_id, context, direction, outcome, source, ref_id)
-      VALUES (:s, :c, :d, :o, :src, :ref)
+    Db.execute(<<~SQL, s: student_id, unit: Curriculum.current.id, c: context, d: direction, o: outcome_for(result), src: result.source.to_s, ref: ref_id)
+      INSERT INTO filter_event (student_id, unit_id, context, direction, outcome, source, ref_id)
+      VALUES (:s, :unit, :c, :d, :o, :src, :ref)
     SQL
   rescue StandardError => e
     Rails.logger.error("[filter-audit] write failed: #{e.class}: #{e.message}")
@@ -35,8 +35,8 @@ module FilterAudit
 
   # Teacher view: coverage + counts for one class.
   def report(klass_id, limit: 25)
-    k = { k: klass_id }
-    in_class = "student_id IN (SELECT student_id FROM enrollment WHERE klass_id = :k)"
+    k = { k: klass_id, unit: Curriculum.current.id }
+    in_class = "unit_id = :unit AND student_id IN (SELECT student_id FROM enrollment WHERE klass_id = :k)"
 
     subs = Db.query(<<~SQL, k).first
       SELECT count(*) AS required,

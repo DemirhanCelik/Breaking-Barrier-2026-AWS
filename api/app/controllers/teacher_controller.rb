@@ -2,6 +2,7 @@
 # MVP has one seeded class; with multiple classes, scope by klass.teacher_id.
 class TeacherController < ApplicationController
   before_action :require_teacher!
+  around_action :with_class_course
 
   def show_class = render(json: service.class_attainment)
   def show_student = render(json: service.student_trace(params[:id]))
@@ -32,6 +33,10 @@ class TeacherController < ApplicationController
   end
 
   private
+
+  def with_class_course(&action)
+    Curriculum.with_unit(Curriculum.assigned_unit_id, &action)
+  end
 
   def authoring_service = (@authoring_service ||= AuthoringService.new)
 end

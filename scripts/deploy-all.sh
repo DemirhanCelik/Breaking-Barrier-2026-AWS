@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end deploy: infra (with the Rails API image) -> DB schema + demo seed
+# End-to-end deploy: infra (with the Rails API image) -> non-destructive DB schema
 # -> SPA build -> S3 sync -> CloudFront invalidation -> smoke test.
 # Needs: AWS credentials for the target account, Docker running, Node 20.19+.
 set -euo pipefail
@@ -23,16 +23,20 @@ DIST=$(out CloudFrontDistributionId)
 DOMAIN=$(out CloudFrontDomain)
 CLIENT_ID=$(out UserPoolClientId)
 
-echo "==> 2/5 create tables + demo data (Aurora may take ~30s to resume)"
+# Never reseed existing users during deployment. Opt in to demo initialization
+# for a new empty database only: INITIALIZE_DEMO=true ./scripts/deploy-all.sh.
+DB_TASK=db:schema
+[ "${INITIALIZE_DEMO:-false}" = true ] && DB_TASK=db:initialize
+echo "==> 2/5 apply $DB_TASK (preserves existing work; Aurora may take ~30s to resume)"
 for i in 1 2 3; do
   if aws lambda invoke --region "$REGION" --function-name "$FN" \
       --cli-binary-format raw-in-base64-out --cli-read-timeout 60 \
-      --payload '{"codeai_task":"db:setup"}' /tmp/codeai-dbsetup.json >/dev/null \
+      --payload "{\"codeai_task\":\"$DB_TASK\"}" /tmp/codeai-dbsetup.json >/dev/null \
      && grep -q '"ok":true' /tmp/codeai-dbsetup.json; then
     cat /tmp/codeai-dbsetup.json; echo; break
   fi
-  echo "db:setup attempt $i failed: $(cat /tmp/codeai-dbsetup.json 2>/dev/null)"; sleep 15
-  [ "$i" = 3 ] && { echo "db:setup failed; check CloudWatch logs for $FN"; exit 1; }
+  echo "$DB_TASK attempt $i failed: $(cat /tmp/codeai-dbsetup.json 2>/dev/null)"; sleep 15
+  [ "$i" = 3 ] && { echo "$DB_TASK failed; check CloudWatch logs for $FN"; exit 1; }
 done
 
 echo "==> 3/5 build SPA against $API_URL"

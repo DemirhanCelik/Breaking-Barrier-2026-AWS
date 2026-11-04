@@ -4,6 +4,7 @@
 #     The user list stays demo-mode-only; Cognito sign-in never needs it.
 class DemoController < ApplicationController
   before_action :allow_demo!
+  before_action :require_teacher!, only: :update_unit
 
   private def allow_demo!
     return if Auth.demo?
@@ -23,7 +24,7 @@ class DemoController < ApplicationController
     render json: { on: LessonService.fault_injection? }
   end
 
-  # The class's unit. Switching reseeds the demo class (student state is tied to a unit's levels).
+  # The class assignment changes the teacher's view; course progress is retained.
   def units
     render json: { current: Curriculum.current_unit_id,
                    units: Curriculum.selectable.map { |c| { id: c.id, name: c.unit["name"], summary: c.unit["summary"] } } }
@@ -33,7 +34,6 @@ class DemoController < ApplicationController
     id = params.require(:unit).to_s
     return render(json: { error: "Unknown unit" }, status: :unprocessable_entity) unless Curriculum.selectable.map(&:id).include?(id)
     Curriculum.current_unit_id = id
-    Curriculum.with_unit(id) { DemoSeed.run! }
     units
   end
 

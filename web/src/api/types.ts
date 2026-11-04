@@ -65,6 +65,8 @@ export type PreviewResult = { withheld: false; html: string } | { withheld: true
 export type LevelInteraction = { type: 'parsons'; lines: string[] } | { type: 'fill'; code: string; blanks: number };
 
 /** The class's active unit (curriculum). */
+export interface CourseInfo extends UnitInfo { assigned: boolean }
+
 export interface UnitInfo {
   id: string;
   name: string;

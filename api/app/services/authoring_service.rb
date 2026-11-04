@@ -78,7 +78,7 @@ class AuthoringService
   end
 
   def list(status: nil)
-    where = "WHERE (unit = :u OR unit IS NULL)" + (status.present? ? " AND status = :st" : "")
+    where = "WHERE unit = :u" + (status.present? ? " AND status = :st" : "")
     rows = Db.query(<<~SQL, st: status.to_s, u: cur.id)
       SELECT *, CAST(floor(extract(epoch FROM created_at) * 1000) AS bigint) AS at_ms
       FROM content_item #{where} ORDER BY created_at DESC LIMIT 200
@@ -120,7 +120,7 @@ class AuthoringService
 
   # Servable practice per concept transition: authored bank + approved drafts.
   def bank_summary
-    approved = Db.query("SELECT concept, from_stage, count(*) AS n FROM content_item WHERE status = 'approved' AND (unit = :u OR unit IS NULL) GROUP BY 1, 2", u: cur.id)
+    approved = Db.query("SELECT concept, from_stage, count(*) AS n FROM content_item WHERE status = 'approved' AND unit = :u GROUP BY 1, 2", u: cur.id)
     cur.required_concepts.flat_map do |cid|
       (0..2).map do |from|
         { conceptId: cid, fromStage: from, targetStage: from + 1,

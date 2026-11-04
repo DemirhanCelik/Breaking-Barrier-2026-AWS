@@ -7,6 +7,7 @@ import { useSession } from './session';
 import { SignInPage } from './pages/SignInPage';
 import { StudentHomePage } from './pages/student/StudentHomePage';
 import { StudentLessonPage } from './pages/student/StudentLessonPage';
+import { CoursesPage } from './pages/teacher/CoursesPage';
 import { TeacherDashboardPage } from './pages/teacher/TeacherDashboardPage';
 import { SafetyPage } from './pages/teacher/SafetyPage';
 import { EvidencePage } from './pages/teacher/EvidencePage';
@@ -54,6 +55,7 @@ export function App() {
             </RequireRole>
           }
         />
+        <Route path="/teacher/courses" element={<RequireRole role="teacher"><CoursesPage /></RequireRole>} />
         <Route path="/student/lesson" element={<RequireRole role="student"><StudentLessonPage /></RequireRole>} />
         <Route
           path="/teacher"

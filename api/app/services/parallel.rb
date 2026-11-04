@@ -6,7 +6,9 @@ module Parallel
   module_function
 
   def run(*callables)
-    threads = callables.map { |c| Thread.new { Rails.application.executor.wrap { c.call } } }
+    # Thread locals are not inherited: keep AI/filter work on the same course.
+    unit_id = Curriculum.current_unit_id
+    threads = callables.map { |c| Thread.new { Rails.application.executor.wrap { Curriculum.with_unit(unit_id) { c.call } } } }
     ActiveSupport::Dependencies.interlock.permit_concurrent_loads { threads.map(&:value) }
   end
 end

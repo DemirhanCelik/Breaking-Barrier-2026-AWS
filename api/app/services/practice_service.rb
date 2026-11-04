@@ -60,16 +60,16 @@ class PracticeService
 
     id = SecureRandom.uuid
     item, origin, reason, quality, meta, content_item_id = generate(s, level, t, id)
-    Db.execute(<<~SQL, id: id, s: s.id, lvl: level_id, c: t.concept, f: t.from, to: t.to, ti: item["title"], sc: item["scenario"], ta: item["task"], tip: item["tip"], o: origin, ci: content_item_id, r: reason, q: quality && Db.json(quality), m: meta && Db.json(meta))
-      INSERT INTO practice_item (id, student_id, level_id, concept, from_stage, to_stage, title, scenario, task, tip,
+    Db.execute(<<~SQL, id: id, s: s.id, unit: s.unit_id, lvl: level_id, c: t.concept, f: t.from, to: t.to, ti: item["title"], sc: item["scenario"], ta: item["task"], tip: item["tip"], o: origin, ci: content_item_id, r: reason, q: quality && Db.json(quality), m: meta && Db.json(meta))
+      INSERT INTO practice_item (id, student_id, unit_id, level_id, concept, from_stage, to_stage, title, scenario, task, tip,
                                  origin, content_item_id, fallback_reason, quality_json, model_meta_json)
-      VALUES (:id, :s, :lvl, :c, :f, :to, :ti, :sc, :ta, :tip, :o, :ci, :r, CAST(:q AS jsonb), CAST(:m AS jsonb))
+      VALUES (:id, :s, :unit, :lvl, :c, :f, :to, :ti, :sc, :ta, :tip, :o, :ci, :r, CAST(:q AS jsonb), CAST(:m AS jsonb))
     SQL
     { id: id, title: item["title"], scenario: item["scenario"], task: item["task"], tip: item["tip"], aiGenerated: origin == "generated" }
   end
 
   def answer(s, practice_id, response)
-    p = Db.query("SELECT * FROM practice_item WHERE id = :id AND student_id = :s", id: practice_id, s: s.id).first
+    p = Db.query("SELECT * FROM practice_item WHERE id = :id AND student_id = :s AND unit_id = :unit", id: practice_id, s: s.id, unit: s.unit_id).first
     raise LessonService::Error.new("Practice not found", 404) unless p
     response = response.to_s.strip
     raise LessonService::Error.new("Response is empty", 422) if response.empty?
@@ -93,11 +93,11 @@ class PracticeService
 
   # Teacher view: practice for one student, newest first (formative; excluded from the signal).
   def for_student(student_id)
-    Db.query(<<~SQL, s: student_id).map do |r|
+    Db.query(<<~SQL, s: student_id, unit: cur.id).map do |r|
       SELECT p.id, p.level_id, p.concept, p.from_stage, p.to_stage, p.title, p.origin, p.fallback_reason, p.quality_json,
              CAST(floor(extract(epoch FROM p.created_at) * 1000) AS bigint) AS at_ms,
-             (SELECT count(*) FROM practice_attempt a WHERE a.practice_id = p.id) AS attempts
-      FROM practice_item p WHERE p.student_id = :s ORDER BY p.created_at DESC LIMIT 50
+             (SELECT count(*) FROM practice_attempt a WHERE a.practice_id = p.id AND a.unit_id = p.unit_id) AS attempts
+      FROM practice_item p WHERE p.student_id = :s AND p.unit_id = :unit ORDER BY p.created_at DESC LIMIT 50
     SQL
       { id: r["id"], at: StudentRecord.iso(r["at_ms"]), levelCode: cur.level?(r["level_id"]) ? cur.level(r["level_id"]).code : r["level_id"],
         conceptId: r["concept"], fromStage: r["from_stage"].to_i, targetStage: r["to_stage"].to_i, title: r["title"],
@@ -107,9 +107,9 @@ class PracticeService
 
   # Class-wide generation stats for the authoring page (how often the gate held).
   def self.stats
-    rows = Db.query("SELECT origin, count(*) AS n FROM practice_item GROUP BY origin")
+    rows = Db.query("SELECT origin, count(*) AS n FROM practice_item WHERE unit_id = :unit GROUP BY origin", unit: Curriculum.current.id)
     by = rows.to_h { |r| [r["origin"], r["n"].to_i] }
-    rejected = Db.query("SELECT count(*) AS n FROM practice_item WHERE origin <> 'generated' AND fallback_reason IS NOT NULL").first["n"].to_i
+    rejected = Db.query("SELECT count(*) AS n FROM practice_item WHERE origin <> 'generated' AND fallback_reason IS NOT NULL AND unit_id = :unit", unit: Curriculum.current.id).first["n"].to_i
     { generated: by.fetch("generated", 0), fromApprovedBank: by.fetch("bank", 0), fromAuthored: by.fetch("authored", 0), fellBack: rejected }
   end
 
@@ -161,7 +161,7 @@ class PracticeService
   def fallback(t, reason, quality = nil, meta = nil)
     approved = Db.query(<<~SQL, c: t.concept, f: t.from, u: cur.id).sample
       SELECT id, title, scenario, task, tip FROM content_item
-      WHERE status = 'approved' AND concept = :c AND from_stage = :f AND (unit = :u OR unit IS NULL)
+      WHERE status = 'approved' AND concept = :c AND from_stage = :f AND unit = :u
     SQL
     return [approved.slice(*QualityJudge::FIELDS), "bank", reason, quality, meta, approved["id"]] if approved
 
@@ -202,9 +202,9 @@ class PracticeService
   end
 
   def save_attempt(id, p, s, content, feedback, withheld)
-    Db.execute(<<~SQL, id: id, p: p["id"], s: s.id, c: content, f: feedback, w: withheld)
-      INSERT INTO practice_attempt (id, practice_id, student_id, content, feedback, withheld)
-      VALUES (:id, :p, :s, :c, :f, :w)
+    Db.execute(<<~SQL, id: id, p: p["id"], s: s.id, unit: s.unit_id, c: content, f: feedback, w: withheld)
+      INSERT INTO practice_attempt (id, practice_id, student_id, unit_id, content, feedback, withheld)
+      VALUES (:id, :p, :s, :unit, :c, :f, :w)
     SQL
   end
 end

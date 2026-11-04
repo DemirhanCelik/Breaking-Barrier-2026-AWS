@@ -113,7 +113,7 @@ class LessonService
       validate_and_route(s, level, response, sub_id, signals)
     end
 
-    Db.execute("UPDATE submission SET outcome_json = CAST(:o AS jsonb) WHERE id = :id", o: Db.json(outcome), id: sub_id)
+    Db.execute("UPDATE submission SET outcome_json = CAST(:o AS jsonb) WHERE id = :id AND student_id = :student AND unit_id = :unit", o: Db.json(outcome), id: sub_id, student: s.id, unit: s.unit_id)
     s.save!
     { submissionId: sub_id }
   end

@@ -23,7 +23,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import FlagRoundedIcon from '@mui/icons-material/FlagRounded';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import { api, type ClassAttainment } from '../../api';
+import { api, demoControls, type ClassAttainment } from '../../api';
 import { Initials } from '../../components/brand';
 import { brand } from '../../theme';
 import { StageCell, StageLegend, StatusChip } from './StageCell';
@@ -91,6 +91,7 @@ export function TeacherDashboardPage() {
       />
 
       <Container maxWidth="xl" sx={{ py: 3 }}>
+        {demoControls && <Alert severity="info" sx={{ mb: 3 }}>Browse and assign curriculum from the Courses tab. Each course keeps its own student progress.</Alert>}
         {error && <Alert severity="warning" sx={{ mb: 2 }}>Couldn’t refresh. Showing the last loaded class overview. Try again in a moment.</Alert>}
         {needsSupport.length > 0 && <Box component="section" aria-label="Students to check in with" sx={{ mb: 4, bgcolor: '#fff', p: { xs: 2, md: 3 }, borderRadius: 3, border: `1px solid ${brand.borderLight}` }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 2 }}><Box><Typography variant="overline" sx={{ color: '#94611a' }}>A GOOD PLACE TO START</Typography><Typography variant="h2">A few check-ins could help.</Typography></Box><Button component={RouterLink} to="/teacher/insights" endIcon={<ChevronRightIcon />}>Plan support</Button></Box>

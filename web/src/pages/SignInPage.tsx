@@ -5,7 +5,7 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { api, authMode, type SessionUser } from '../api';
 import { cognitoConfigured } from '../auth/cognito';
 import { DEMO_ACCOUNTS, DEMO_PASSWORD } from '../auth/demoAccounts';
-import { Bit, Initials } from '../components/brand';
+import { Initials } from '../components/brand';
 import { useSession } from '../session';
 import { brand } from '../theme';
 
@@ -70,77 +70,10 @@ export function SignInPage() {
   const students = users.filter((u) => u.role === 'student');
 
   return (
-    <Box sx={{ flex: 1, display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 0.85fr) minmax(0, 1fr)' } }}>
-      <Box
-        sx={{
-          bgcolor: brand.charcoal,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          color: '#fff',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        <Box
-          aria-hidden
-          sx={{
-            position: 'absolute',
-            inset: 0,
-            backgroundImage: 'radial-gradient(ellipse at 10% 90%, rgba(33,182,168,0.18), transparent 65%), radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px)',
-            backgroundSize: '100% 100%, 24px 24px',
-          }}
-        />
-        <Container
-          maxWidth="lg"
-          sx={{
-            position: 'relative',
-            py: { xs: 3, md: 8 },
-            px: { xs: 3, md: 6, xl: 8 },
-            flexDirection: 'column',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-          }}
-        >
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="overline" sx={{ color: brand.orange }}>
-              BREAKING BARRIERS 2026 · CODEAI
-            </Typography>
-            <Typography
-              variant="h1"
-              sx={{
-                fontSize: { xs: '2.2rem', md: '3.8rem', xl: '4.4rem' },
-                mt: 1,
-                mb: 2,
-                maxWidth: 640,
-              }}
-            >
-              Big ideas.
-              Your own way there.
-            </Typography>
-            <Typography sx={{ fontSize: '1.1rem', opacity: 0.92, maxWidth: 560 }}>
-              Learn to code. Create with AI. Build something that feels like you, with a little guidance whenever you need it.
-            </Typography>
-          </Box>
-          <Box sx={{ display: { xs: 'none', lg: 'block' }, width: '100%', mt: 2, p: 3, border: '1px solid #42605c', borderRadius: 4, bgcolor: 'rgba(255,255,255,0.04)' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-              <Bit size={52} />
-              <Box><Typography fontWeight={700}>Meet Bit, your learning sidekick</Typography><Typography variant="body2" sx={{ color: '#bdd4ce' }}>A nudge when you need it. Space to figure it out.</Typography></Box>
-            </Box>
-            {['Choose a topic you care about', 'Find your starting point', 'Make, try, and grow at your pace'].map((text, i) => (
-              <Box key={text} sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
-                <Box sx={{ width: 28, height: 28, borderRadius: '50%', bgcolor: '#314d48', color: '#9fe1c9', display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 700 }}>{i + 1}</Box>
-                <Typography variant="body2" sx={{ color: '#e1eee8' }}>{text}</Typography>
-              </Box>
-            ))}
-          </Box>
-        </Container>
-      </Box>
-
-      <Container maxWidth="lg" sx={{ py: { xs: 4, md: 6 }, px: { xs: 3, md: 5, xl: 7 }, alignSelf: 'center' }}>
-        <Typography variant="overline" color="primary">YOUR NEXT CHAPTER</Typography>
-        <Typography variant="h2" sx={{ mt: 1, mb: 1, fontSize: { xs: '2rem', md: '2.5rem' } }}>Welcome to your learning studio.</Typography>
+    <Box sx={{ flex: 1, display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr' } }}>
+      <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 }, px: { xs: 3, md: 5, xl: 7 }, alignSelf: 'center' }}>
+        <Typography variant="overline" color="primary">CODEAI</Typography>
+        <Typography variant="h2" sx={{ mt: 1, mb: 1, fontSize: { xs: '2rem', md: '2.5rem' } }}>Sign in to CodeAI</Typography>
         <Typography color="text.secondary" sx={{ mb: 4 }}>{users.length > 0 ? 'Try the student experience or explore the teacher workspace.' : 'Welcome back. Sign in to keep building.'}</Typography>
         {error && (
           <Alert severity="error" sx={{ mb: 3 }}>
@@ -192,13 +125,12 @@ export function SignInPage() {
               <Tab value="student" label="Student experience" sx={{ textTransform: 'none', fontWeight: 700 }} />
               <Tab value="teacher" label="Teacher workspace" sx={{ textTransform: 'none', fontWeight: 700 }} />
             </Tabs>
-            <Typography variant="h2" sx={{ mb: 1 }}>{role === 'student' ? 'Start with a learner’s perspective.' : 'See the whole class. Know who needs you.'}</Typography>
+            <Typography variant="h2" sx={{ mb: 1 }}>{role === 'student' ? 'Student demo accounts' : 'Teacher demo account'}</Typography>
             <Typography color="text.secondary" variant="body2" sx={{ mb: 3 }}>{role === 'student' ? 'Choose a learner. Their home shows where to begin or resume.' : 'Explore progress, understand each learning path, and plan focused support.'}</Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: role === 'student' ? '1fr 1fr' : '1fr' }, gap: 1.5 }}>
               {(role === 'student' ? students.filter((u) => showAllStudents || FRESH.has(u.id)) : teachers).map((u) => <AccountButton key={u.id} user={u} accent={role === 'student' ? brand.teal : brand.purple} note={role === 'teacher' ? 'Explore the class overview' : 'Open learning home'} onSelect={choose} disabled={busy} />)}
             </Box>
             {role === 'student' && students.some((u) => !FRESH.has(u.id)) && <Button onClick={() => setShowAllStudents((shown) => !shown)} aria-expanded={showAllStudents} sx={{ mt: 2, px: 0 }}>{showAllStudents ? 'Show fewer demo profiles' : 'Explore more demo learners'}</Button>}
-            <Box sx={{ mt: 4, p: 2.5, bgcolor: '#eaf0e6', borderRadius: 2 }}><Typography variant="body2" fontWeight={700}>{role === 'student' ? 'What happens next?' : 'Built around the moments that matter.'}</Typography><Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{role === 'student' ? 'Visit your learning home, find your starting point, then work through a path that adapts as you learn.' : 'Start with students who may need a check-in, then review the evidence behind their learning paths.'}</Typography></Box>
           </Box>
         )}
 

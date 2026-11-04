@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import * as path from 'path';
 import { createHash } from 'crypto';
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
@@ -251,6 +253,7 @@ export const MIGRATION_STATEMENTS: string[] = [
   // Keep this append-only migration so existing DDL resource ids stay stable.
   `CREATE INDEX IF NOT EXISTS kb_chunks_fts_idx
      ON bedrock_kb.kb USING gin (to_tsvector('simple', chunks))`,
+  readFileSync(path.join(__dirname, '../../api/db/migrations/001_independent_courses.sql'), 'utf8'),
 ];
 
 /** All DDL in execution order: base tables first, then migrations. */

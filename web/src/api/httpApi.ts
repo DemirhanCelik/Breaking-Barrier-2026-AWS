@@ -14,6 +14,7 @@ import {
   type ClassAttainment,
   type ClassInsights,
   type UnitInfo,
+  type CourseInfo,
   type PreviewResult,
   type MiniLesson,
   type WorkSignals,
@@ -114,6 +115,12 @@ export class HttpApiClient implements ApiClient, DemoControls {
     localStorage.removeItem(DEMO_USER_KEY);
   }
 
+  selectCourse(courseId: string) {
+    return this.request<LessonState>('POST', '/api/student/course', { courseId });
+  }
+  getCourses() {
+    return this.request<CourseInfo[]>('GET', '/api/student/courses');
+  }
   getLessonState() {
     return this.request<LessonState>('GET', '/api/student/lesson');
   }

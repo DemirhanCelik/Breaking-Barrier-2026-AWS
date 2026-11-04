@@ -1,3 +1,4 @@
+-- Apply with the schema Rake task, which also runs db/migrations/*.sql.
 -- CodeAI adaptive engine schema (Aurora PostgreSQL, design §5).
 -- Idempotent: safe to run on every deploy. jsonb columns end in `_json`
 -- (the Data API driver relies on that naming).

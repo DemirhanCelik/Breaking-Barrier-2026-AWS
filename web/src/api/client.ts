@@ -10,6 +10,7 @@ import type {
   ClassAttainment,
   ClassInsights,
   UnitInfo,
+  CourseInfo,
   PreviewResult,
   MiniLesson,
   WorkSignals,
@@ -37,6 +38,8 @@ export interface ApiClient {
   signOut(): Promise<void>;
 
   // Student-scoped: responses never include stage, score, or placement
+  selectCourse(courseId: string): Promise<LessonState>;
+  getCourses(): Promise<CourseInfo[]>;
   getLessonState(): Promise<LessonState>;
   getDiagnostic(): Promise<DiagnosticForm>;
   submitDiagnostic(answers: DiagnosticAnswers): Promise<LessonState>;

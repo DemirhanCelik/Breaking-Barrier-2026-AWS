@@ -98,7 +98,7 @@ class RoutingAdvisor
           "#{r['passed'] ? 'met' : 'not yet'}; evidence: #{Array(r['evidence']).first(2).join(' | ')[0, 200]}"
       end
     end
-    practice = Db.query("SELECT concept, count(*) AS n FROM practice_item WHERE student_id = :s GROUP BY concept", s: s.id)
+    practice = Db.query("SELECT concept, count(*) AS n FROM practice_item WHERE student_id = :s AND unit_id = :unit GROUP BY concept", s: s.id, unit: s.unit_id)
                  .map { |r| "- #{cur.concept(r['concept']).name}: #{r['n']} practice round(s)" }
     options = cands.map do |c|
       l = cur.level(c[:level_id])

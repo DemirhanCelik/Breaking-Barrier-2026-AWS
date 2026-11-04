@@ -67,8 +67,9 @@ class Curriculum
     unit_ids.map { |id| unit(id) }.select { |c| c.unit["selectable"] }
   end
 
-  def self.current_unit_id
-    return Thread.current[:codeai_unit] if Thread.current[:codeai_unit]
+  def self.current_unit_id = Thread.current[:codeai_unit] || assigned_unit_id
+
+  def self.assigned_unit_id
     now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     if @setting_at.nil? || now - @setting_at > SETTING_TTL
       @setting = begin
@@ -93,6 +94,7 @@ class Curriculum
   end
 
   def self.with_unit(id)
+    unit(id) # Validate before pinning the request to a curriculum.
     prev = Thread.current[:codeai_unit]
     Thread.current[:codeai_unit] = id.to_s
     yield
