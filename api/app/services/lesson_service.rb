@@ -60,6 +60,7 @@ class LessonService
 
     # 1. Filter input (fail-closed). Withheld text is not stored.
     input = ContentFilter.check_input(response)
+    FilterAudit.record!(input, student_id: s.id, context: "submission", direction: "input", ref_id: sub_id)
     unless input.ok?
       outcome = { status: "withheld", message: input.message }
       s.create_submission!(sub_id, level_id, nil, outcome)
@@ -108,11 +109,14 @@ class LessonService
     raise Error.new("That step is not current.", 409) unless s.current_level_id == level_id
     message = message.to_s.strip[0, 1000]
     raise Error.new("Message is empty", 422) if message.empty?
+    ref = SecureRandom.uuid
     input = ContentFilter.check_input(message)
+    FilterAudit.record!(input, student_id: s.id, context: "assistant", direction: "input", ref_id: ref)
     return { reply: input.message, withheld: true } unless input.ok?
 
     reply = Coach.new.reply(level: cur.level(level_id), stages: s.stages, last_response: s.last_response[level_id], message: message)
     output = ContentFilter.check_output(reply)
+    FilterAudit.record!(output, student_id: s.id, context: "assistant", direction: "output", ref_id: ref)
     return { reply: "Let me think about that differently. Try rereading the step instructions.", withheld: true } unless output.ok?
     { reply: reply, withheld: false }
   end
@@ -123,6 +127,8 @@ class LessonService
     { classId: cur.klass["id"], className: cur.klass["name"], bar: cur.bar, concepts: teacher_concepts,
       students: StudentRecord.all_in_class(cur.klass["id"]).map { |s| attainment(s) } }
   end
+
+  def filter_audit = FilterAudit.report(cur.klass["id"])
 
   def student_trace(student_id)
     s = StudentRecord.find(student_id) or raise Error.new("Student not found", 404)
@@ -188,7 +194,9 @@ class LessonService
       # Probes met but the rubric eval wants more depth.
       "You're on your way. Look back at each instruction and add a little more detail about your thinking."
     end
-    coaching = "Keep going. Take another look at the instructions for this step." unless ContentFilter.check_output(coaching).ok?
+    out = ContentFilter.check_output(coaching)
+    FilterAudit.record!(out, student_id: s.id, context: "coaching", direction: "output", ref_id: sub_id)
+    coaching = "Keep going. Take another look at the instructions for this step." unless out.ok?
 
     if ev.all_passed? || level.project?
       close_level(s, level.id, "passed")

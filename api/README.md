@@ -13,6 +13,7 @@ Runs on AWS Lambda behind an API Gateway HTTP API (via the [Lamby](https://lamby
 | `app/services/validator.rb` | Probes + one parameterized Bedrock rubric prompt; probes cap the stage (design §7). |
 | `app/services/model_client.rb` | Model abstraction over Bedrock Converse with a fallback model (NFR3, NFR6). |
 | `app/services/content_filter.rb` | Fail-closed filtering on input and output: local PII check, then Bedrock Guardrails when `GUARDRAIL_ID` is set (FR11, NFR1). |
+| `app/services/filter_audit.rb` | Filter audit log (M7): one `filter_event` row per check (no text) and the coverage report for `/api/teacher/safety`. |
 | `app/services/coach.rb` | "Ask Bit" hints, scoped to the current step; authored hints if the model is down (FR8). |
 | `app/services/lesson_service.rb` | Orchestration, fallback, student vs teacher DTOs. |
 | `app/services/auth.rb` | Cognito ID-token verification, or demo header auth. |
@@ -35,6 +36,7 @@ Runs on AWS Lambda behind an API Gateway HTTP API (via the [Lamby](https://lamby
 | POST | `/api/student/levels/:level_id/assistant` | student |
 | GET | `/api/teacher/class` | teacher (403 for students) |
 | GET | `/api/teacher/students/:id` | teacher |
+| GET | `/api/teacher/safety` | teacher. Filter audit log and coverage (M7); outcomes only, never text |
 | GET | `/api/demo/users`, GET/POST `/api/demo/fault`, POST `/api/demo/reset` | `AUTH_MODE=demo` only, else 404 |
 
 Student responses never contain stage, score, placement or rubric output (FR13). Validation runs in the request (design §3A MVP shape); the submit-then-poll contract is kept so SQS can be added later without frontend changes.

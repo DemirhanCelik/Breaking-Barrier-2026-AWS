@@ -181,6 +181,38 @@ export interface StudentTrace extends StudentAttainment {
   validations: ValidationRecord[];
 }
 
+// Filter audit log (GET /api/teacher/safety, BRD M7). Outcomes only, no text.
+export type FilterContext = 'submission' | 'assistant' | 'coaching';
+export type FilterOutcome = 'pass' | 'blocked' | 'error';
+
+export interface FilterCount {
+  required: number;
+  checked: number;
+}
+
+export interface FilterTotals extends FilterCount {
+  blocked: number;
+  errors: number;
+}
+
+export interface FilterEvent {
+  at: string;
+  studentId: string;
+  displayName: string;
+  context: FilterContext;
+  direction: 'input' | 'output';
+  outcome: FilterOutcome;
+  source: string;
+}
+
+export interface FilterAudit {
+  inputs: FilterTotals;
+  outputs: FilterTotals;
+  coverage: { submissions: FilterCount; coaching: FilterCount; assistantReplies: FilterCount };
+  bySource: { direction: 'input' | 'output'; outcome: FilterOutcome; source: string; count: number }[];
+  recent: FilterEvent[];
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,

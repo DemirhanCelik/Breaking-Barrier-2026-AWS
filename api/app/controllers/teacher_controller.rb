@@ -5,4 +5,6 @@ class TeacherController < ApplicationController
 
   def show_class = render(json: service.class_attainment)
   def show_student = render(json: service.student_trace(params[:id]))
+  # Filter audit log + coverage (BRD M7). Outcomes only, never student text.
+  def safety = render(json: service.filter_audit)
 end

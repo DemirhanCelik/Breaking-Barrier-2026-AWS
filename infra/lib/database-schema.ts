@@ -120,6 +120,23 @@ export const SCHEMA_STATEMENTS: string[] = [
      key         text PRIMARY KEY,
      value_json  jsonb NOT NULL
    )`,
+
+  // --- Filter audit log (BRD M7): one row per content-filter check ---------
+  // Outcomes only, never the checked text (NFR2).
+  `CREATE TABLE IF NOT EXISTS filter_event (
+     id          bigserial PRIMARY KEY,
+     student_id  text NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+     context     text NOT NULL CHECK (context IN ('submission', 'assistant', 'coaching')),
+     direction   text NOT NULL CHECK (direction IN ('input', 'output')),
+     outcome     text NOT NULL CHECK (outcome IN ('pass', 'blocked', 'error')),
+     source      text NOT NULL,
+     ref_id      text NOT NULL,
+     created_at  timestamptz NOT NULL DEFAULT now()
+   )`,
+
+  `CREATE INDEX IF NOT EXISTS filter_event_ref_idx ON filter_event (ref_id)`,
+
+  `CREATE INDEX IF NOT EXISTS filter_event_student_idx ON filter_event (student_id, created_at)`,
 ];
 
 /**

@@ -17,6 +17,7 @@ Rails.application.routes.draw do
     scope :teacher, controller: :teacher do
       get "class", action: :show_class
       get "students/:id", action: :show_student
+      get "safety", action: :safety
     end
 
     scope :demo, controller: :demo do

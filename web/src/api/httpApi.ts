@@ -14,6 +14,7 @@ import {
   type ClassAttainment,
   type DiagnosticAnswers,
   type DiagnosticForm,
+  type FilterAudit,
   type LessonState,
   type SessionUser,
   type StudentTrace,
@@ -120,6 +121,9 @@ export class HttpApiClient implements ApiClient, DemoControls {
   }
   getStudentTrace(studentId: string) {
     return this.request<StudentTrace>('GET', `/api/teacher/students/${encodeURIComponent(studentId)}`);
+  }
+  getFilterAudit() {
+    return this.request<FilterAudit>('GET', '/api/teacher/safety');
   }
 
   // Demo controls (backend AUTH_MODE=demo only)

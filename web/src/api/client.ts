@@ -2,6 +2,7 @@ import type {
   AssistantReply,
   ClassAttainment,
   DiagnosticAnswers,
+  FilterAudit,
   DiagnosticForm,
   LessonState,
   SessionUser,
@@ -35,6 +36,7 @@ export interface ApiClient {
   // Teacher-scoped: 403 for student tokens
   getClassAttainment(): Promise<ClassAttainment>;
   getStudentTrace(studentId: string): Promise<StudentTrace>;
+  getFilterAudit(): Promise<FilterAudit>;
 }
 
 /** Demo-only controls: mock mode, or HTTP mode against a backend with AUTH_MODE=demo. */

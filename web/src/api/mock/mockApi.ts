@@ -17,6 +17,9 @@ import {
   type ClassAttainment,
   type DiagnosticAnswers,
   type DiagnosticForm,
+  type FilterAudit,
+  type FilterContext,
+  type FilterEvent,
   type LessonState,
   type PathItem,
   type RouteDecision,
@@ -67,10 +70,16 @@ interface StudentRecord extends EngineState {
   submissions: Record<string, StoredOutcome>;
 }
 
+interface StoredFilterEvent extends Omit<FilterEvent, 'displayName'> {
+  refId: string;
+}
+
 interface Store {
   sessionUserId: string | null;
   fault: boolean;
   students: Record<string, StudentRecord>;
+  /** Filter audit log (M7); optional so stores saved before it existed still load. */
+  filterEvents?: StoredFilterEvent[];
 }
 
 const TEACHER: SessionUser = { id: 't-rivera', displayName: 'Ms. Rivera (teacher)', role: 'teacher' };
@@ -322,6 +331,25 @@ export class MockApiClient implements ApiClient, DemoControls {
     save(this.store);
   }
 
+  /** Mirrors api FilterAudit.record!: one row per filter check, outcome only. */
+  private audit(
+    studentId: string,
+    context: FilterContext,
+    direction: 'input' | 'output',
+    refId: string,
+    result: { ok: boolean },
+  ) {
+    (this.store.filterEvents ??= []).push({
+      at: nowIso(),
+      studentId,
+      context,
+      direction,
+      outcome: result.ok ? 'pass' : 'blocked',
+      source: 'local',
+      refId,
+    });
+  }
+
   private user(): SessionUser | null {
     const id = this.store.sessionUserId;
     if (!id) return null;
@@ -415,6 +443,7 @@ export class MockApiClient implements ApiClient, DemoControls {
 
     // 1. Filter input (fail-closed).
     const inFilter = filterText(response);
+    this.audit(s.id, 'submission', 'input', submissionId, inFilter);
     if (!inFilter.ok) {
       s.validations.push({ at: nowIso(), levelCode: level.code, mode: 'withheld', results: [] });
       return record({ status: 'withheld', message: inFilter.message });
@@ -452,6 +481,7 @@ export class MockApiClient implements ApiClient, DemoControls {
 
     // 4. Filter output before it reaches the student (fail-closed).
     const outFilter = filterText(ev.coaching);
+    this.audit(s.id, 'coaching', 'output', submissionId, outFilter);
     const coaching = outFilter.ok ? ev.coaching : 'Keep going. Take another look at the instructions for this step.';
 
     if (ev.allPassed || level.id === PROJECT_LEVEL_ID) {
@@ -504,7 +534,9 @@ export class MockApiClient implements ApiClient, DemoControls {
   async askAssistant(levelId: string, message: string): Promise<AssistantReply> {
     await delay(700);
     const s = this.requireStudent();
+    const ref = newId();
     const inFilter = filterText(message);
+    this.audit(s.id, 'assistant', 'input', ref, inFilter);
     if (!inFilter.ok) return { reply: inFilter.message, withheld: true };
 
     // Scripted stand-in for a Bedrock call scoped to the current level and stage.
@@ -520,6 +552,7 @@ export class MockApiClient implements ApiClient, DemoControls {
       ? `Here's something to try for "${level.title}": ${hints[0]} What would you add to your answer?`
       : `You're close on "${level.title}". Reread the instructions and check that your answer covers each one.`;
     const outFilter = filterText(reply);
+    this.audit(s.id, 'assistant', 'output', ref, outFilter);
     return outFilter.ok ? { reply, withheld: false } : { reply: 'Let me think about that differently. Try rereading the step instructions.', withheld: true };
   }
 
@@ -552,6 +585,52 @@ export class MockApiClient implements ApiClient, DemoControls {
       roadmap: steps,
       decisions: [...s.decisions].reverse(),
       validations: [...s.validations].reverse(),
+    };
+  }
+
+  async getFilterAudit(): Promise<FilterAudit> {
+    await delay();
+    this.requireTeacher();
+    const events = this.store.filterEvents ?? [];
+    const has = (refId: string, context: FilterContext, direction: 'input' | 'output') =>
+      events.some((e) => e.refId === refId && e.context === context && e.direction === direction);
+    const students = Object.values(this.store.students);
+    const subIds = students.flatMap((s) => Object.keys(s.submissions));
+    // Submissions whose coaching went through validation (adaptive, not withheld/fallback/fault).
+    const coachedIds = subIds.filter((id) => events.some((e) => e.refId === id && e.context === 'coaching'));
+    const asked = events.filter((e) => e.context === 'assistant' && e.direction === 'input');
+    const passed = asked.filter((e) => e.outcome === 'pass');
+    const count = (direction: 'input' | 'output', outcome: string) =>
+      events.filter((e) => e.direction === direction && e.outcome === outcome).length;
+    const submissions = { required: subIds.length, checked: subIds.filter((id) => has(id, 'submission', 'input')).length };
+    const coaching = { required: coachedIds.length, checked: coachedIds.length };
+    const assistantReplies = { required: passed.length, checked: passed.filter((e) => has(e.refId, 'assistant', 'output')).length };
+    const bySource = new Map<string, FilterAudit['bySource'][number]>();
+    for (const e of events) {
+      const key = `${e.direction}|${e.outcome}|${e.source}`;
+      const row = bySource.get(key) ?? { direction: e.direction, outcome: e.outcome, source: e.source, count: 0 };
+      row.count += 1;
+      bySource.set(key, row);
+    }
+    return {
+      inputs: {
+        required: submissions.required + asked.length,
+        checked: submissions.checked + asked.length,
+        blocked: count('input', 'blocked'),
+        errors: count('input', 'error'),
+      },
+      outputs: {
+        required: coaching.required + assistantReplies.required,
+        checked: coaching.checked + assistantReplies.checked,
+        blocked: count('output', 'blocked'),
+        errors: count('output', 'error'),
+      },
+      coverage: { submissions, coaching, assistantReplies },
+      bySource: [...bySource.values()],
+      recent: [...events]
+        .reverse()
+        .slice(0, 25)
+        .map(({ refId: _refId, ...e }) => ({ ...e, displayName: this.store.students[e.studentId]?.displayName ?? e.studentId })),
     };
   }
 
