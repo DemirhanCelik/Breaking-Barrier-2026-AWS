@@ -210,7 +210,7 @@ function CreateForm({ units, onCreated }: { units: AssignableUnit[]; onCreated: 
                 size="small"
                 value={studentId}
                 onChange={(e) => setStudentId(e.target.value)}
-                placeholder="e.g. s-ava"
+                placeholder="e.g. s-hithesh"
               />
             )}
             <TextField

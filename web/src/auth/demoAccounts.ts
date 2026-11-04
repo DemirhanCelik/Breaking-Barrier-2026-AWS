@@ -8,13 +8,14 @@ import type { SessionUser } from '../api';
  */
 export const DEMO_ACCOUNTS: (SessionUser & { email: string })[] = [
   { id: 't-rivera', displayName: 'Ms. Rivera (teacher)', role: 'teacher' },
-  { id: 's-ava', displayName: 'Ava M.', role: 'student' },
-  { id: 's-ben', displayName: 'Ben O.', role: 'student' },
-  { id: 's-chloe', displayName: 'Chloe P.', role: 'student' },
-  { id: 's-dev', displayName: 'Dev R.', role: 'student' },
-  { id: 's-eli', displayName: 'Eli S.', role: 'student' },
-  { id: 's-fay', displayName: 'Fay T.', role: 'student' },
-  { id: 's-gus', displayName: 'Gus W.', role: 'student' },
+  { id: 's-hithesh', displayName: 'Hithesh', role: 'student' },
+  { id: 's-tanushree', displayName: 'Tanushree', role: 'student' },
+  { id: 's-demirhan', displayName: 'Demirhan', role: 'student' },
+  { id: 's-tzuhan', displayName: 'Tzuhan', role: 'student' },
+  { id: 's-hithesh1', displayName: 'Hithesh1', role: 'student' },
+  { id: 's-tanushree1', displayName: 'Tanushree1', role: 'student' },
+  { id: 's-demirhan1', displayName: 'Demirhan1', role: 'student' },
+  { id: 's-tzuhan1', displayName: 'Tzuhan1', role: 'student' },
 ].map((u) => ({
   ...u,
   role: u.role as SessionUser['role'],

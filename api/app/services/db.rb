@@ -6,7 +6,7 @@
 # the app uses plain parameterized SQL. Write SQL with :named params; never
 # interpolate values into SQL strings.
 #
-#   Db.query("SELECT * FROM app_user WHERE id = :id", id: "s-ava")
+#   Db.query("SELECT * FROM app_user WHERE id = :id", id: "s-hithesh")
 #   Db.json(hash) -> pass as CAST(:x AS jsonb)
 require "json"
 require "monitor"

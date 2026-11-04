@@ -15,7 +15,7 @@ def check(value, message)
   $count += 1
 end
 
-def request(method, path, user: 's-ava', data: nil, status: 200)
+def request(method, path, user: 's-hithesh', data: nil, status: 200)
   env = { 'CONTENT_TYPE' => 'application/json', 'HTTP_HOST' => 'localhost', input: data && JSON.generate(data) }
   env['HTTP_X_DEMO_USER'] = user if user
   result = Rack::MockRequest.new(Rails.application).request(method, path, env)
@@ -65,7 +65,7 @@ check(catalog.none? { |c| c.keys.any? { |key| %w[stages score diagnostic rubric]
 state = request('POST', '/api/student/course', data: {courseId:'digital_magazine'})
 check(state.dig('unit', 'id') == 'digital_magazine', 'Selecting a course must return its lesson state')
 request('POST', '/api/student/topic', data: {topic:state['topics'].first}) if state['phase'] == 'topic'
-answers = Curriculum.with_unit('digital_magazine') { DemoSeed.diagnostic_answers('s-ava', {}) }
+answers = Curriculum.with_unit('digital_magazine') { DemoSeed.diagnostic_answers('s-hithesh', {}) }
 state = request('POST', '/api/student/diagnostic', data: {answers:answers})
 check(state['phase'] == 'level', 'The first course should have its own warm-up and level')
 level = state.dig('level', 'id')
@@ -74,7 +74,7 @@ request('GET', "/api/student/submissions/#{sub['submissionId']}")
 state = request('GET', '/api/student/lesson')
 practice = request('POST', "/api/student/levels/#{state.dig('level','id')}/practice", status:201)
 request('POST', "/api/student/practice/#{practice['id']}/answers", data: {response:'I will explain what each part does.'})
-a = Curriculum.with_unit('digital_magazine') { snapshot('s-ava') }
+a = Curriculum.with_unit('digital_magazine') { snapshot('s-hithesh') }
 check(a[:practice].size == 1 && a[:validations].any? && a[:responses].any?, 'Course A fixture must include real work, feedback, and practice')
 
 state_b = request('POST', '/api/student/course', data: {courseId:'intro_python'})
@@ -82,38 +82,38 @@ check(state_b.dig('unit','id') == 'intro_python' && %w[topic diagnostic].include
 request('GET', "/api/student/submissions/#{sub['submissionId']}", status:404)
 request('POST', "/api/student/practice/#{practice['id']}/answers", data: {response:'Trying to read another course.'}, status:404)
 request('POST', '/api/student/topic', data: {topic:state_b['topics'].first}) if state_b['phase'] == 'topic'
-answers_b = Curriculum.with_unit('intro_python') { DemoSeed.diagnostic_answers('s-ava', {}) }
+answers_b = Curriculum.with_unit('intro_python') { DemoSeed.diagnostic_answers('s-hithesh', {}) }
 state_b = request('POST', '/api/student/diagnostic', data: {answers:answers_b})
 check(state_b['phase'] == 'level', 'Course B must accept its own diagnostic')
-b = Curriculum.with_unit('intro_python') { snapshot('s-ava') }
+b = Curriculum.with_unit('intro_python') { snapshot('s-hithesh') }
 check(b[:responses].empty? && b[:practice].empty? && b[:validations].empty?, 'A new course must not inherit history or practice')
 
 request('POST', '/api/student/course', data: {courseId:'digital_magazine'})
-restored = Curriculum.with_unit('digital_magazine') { snapshot('s-ava') }
+restored = Curriculum.with_unit('digital_magazine') { snapshot('s-hithesh') }
 check(a == restored, 'Switching A -> B -> A must restore all work, diagnostics, mastery, route and practice exactly')
 request('GET', "/api/student/submissions/#{sub['submissionId']}")
-request('GET', "/api/student/submissions/#{sub['submissionId']}", user:'s-ben', status:404)
-request('POST', '/api/student/course', user:'s-ben', data: {courseId:'intro_python'})
+request('GET', "/api/student/submissions/#{sub['submissionId']}", user:'s-tanushree', status:404)
+request('POST', '/api/student/course', user:'s-tanushree', data: {courseId:'intro_python'})
 check(request('GET', '/api/student/lesson').dig('unit','id') == 'digital_magazine', 'A peer must not change another student’s course')
 
 %w[intro_python digital_magazine].each do |course|
   request('POST', '/api/demo/unit', user:'t-rivera', data: {unit:course})
   klass = request('GET', '/api/teacher/class', user:'t-rivera')
   check(klass['students'].size == 7 && klass.dig('unit','id') == course, 'Course assignment must preserve the shared roster')
-  trace = request('GET', '/api/teacher/students/s-ava', user:'t-rivera')
+  trace = request('GET', '/api/teacher/students/s-hithesh', user:'t-rivera')
   check(trace['practice'].size == (course == 'digital_magazine' ? 1 : 0), 'Teacher practice trace must be scoped to the selected course')
   request('GET', '/api/teacher/insights', user:'t-rivera')
   request('GET', '/api/teacher/safety', user:'t-rivera')
   request('GET', '/api/teacher/authoring', user:'t-rivera')
 end
-check(Curriculum.with_unit('digital_magazine') { snapshot('s-ava') } == a, 'Teacher assignment must not reset student work')
+check(Curriculum.with_unit('digital_magazine') { snapshot('s-hithesh') } == a, 'Teacher assignment must not reset student work')
 check(Db.query('SELECT count(*) AS n FROM app_user').first['n'] == 8, 'Switching courses must not replace identities')
 check(request('GET','/api/student/lesson').dig('unit','id') == 'digital_magazine', 'Persisted personal selection must survive teacher assignment')
 check(Curriculum.with_unit('intro_python') { Parallel.run(-> { Curriculum.current.id }, -> { Curriculum.current.id }) } == %w[intro_python intro_python], 'AI worker threads must inherit the course context')
 Db.execute(migration)
-check(Curriculum.with_unit('digital_magazine') { snapshot('s-ava') } == a, 'Reapplying migrations must preserve multiple existing courses')
+check(Curriculum.with_unit('digital_magazine') { snapshot('s-hithesh') } == a, 'Reapplying migrations must preserve multiple existing courses')
 Rails.application.load_tasks
 Rake::Task['db:seed_if_empty'].invoke
-check(Curriculum.with_unit('digital_magazine') { snapshot('s-ava') } == a, 'First-time initialization must not seed over existing course work')
+check(Curriculum.with_unit('digital_magazine') { snapshot('s-hithesh') } == a, 'First-time initialization must not seed over existing course work')
 check(Thread.current[:codeai_unit].nil?, 'Request course context must not leak across requests')
 puts "Passed #{$count} independent-course integration assertions."

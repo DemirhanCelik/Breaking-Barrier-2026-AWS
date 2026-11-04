@@ -19,7 +19,7 @@ STACK=CodeAiAdaptiveEngineMvp
 POOL=$(aws cloudformation describe-stacks --region "$REGION" --stack-name "$STACK" \
   --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue" --output text)
 
-ACCOUNTS="t-rivera:teacher s-ava:student s-ben:student s-chloe:student s-dev:student s-eli:student s-fay:student s-gus:student"
+ACCOUNTS="t-rivera:teacher s-hithesh:student s-tanushree:student s-demirhan:student s-tzuhan:student s-hithesh1:student s-tanushree1:student s-demirhan1:student s-tzuhan1:student"
 
 for entry in $ACCOUNTS; do
   id=${entry%%:*}; group=${entry##*:}; email="${id#?-}@demo.test"

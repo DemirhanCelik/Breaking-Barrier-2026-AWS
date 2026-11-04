@@ -9,7 +9,7 @@ import { Initials } from '../components/brand';
 import { useSession } from '../session';
 import { brand } from '../theme';
 
-const FRESH = new Set(['s-ava', 's-ben']);
+const FRESH = new Set(['s-hithesh', 's-tanushree', 's-tzuhan1']);
 
 const homeFor = (role: Role) => (role === 'teacher' ? '/teacher' : role === 'admin' ? '/admin' : '/student');
 

@@ -133,7 +133,7 @@ export function EvidencePage() {
       if (!sameStages(a.diagnostic, b.diagnostic) && ra !== rb) pairs.push([a, b]);
     }
   const prefer = (p: [StudentTrace, StudentTrace]) =>
-    +[p[0].studentId, p[1].studentId].includes('s-ava') + +[p[0].studentId, p[1].studentId].includes('s-ben');
+    +[p[0].studentId, p[1].studentId].includes('s-hithesh') + +[p[0].studentId, p[1].studentId].includes('s-tanushree');
   const m4Pair = pairs.sort((p, q) => prefer(q) - prefer(p))[0];
   const m4 = !!m4Pair;
 
