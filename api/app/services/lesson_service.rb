@@ -34,15 +34,18 @@ class LessonService
     { phase: "choose-depth", options: r[:kind] == :choose_depth ? r[:options] : [], path: student_path(s), stepsCompleted: steps }
   end
 
-  def diagnostic_form
+  # Student-facing: never includes the answer key, the concept, or the stage.
+  def diagnostic_form(s)
     { intro: cur.diagnostic_intro,
-      items: cur.diagnostic_items.map { |i| { id: i.id, prompt: i.prompt, options: i.options.map { |o| { id: o.id, text: o.text } } } } }
+      items: cur.diagnostic_for(s.id).map do |q|
+        { id: q.id, prompt: q.prompt, figure: q.figure, options: q.options.map { |o| { id: o.id, text: o.text } } }.compact
+      end }
   end
 
   def submit_diagnostic(s, answers)
     raise Error.new("Diagnostic already submitted", 409) if s.diagnostic
     answers = answers.to_h.transform_keys(&:to_s).transform_values(&:to_s)
-    placed = Engine.place(answers)
+    placed = Engine.place(answers, cur.diagnostic_for(s.id))
     s.save_diagnostic!(placed)
     s.stages = placed.dup
     advance(s)

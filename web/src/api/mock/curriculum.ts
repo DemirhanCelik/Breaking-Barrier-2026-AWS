@@ -470,68 +470,6 @@ export const PROJECT_LEVEL_ID = 'p1';
 /** The non-adaptive path (FR10): a fixed, working sequence through authored levels. */
 export const FALLBACK_SEQUENCE = ['l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7', 'l10', 'l11', 'p1'];
 
-export interface DiagnosticItemDef {
-  id: string;
-  concept: ConceptId;
-  prompt: string;
-  options: { id: string; text: string; stage: Stage }[];
-}
-
-/** One short item per concept; each option promotes from Stage 0 to an entry stage. */
-export const DIAGNOSTIC: { intro: string; items: DiagnosticItemDef[] } = {
-  intro:
-    'Before you start, tell us how you would handle a few situations. There are no wrong answers here. Pick what you would really do.',
-  items: [
-    {
-      id: 'd1',
-      concept: 'c1',
-      prompt: 'Your club wants a webpage. What is your first move?',
-      options: [
-        { id: 'a', text: 'List a few things the page needs', stage: 1 },
-        { id: 'b', text: 'Ask the AI to make the whole page', stage: 0 },
-        { id: 'c', text: 'Split the page into parts (header, events, sign-up) and note what each one does', stage: 2 },
-        { id: 'd', text: 'Not sure yet', stage: 0 },
-      ],
-    },
-    {
-      id: 'd2',
-      concept: 'c2',
-      prompt: 'An AI gives you a sign-up form. What do you do next?',
-      options: [
-        { id: 'a', text: 'Check it against what the club asked for, including what happens with a blank email', stage: 2 },
-        { id: 'b', text: 'Use it as is', stage: 0 },
-        { id: 'c', text: 'Look it over and fix anything that is obviously broken', stage: 1 },
-        { id: 'd', text: 'Not sure yet', stage: 0 },
-      ],
-    },
-    {
-      id: 'd3',
-      concept: 'c3',
-      prompt: 'Which prompt would you send to the AI?',
-      options: [
-        { id: 'a', text: '"Make a robotics club page that lists our events"', stage: 1 },
-        {
-          id: 'b',
-          text: '"Make a robotics club page that lists events, uses only our two school colors, and shows \'No events yet\' when the list is empty"',
-          stage: 2,
-        },
-        { id: 'c', text: '"make a robotics club page"', stage: 0 },
-        { id: 'd', text: 'Not sure yet', stage: 0 },
-      ],
-    },
-    {
-      id: 'd4',
-      concept: 'c4',
-      prompt: 'Who might have trouble using the club page?',
-      options: [
-        { id: 'a', text: 'Probably nobody, it is just a webpage', stage: 0 },
-        { id: 'b', text: 'Maybe people on phones', stage: 1 },
-        { id: 'c', text: 'Screen-reader users, if images have no alt text, so every image needs alt text', stage: 2 },
-        { id: 'd', text: 'Not sure yet', stage: 0 },
-      ],
-    },
-  ],
-};
 
 export const conceptById = (id: ConceptId) => CONCEPTS.find((c) => c.id === id)!;
 export const levelById = (id: string) => LEVELS.find((l) => l.id === id)!;

@@ -1,6 +1,7 @@
 # Authored curriculum loaded from config/curriculum/*.yml. Concept-agnostic:
 # the engine only reads these structures, so swapping the unit is a data change.
 require "yaml"
+require "digest"
 
 class Curriculum
   Concept = Struct.new(:id, :name, :csta, :order, :descriptors, keyword_init: true)
@@ -23,11 +24,12 @@ class Curriculum
                      :response_label, :response_placeholder, :transitions, keyword_init: true) do
     def project? = kind == "project"
   end
-  DiagnosticOption = Struct.new(:id, :text, :stage, keyword_init: true)
-  DiagnosticItem = Struct.new(:id, :concept, :prompt, :options, keyword_init: true)
+  DiagnosticOption = Struct.new(:id, :text, keyword_init: true)
+  # One multiple-choice question for one concept at one stage; `answer` is an option id.
+  DiagnosticQuestion = Struct.new(:id, :concept, :stage, :prompt, :figure, :options, :answer, keyword_init: true)
 
   attr_reader :unit, :klass, :bar, :required_concepts, :concepts, :checks, :levels,
-              :project_level_id, :fallback_sequence, :diagnostic_intro, :diagnostic_items
+              :project_level_id, :fallback_sequence, :diagnostic_intro, :diagnostic_bank
 
   def self.current
     @current ||= load_file(Rails.root.join("config/curriculum/#{ENV.fetch('CURRICULUM', 'ai_generated_design')}.yml"))
@@ -60,9 +62,10 @@ class Curriculum
     @project_level_id = data.fetch("project_level_id")
     @fallback_sequence = data.fetch("fallback_sequence")
     @diagnostic_intro = data.dig("diagnostic", "intro")
-    @diagnostic_items = data.dig("diagnostic", "items").map do |i|
-      DiagnosticItem.new(id: i["id"], concept: i["concept"], prompt: i["prompt"],
-                         options: i["options"].map { |o| DiagnosticOption.new(id: o["id"], text: o["text"], stage: o["stage"]) })
+    @diagnostic_bank = data.dig("diagnostic", "bank").map do |q|
+      DiagnosticQuestion.new(id: q["id"], concept: q["concept"], stage: q["stage"], prompt: q["prompt"], figure: q["figure"],
+                             options: q["options"].map { |o| DiagnosticOption.new(id: o["id"], text: o["text"]) },
+                             answer: q["answer"])
     end
     validate!
   end
@@ -71,6 +74,18 @@ class Curriculum
   def level(id) = @levels.find { |l| l.id == id } || raise(KeyError, "Unknown level #{id}")
   def level?(id) = @levels.any? { |l| l.id == id }
   def check(id) = @checks.fetch(id)
+
+  # The diagnostic a student sees: one question per required concept per stage 1-3,
+  # picked from the stage's pool by a stable hash of the student id (same questions
+  # on reload, different students see different questions).
+  def diagnostic_for(student_id)
+    @required_concepts.flat_map do |cid|
+      (1..3).filter_map do |stage|
+        pool = @diagnostic_bank.select { |q| q.concept == cid && q.stage == stage }
+        pool[Digest::SHA256.hexdigest("#{student_id}:#{cid}:#{stage}").to_i(16) % pool.size] if pool.any?
+      end
+    end
+  end
 
   private
 

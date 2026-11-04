@@ -22,7 +22,6 @@ import {
   CHECKS,
   CLASS_INFO,
   CONCEPTS,
-  DIAGNOSTIC,
   FALLBACK_SEQUENCE,
   LEVELS,
   PROJECT_LEVEL_ID,
@@ -32,6 +31,7 @@ import {
   type Level,
   type Transition,
 } from './curriculum';
+import { DIAGNOSTIC_BANK, type DiagnosticQuestion } from './diagnosticBank';
 
 export const BAR = CLASS_INFO.bar;
 /** Attempts on one level before routing to an alternate level for the same transition. */
@@ -57,12 +57,25 @@ export interface EngineState {
 export const zeroVector = (): StageVector =>
   Object.fromEntries(REQUIRED_CONCEPTS.map((c) => [c, 0 as Stage]));
 
-export function placeFromDiagnostic(answers: Record<string, string>): StageVector {
+/** One question per required concept per stage 1-3, stable per student (mirrors Curriculum#diagnostic_for). */
+export function diagnosticFor(studentId: string): DiagnosticQuestion[] {
+  const hash = (text: string) => [...text].reduce((h, ch) => (Math.imul(h, 31) + ch.charCodeAt(0)) >>> 0, 7);
+  return REQUIRED_CONCEPTS.flatMap((cid) =>
+    ([1, 2, 3] as const).flatMap((stage) => {
+      const pool = DIAGNOSTIC_BANK.filter((q) => q.concept === cid && q.stage === stage);
+      return pool.length ? [pool[hash(`${studentId}:${cid}:${stage}`) % pool.length]] : [];
+    }),
+  );
+}
+
+/** FR1 ladder placement: climb stages while answers are correct; the first miss stops the climb. */
+export function placeFromDiagnostic(answers: Record<string, string>, questions: DiagnosticQuestion[]): StageVector {
   const placed = zeroVector();
-  for (const item of DIAGNOSTIC.items) {
-    const option = item.options.find((o) => o.id === answers[item.id]);
-    // Promote from Stage 0 only; an unanswered item leaves the default.
-    if (option && option.stage > placed[item.concept]) placed[item.concept] = option.stage;
+  for (const cid of REQUIRED_CONCEPTS) {
+    for (const q of questions.filter((x) => x.concept === cid).sort((a, b) => a.stage - b.stage)) {
+      if (answers[q.id] !== q.answer) break;
+      placed[cid] = q.stage;
+    }
   }
   return placed;
 }

@@ -68,6 +68,25 @@ export function DiagnosticView({ onDone }: { onDone: (s: LessonState) => void })
                 </Box>
                 {item.prompt}
               </Typography>
+              {item.figure && (
+                <Box
+                  component="pre"
+                  aria-label="Diagram"
+                  sx={{
+                    m: 0,
+                    mb: 1.5,
+                    p: 1.5,
+                    bgcolor: '#f7f8f9',
+                    border: `1px solid ${brand.borderLight}`,
+                    borderRadius: 1.5,
+                    fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+                    fontSize: 14,
+                    whiteSpace: 'pre-wrap',
+                  }}
+                >
+                  {item.figure}
+                </Box>
+              )}
               <Box role="radiogroup" aria-label={item.prompt} sx={{ display: 'grid', gap: 1.25 }}>
                 {item.options.map((o, oi) => {
                   const selected = answers[item.id] === o.id;

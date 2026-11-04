@@ -29,14 +29,15 @@ module DemoSeed
     end
 
     svc = LessonService.new
-    place = ->(id, answers) { s = StudentRecord.find(id); svc.submit_diagnostic(s, answers); StudentRecord.find(id) }
+    # Answers each student's own diagnostic so they land on `target` (concept => stage).
+    place = ->(id, target) { s = StudentRecord.find(id); svc.submit_diagnostic(s, diagnostic_answers(id, target)); StudentRecord.find(id) }
 
-    chloe = place.call("s-chloe", { "d1" => "a", "d2" => "b", "d3" => "a", "d4" => "d" })
+    chloe = place.call("s-chloe", { "c1" => 1, "c2" => 0, "c3" => 1, "c4" => 0 })
     simulate_passes(svc, chloe, 2)
 
-    place.call("s-dev", { "d1" => "c", "d2" => "a", "d3" => "b", "d4" => "c" })
+    place.call("s-dev", { "c1" => 2, "c2" => 2, "c3" => 2, "c4" => 2 })
 
-    eli = place.call("s-eli", { "d1" => "a", "d2" => "c", "d3" => "c", "d4" => "b" })
+    eli = place.call("s-eli", { "c1" => 1, "c2" => 1, "c3" => 0, "c4" => 1 })
     simulate_passes(svc, eli, 1)
     eli.add_validation!(level_code: cur.level(eli.current_level_id).code, mode: "error", model_meta: { error: "seeded fault" })
     eli.flags << "Validation service unavailable (seeded fault)."
@@ -45,13 +46,13 @@ module DemoSeed
     svc.send(:advance, eli)
     eli.save!
 
-    fay = place.call("s-fay", { "d1" => "c", "d2" => "c", "d3" => "a", "d4" => "b" })
+    fay = place.call("s-fay", { "c1" => 2, "c2" => 1, "c3" => 1, "c4" => 1 })
     fay.transition_fails["c3:1"] = 3
     fay.level_status[fay.current_level_id] = { "attempts" => 1, "status" => "in-progress" }
     fay.save!
 
     # Gus starts where Fay does, so the two share real gaps on the Insights page.
-    place.call("s-gus", { "d1" => "c", "d2" => "c", "d3" => "a", "d4" => "b" })
+    place.call("s-gus", { "c1" => 2, "c2" => 1, "c3" => 1, "c4" => 1 })
 
     # Realistic unsuccessful attempts (scored with the deterministic probes) so the
     # teacher's Insights page has stuck students and shared gaps to show.
@@ -76,6 +77,14 @@ module DemoSeed
     st["attempts"] += 1
     s.last_response[level_id] = text
     s.save!
+  end
+
+  # Answers that place the student exactly at `target`: correct up to the target stage,
+  # then a wrong option (which stops the ladder).
+  def diagnostic_answers(student_id, target)
+    Curriculum.current.diagnostic_for(student_id).to_h do |q|
+      [q.id, q.stage <= target.fetch(q.concept, 0) ? q.answer : q.options.map(&:id).find { |o| o != q.answer }]
+    end
   end
 
   def insert_user(id, name, role)

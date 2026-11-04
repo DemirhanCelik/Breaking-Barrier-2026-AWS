@@ -4,7 +4,7 @@ class StudentController < ApplicationController
   before_action :require_student!
 
   def lesson = render(json: service.lesson_state(student))
-  def diagnostic = render(json: service.diagnostic_form)
+  def diagnostic = render(json: service.diagnostic_form(student))
 
   def submit_diagnostic
     answers = params.require(:answers).permit!.to_h

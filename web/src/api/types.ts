@@ -29,6 +29,8 @@ export interface DiagnosticOption {
 export interface DiagnosticItem {
   id: string;
   prompt: string;
+  /** Optional text diagram shown with the question (for example a site map). */
+  figure?: string;
   options: DiagnosticOption[];
 }
 

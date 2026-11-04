@@ -52,7 +52,6 @@ import {
   CHECKS,
   CLASS_INFO,
   CONCEPTS,
-  DIAGNOSTIC,
   LEVELS,
   PROJECT_LEVEL_ID,
   REQUIRED_CONCEPTS,
@@ -60,6 +59,7 @@ import {
   levelById,
 } from './curriculum';
 import { PRACTICE_BANK, type BankItem } from './practiceBank';
+import { DIAGNOSTIC_INTRO } from './diagnosticBank';
 import {
   MAX_ATTEMPTS_PER_LEVEL,
   MAX_FAILS_PER_TRANSITION,
@@ -68,6 +68,7 @@ import {
   buildRoadmap,
   evaluate,
   filterText,
+  diagnosticFor,
   placeFromDiagnostic,
   route,
   type EngineState,
@@ -192,8 +193,7 @@ function closeLevel(s: StudentRecord, levelId: string, status: 'passed' | 'exhau
   if (!s.completedOrder.includes(levelId)) s.completedOrder.push(levelId);
 }
 
-function placeStudent(s: StudentRecord, answers: DiagnosticAnswers) {
-  const placed = placeFromDiagnostic(answers);
+function placeStudent(s: StudentRecord, placed: StageVector) {
   s.diagnostic = { ...placed };
   s.stages = { ...placed };
   advance(s);
@@ -227,13 +227,13 @@ function seed(): Store {
   const students: Record<string, StudentRecord> = {};
   for (const id of Object.keys(STUDENT_NAMES)) students[id] = newStudent(id);
 
-  placeStudent(students['s-chloe'], { d1: 'a', d2: 'b', d3: 'a', d4: 'd' });
+  placeStudent(students['s-chloe'], { c1: 1, c2: 0, c3: 1, c4: 0 });
   simulatePasses(students['s-chloe'], 2);
 
-  placeStudent(students['s-dev'], { d1: 'c', d2: 'a', d3: 'b', d4: 'c' });
+  placeStudent(students['s-dev'], { c1: 2, c2: 2, c3: 2, c4: 2 });
 
   const eli = students['s-eli'];
-  placeStudent(eli, { d1: 'a', d2: 'c', d3: 'c', d4: 'b' });
+  placeStudent(eli, { c1: 1, c2: 1, c3: 0, c4: 1 });
   simulatePasses(eli, 1);
   eli.validations.push({ at: nowIso(), levelCode: levelById(eli.currentLevelId!).code, mode: 'error', results: [] });
   eli.flags.push('Validation service unavailable (seeded fault).');
@@ -243,11 +243,11 @@ function seed(): Store {
   advance(eli);
 
   const fay = students['s-fay'];
-  placeStudent(fay, { d1: 'c', d2: 'c', d3: 'a', d4: 'b' });
+  placeStudent(fay, { c1: 2, c2: 1, c3: 1, c4: 1 });
   fay.transitionFails['c3:1'] = 3;
   fay.levelStatus[fay.currentLevelId!] = { attempts: 1, status: 'in-progress' };
 
-  placeStudent(students['s-gus'], { d1: 'd', d2: 'd', d3: 'd', d4: 'd' });
+  placeStudent(students['s-gus'], { c1: 2, c2: 1, c3: 1, c4: 1 });
 
   return { sessionUserId: null, fault: false, students };
 }
@@ -447,11 +447,13 @@ export class MockApiClient implements ApiClient, DemoControls {
     await delay();
     this.requireStudent();
     return {
-      intro: DIAGNOSTIC.intro,
-      items: DIAGNOSTIC.items.map((i) => ({
-        id: i.id,
-        prompt: i.prompt,
-        options: i.options.map((o) => ({ id: o.id, text: o.text })),
+      intro: DIAGNOSTIC_INTRO,
+      // Never send the answer key, concept, or stage to the student.
+      items: diagnosticFor(this.requireStudent().id).map((q) => ({
+        id: q.id,
+        prompt: q.prompt,
+        ...(q.figure ? { figure: q.figure } : {}),
+        options: q.options.map((o) => ({ id: o.id, text: o.text })),
       })),
     };
   }
@@ -460,7 +462,7 @@ export class MockApiClient implements ApiClient, DemoControls {
     await delay(400);
     const s = this.requireStudent();
     if (s.diagnostic) throw new ApiError('Diagnostic already submitted', 409);
-    placeStudent(s, answers);
+    placeStudent(s, placeFromDiagnostic(answers, diagnosticFor(s.id)));
     this.persist();
     return lessonState(s);
   }

@@ -19,12 +19,16 @@ module Engine
 
   def zero_vector = cur.required_concepts.to_h { |c| [c, 0] }
 
-  # FR1: promote from Stage 0 only; unanswered items keep the default.
-  def place(answers)
+  # FR1: ladder placement. For each concept, climb Stage 1, 2, 3 while the student
+  # answers that stage's question correctly; the first miss (or unanswered
+  # question) stops the climb. Promotes from Stage 0 only.
+  def place(answers, questions)
     placed = zero_vector
-    cur.diagnostic_items.each do |item|
-      option = item.options.find { |o| o.id == answers[item.id] }
-      placed[item.concept] = option.stage if option && option.stage > placed[item.concept]
+    questions.group_by(&:concept).each do |cid, qs|
+      qs.sort_by(&:stage).each do |q|
+        break unless answers[q.id].to_s == q.answer
+        placed[cid] = q.stage
+      end
     end
     placed
   end
