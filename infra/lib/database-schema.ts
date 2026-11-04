@@ -262,32 +262,40 @@ export class DatabaseSchema extends Construct {
     // another — guaranteeing CREATE TABLE ordering (FK targets exist first).
     let previous: cr.AwsCustomResource | undefined;
 
+    // One shared execution role for every DDL step. Passing `policy` per step
+    // would attach one inline policy per statement to the provider's singleton
+    // role, which hits IAM's 10 KB inline-policy limit at ~20 statements.
+    const ddlRole = new iam.Role(this, 'DdlRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      description: 'Runs schema DDL through the RDS Data API (DatabaseSchema custom resources)',
+      managedPolicies: [iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole')],
+      inlinePolicies: {
+        ddl: new iam.PolicyDocument({
+          // Scoped to exactly the Data API + secret-read it needs.
+          statements: [
+            new iam.PolicyStatement({
+              actions: ['rds-data:ExecuteStatement', 'rds-data:BatchExecuteStatement'],
+              resources: [cluster.clusterArn],
+            }),
+            new iam.PolicyStatement({
+              actions: ['secretsmanager:GetSecretValue'],
+              resources: [secret.secretArn],
+            }),
+            new iam.PolicyStatement({
+              actions: ['kms:Decrypt'],
+              resources: [encryptionKey.keyArn],
+            }),
+          ],
+        }),
+      },
+    });
+
     ALL_STATEMENTS.forEach((sql, index) => {
       // Per-statement content hash: editing ANY statement (even to the same
       // length) changes its physical id, so CloudFormation re-runs just it.
       const physicalId = `codeai-ddl-${index}-${statementHash(sql)}`;
       const statement = new cr.AwsCustomResource(this, `Ddl${index}`, {
-        // Scope the role to exactly the Data API + secret-read it needs.
-        policy: cr.AwsCustomResourcePolicy.fromStatements([
-          new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: [
-              'rds-data:ExecuteStatement',
-              'rds-data:BatchExecuteStatement',
-            ],
-            resources: [cluster.clusterArn],
-          }),
-          new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: ['secretsmanager:GetSecretValue'],
-            resources: [secret.secretArn],
-          }),
-          new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: ['kms:Decrypt'],
-            resources: [encryptionKey.keyArn],
-          }),
-        ]),
+        role: ddlRole,
         logRetention: logs.RetentionDays.ONE_WEEK,
         // The Data API (RDSDataService) is in Lambda's built-in SDK, so do NOT
         // install the latest SDK at runtime — that would need internet egress
