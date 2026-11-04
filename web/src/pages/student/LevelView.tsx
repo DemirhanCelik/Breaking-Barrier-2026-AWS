@@ -13,6 +13,7 @@ import { Splitter, usePaneSize } from '../../components/Splitter';
 import { FillEditor, ParsonsEditor } from './InteractionEditors';
 import { PracticeDialog } from './PracticeDialog';
 import { PreviewPanel } from './PreviewPanel';
+import { SidePanel } from './SidePanel';
 
 const POLL_MS = 400;
 const POLL_TIMEOUT_MS = 20_000;
@@ -39,10 +40,15 @@ export function LevelView({
   // Resizable panes, remembered per browser (drag, arrow keys, or double-click to reset).
   const outer = useRef<HTMLDivElement>(null);
   const [leftPct, setLeftPct, leftMin, leftMax] = usePaneSize('left', 42, 25, 70);
-  // Bit opens as its own column on the right (pushes the page, never covers it).
-  // Opening it with Hint also asks Bit for a hint.
-  const [bitOpen, setBitOpen] = useState(false);
+  // Side panel on the right with two tabs: Bit (opened by Hint, which also asks for a
+  // hint) and the AI preview (opened by Try it). It pushes the page; it never covers it.
+  const [side, setSide] = useState<'bit' | 'preview' | null>(null);
+  const [sidePct, setSidePct, sideMin, sideMax] = usePaneSize('side', 32, 22, 55);
   const [hintSignal, setHintSignal] = useState(0);
+  // Your work always keeps at least 30% of the width: the side panel and then the
+  // instructions give way, so nothing is ever squeezed under a neighbor.
+  const sideEff = side ? Math.min(sidePct, 100 - 30 - 25) : 0;
+  const leftEff = Math.min(leftPct, 100 - sideEff - 30);
   const [practiceOpen, setPracticeOpen] = useState(false);
   // "Try it": the prompt the preview was made from (null = panel closed).
   const [previewOf, setPreviewOf] = useState<string | null>(null);
@@ -107,7 +113,7 @@ export function LevelView({
         display: 'grid',
         gridTemplateColumns: {
           xs: 'minmax(0, 1fr)',
-          md: `minmax(0, ${leftPct}%) 6px minmax(0, 1fr)${bitOpen ? ' minmax(300px, 380px)' : ''}`,
+          md: `minmax(0, ${leftEff}%) 6px minmax(0, 1fr)${side ? ` 6px minmax(0, ${sideEff}%)` : ''}`,
         },
         gridTemplateRows: { xs: 'auto', md: '1fr' },
         height: { md: 'calc(100vh - 60px)' },
@@ -219,7 +225,7 @@ export function LevelView({
       <Box
         component="section"
         aria-label="Your work"
-        sx={{ display: 'flex', flexDirection: 'column', minHeight: { xs: 420, md: 0 }, minWidth: 0 }}
+        sx={{ display: 'flex', flexDirection: 'column', minHeight: { xs: 420, md: 0 }, minWidth: 0, overflow: 'hidden' }}
       >
         <PaneHeader
           title="Your work"
@@ -231,7 +237,10 @@ export function LevelView({
                     size="small"
                     startIcon={<VisibilityOutlinedIcon />}
                     disabled={!response.trim()}
-                    onClick={() => setPreviewOf(promptPart(response))}
+                    onClick={() => {
+                      setPreviewOf(promptPart(response));
+                      setSide('preview');
+                    }}
                     sx={{ color: brand.charcoal, fontWeight: 800 }}
                   >
                     Try it
@@ -248,10 +257,10 @@ export function LevelView({
                 <Button
                   size="small"
                   startIcon={<LightbulbOutlinedIcon />}
-                  aria-expanded={bitOpen}
+                  aria-expanded={side === 'bit'}
                   onClick={() => {
-                    if (!bitOpen) setHintSignal((n) => n + 1);
-                    setBitOpen((o) => !o);
+                    if (side !== 'bit') setHintSignal((n) => n + 1);
+                    setSide((s) => (s === 'bit' ? null : 'bit'));
                   }}
                   sx={{
                     color: brand.charcoal,
@@ -340,10 +349,6 @@ export function LevelView({
           </>
         )}
 
-        {previewOf !== null && (
-          <PreviewPanel key={previewOf} levelId={level.id} prompt={previewOf} onClose={() => setPreviewOf(null)} />
-        )}
-
         {checking && <LinearProgress color="warning" aria-label="Reading your work" />}
         <Box
           sx={{
@@ -388,17 +393,38 @@ export function LevelView({
         </Box>
       </Box>
 
-      {/* Bit tutor column: kept mounted so the chat survives closing and reopening */}
-      <Box
-        sx={{
-          display: bitOpen ? 'flex' : 'none',
-          minHeight: { xs: 420, md: 0 },
-          minWidth: 0,
-          borderLeft: { md: `1px solid ${brand.border}` },
-        }}
-      >
-        <BitTutorPanel level={level} hintSignal={hintSignal} onClose={() => setBitOpen(false)} />
-      </Box>
+      {side && (
+        <Splitter
+          container={outer}
+          axis="x"
+          fromEnd
+          value={sidePct}
+          min={sideMin}
+          max={sideMax}
+          onChange={setSidePct}
+          onReset={() => setSidePct(32)}
+          label="Resize the side panel"
+        />
+      )}
+
+      {/* Side panel: Bit and the AI preview as tabs. Kept mounted so the chat survives closing. */}
+      <SidePanel
+        tab={side}
+        onTab={setSide}
+        previewReady={previewOf !== null}
+        bit={<BitTutorPanel level={level} hintSignal={hintSignal} embedded />}
+        preview={
+          previewOf !== null ? (
+            <PreviewPanel
+              key={previewOf}
+              levelId={level.id}
+              prompt={previewOf}
+              onClose={() => setSide(null)}
+              embedded
+            />
+          ) : null
+        }
+      />
 
       <PracticeDialog open={practiceOpen} onClose={() => setPracticeOpen(false)} level={level} />
     </Box>

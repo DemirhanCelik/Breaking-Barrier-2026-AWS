@@ -10,7 +10,18 @@ import { brand } from '../../theme';
  * same-origin access) and the API also strips scripts and adds a no-network CSP.
  * Formative only: nothing here is scored.
  */
-export function PreviewPanel({ levelId, prompt, onClose }: { levelId: string; prompt: string; onClose: () => void }) {
+export function PreviewPanel({
+  levelId,
+  prompt,
+  onClose,
+  embedded = false,
+}: {
+  levelId: string;
+  prompt: string;
+  onClose: () => void;
+  /** Inside the tabbed side panel: fill it, and skip the title bar (the tab names it). */
+  embedded?: boolean;
+}) {
   const [result, setResult] = useState<PreviewResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,24 +41,34 @@ export function PreviewPanel({ levelId, prompt, onClose }: { levelId: string; pr
       component="section"
       aria-label="AI preview"
       sx={{
-        borderTop: `1px solid ${brand.border}`,
+        borderTop: embedded ? 'none' : `1px solid ${brand.border}`,
         bgcolor: '#fff',
         display: 'flex',
         flexDirection: 'column',
-        height: { xs: 340, md: '45%' },
+        ...(embedded ? { flex: 1, minHeight: 0 } : { height: { xs: 340, md: '45%' } }),
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 2, py: 0.75, bgcolor: brand.strip }}>
-        <Typography variant="body2" sx={{ fontWeight: 800, flex: 1 }}>
-          What the AI built from your prompt
+      {embedded ? (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ px: 2, py: 0.75, borderBottom: `1px solid ${brand.borderLight}` }}
+        >
+          What the AI built from your prompt. Just a preview: not checked or scored.
         </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
-          Just a preview. Not checked or scored.
-        </Typography>
-        <IconButton size="small" aria-label="Close preview" onClick={onClose}>
-          <CloseIcon fontSize="small" />
-        </IconButton>
-      </Box>
+      ) : (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 2, py: 0.75, bgcolor: brand.strip }}>
+          <Typography variant="body2" sx={{ fontWeight: 800, flex: 1 }}>
+            What the AI built from your prompt
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+            Just a preview. Not checked or scored.
+          </Typography>
+          <IconButton size="small" aria-label="Close preview" onClick={onClose}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      )}
       {!result && !error && (
         <>
           <LinearProgress />

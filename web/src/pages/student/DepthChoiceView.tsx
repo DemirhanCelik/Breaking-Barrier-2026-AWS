@@ -33,8 +33,8 @@ export function DepthChoiceView({ options, onChosen }: { options: DepthOption[];
       </Typography>
       <SpeechBubble sx={{ mb: 4 }}>
         <Typography>
-          You've covered everything for today's page. Choose a challenge to explore, or go straight to building your
-          own project. You'll build it either way.
+          You've covered everything for today's page. Choose a challenge to explore, or go straight to building your own
+          project. You'll build it either way.
         </Typography>
       </SpeechBubble>
       {error && (
@@ -73,7 +73,9 @@ export function DepthChoiceView({ options, onChosen }: { options: DepthOption[];
               <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
                 {o.description}
               </Typography>
-              <Typography sx={{ fontWeight: 700, color: brand.tealDark, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Typography
+                sx={{ fontWeight: 700, color: brand.tealDark, display: 'flex', alignItems: 'center', gap: 0.5 }}
+              >
                 {isProject ? 'Start building' : 'Explore this'} <ArrowForwardIcon fontSize="small" />
               </Typography>
             </Box>

@@ -62,7 +62,9 @@ export function ProgressBubbles({ path, lessonName }: { path: PathItem[]; lesson
                     boxShadow: current ? `0 0 0 3px rgba(255,164,0,0.25)` : undefined,
                   }}
                 >
-                  <Box sx={{ transform: isProject ? 'rotate(-45deg)' : undefined, display: 'grid', placeItems: 'center' }}>
+                  <Box
+                    sx={{ transform: isProject ? 'rotate(-45deg)' : undefined, display: 'grid', placeItems: 'center' }}
+                  >
                     {isProject ? (
                       <StarIcon sx={{ fontSize: 15 }} />
                     ) : done ? (

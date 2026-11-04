@@ -44,9 +44,12 @@ export function Splitter({
   onChange,
   onReset,
   label,
+  fromEnd = false,
 }: {
   container: RefObject<HTMLElement>;
   axis: 'x' | 'y';
+  /** The value is the size of the pane AFTER the handle (a right-hand panel). */
+  fromEnd?: boolean;
   value: number;
   min: number;
   max: number;
@@ -61,7 +64,8 @@ export function Splitter({
     const move = (e: PointerEvent) => {
       if (!dragging.current || !container.current) return;
       const r = container.current.getBoundingClientRect();
-      onChange(axis === 'x' ? ((e.clientX - r.left) / r.width) * 100 : ((e.clientY - r.top) / r.height) * 100);
+      const pct = axis === 'x' ? ((e.clientX - r.left) / r.width) * 100 : ((e.clientY - r.top) / r.height) * 100;
+      onChange(fromEnd ? 100 - pct : pct);
     };
     const up = () => {
       dragging.current = false;
@@ -75,7 +79,7 @@ export function Splitter({
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
     };
-  }, [axis, container, onChange]);
+  }, [axis, container, onChange, fromEnd]);
 
   const horizontal = axis === 'y'; // a horizontal bar resizes rows
 
@@ -99,8 +103,9 @@ export function Splitter({
       onKeyDown={(e) => {
         const back = horizontal ? 'ArrowUp' : 'ArrowLeft';
         const fwd = horizontal ? 'ArrowDown' : 'ArrowRight';
-        if (e.key === back) onChange(value - 2);
-        else if (e.key === fwd) onChange(value + 2);
+        const step = fromEnd ? -2 : 2;
+        if (e.key === back) onChange(value - step);
+        else if (e.key === fwd) onChange(value + step);
         else if (e.key === 'Home') onChange(min);
         else if (e.key === 'End') onChange(max);
         else return;

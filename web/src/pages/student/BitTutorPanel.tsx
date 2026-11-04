@@ -24,10 +24,13 @@ export function BitTutorPanel({
   level,
   hintSignal,
   onClose,
+  embedded = false,
 }: {
   level: StudentLevel;
   hintSignal: number;
   onClose?: () => void;
+  /** Inside the tabbed side panel: show a one-line note instead of the full header. */
+  embedded?: boolean;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
@@ -75,30 +78,34 @@ export function BitTutorPanel({
         bgcolor: brand.bg,
       }}
     >
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1.25,
-          px: 2,
-          py: 1,
-          bgcolor: '#fff',
-          borderBottom: `1px solid ${brand.borderLight}`,
-        }}
-      >
-        <Bit size={30} />
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontFamily: headingFont, fontWeight: 700, lineHeight: 1.1 }}>Ask Bit</Typography>
-          <Typography variant="caption" color="text.secondary" noWrap display="block">
-            Your AI tutor for this step. Bit nudges; it won't write the answer.
-          </Typography>
-        </Box>
-        {onClose && (
-          <IconButton size="small" aria-label="Close Bit" onClick={onClose}>
-            <CloseIcon fontSize="small" />
-          </IconButton>
-        )}
-      </Box>
+      {!embedded && (
+        <>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.25,
+              px: 2,
+              py: 1,
+              bgcolor: '#fff',
+              borderBottom: `1px solid ${brand.borderLight}`,
+            }}
+          >
+            <Bit size={30} />
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography sx={{ fontFamily: headingFont, fontWeight: 700, lineHeight: 1.1 }}>Ask Bit</Typography>
+              <Typography variant="caption" color="text.secondary" noWrap display="block">
+                Your AI tutor for this step. Bit nudges; it won't write the answer.
+              </Typography>
+            </Box>
+            {onClose && (
+              <IconButton size="small" aria-label="Close Bit" onClick={onClose}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            )}
+          </Box>
+        </>
+      )}
 
       <Box
         ref={scroller}
