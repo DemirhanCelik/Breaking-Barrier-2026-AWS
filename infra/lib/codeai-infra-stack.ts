@@ -420,6 +420,11 @@ export class CodeAiInfraStack extends cdk.Stack {
     });
 
     const subjectClaim = `repo:${props.githubRepo}:ref:refs/heads/${props.githubBranch}`;
+    // GitHub's newer sub format embeds numeric ids: repo:Owner@<id>/Repo@<id>:ref:...
+    // (seen in CloudTrail for this repo). Accept it alongside the legacy form; the
+    // owner and repo names are still pinned, only the id suffix is wildcarded.
+    const [ghOwner, ghRepo] = props.githubRepo.split('/');
+    const subjectClaimWithIds = `repo:${ghOwner}@*/${ghRepo}@*:ref:refs/heads/${props.githubBranch}`;
 
     const deployRole = new iam.Role(this, 'GitHubDeployRole', {
       roleName: 'codeai-github-deploy',
@@ -429,7 +434,9 @@ export class CodeAiInfraStack extends cdk.Stack {
       assumedBy: new iam.OpenIdConnectPrincipal(githubOidcProvider, {
         StringEquals: {
           'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
-          'token.actions.githubusercontent.com:sub': subjectClaim,
+        },
+        StringLike: {
+          'token.actions.githubusercontent.com:sub': [subjectClaim, subjectClaimWithIds],
         },
       }),
     });
