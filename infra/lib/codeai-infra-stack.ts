@@ -15,6 +15,7 @@ import * as agentcore from 'aws-cdk-lib/aws-bedrockagentcore';
 import { IgnoreMode } from 'aws-cdk-lib';
 import * as path from 'path';
 import { DatabaseSchema } from './database-schema';
+import { KnowledgeBase } from './knowledge-base';
 
 export interface CodeAiInfraStackProps extends cdk.StackProps {
   /** GitHub repo in "owner/name" form used to scope the OIDC trust policy. */
@@ -208,8 +209,9 @@ export class CodeAiInfraStack extends cdk.Stack {
     // Create/maintain the tables as part of the deploy via the Aurora Data API
     // (HTTPS, no NAT path). Idempotent DDL — safe on every create/update. This
     // replaces the out-of-band `rake db:schema` step with reproducible IaC.
+    let databaseSchema: DatabaseSchema | undefined;
     if (dbCluster.secret) {
-      new DatabaseSchema(this, 'DatabaseSchema', {
+      databaseSchema = new DatabaseSchema(this, 'DatabaseSchema', {
         cluster: dbCluster,
         secret: dbCluster.secret,
         databaseName: 'codeai',
@@ -246,6 +248,22 @@ export class CodeAiInfraStack extends cdk.Stack {
         },
       ],
     });
+
+    // =========================================================================
+    // 4b. Bedrock Knowledge Base (codeai-kb) — RDS/pgvector store on Aurora,
+    //     two S3 data sources (project docs + code.org Unit 6). See
+    //     knowledge-base.ts for the one-time `cdk import` adoption note.
+    // =========================================================================
+    if (dbCluster.secret) {
+      new KnowledgeBase(this, 'KnowledgeBase', {
+        cluster: dbCluster,
+        credentialsSecret: dbCluster.secret,
+        databaseName: 'codeai',
+        sourceBucket: artifactsBucket,
+        encryptionKey: dataKey,
+        schemaDependency: databaseSchema,
+      });
+    }
 
     // =========================================================================
     // 5. CloudFront in front of the SPA bucket using Origin Access Control (OAC).

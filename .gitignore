@@ -1,0 +1,7 @@
+# Never commit credential files.
+*.env.creds
+.env.creds
+
+# Local demo / scratch tooling (not part of the deployable app).
+kb-demo/
+gateway-demo/

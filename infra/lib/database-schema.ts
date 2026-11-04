@@ -195,6 +195,35 @@ export const SCHEMA_STATEMENTS: string[] = [
      withheld     boolean NOT NULL DEFAULT false,
      created_at   timestamptz NOT NULL DEFAULT now()
    )`,
+
+  // --- Bedrock Knowledge Base vector store (RDS/pgvector) -------------------
+  // Backs the `codeai-kb` Bedrock Knowledge Base (see KnowledgeBase construct).
+  // Bedrock's RDS vector store requires the pgvector extension, a dedicated
+  // schema, and a table whose columns match the KB's fieldMapping:
+  //   primaryKeyField=id, vectorField=embedding, textField=chunks,
+  //   metadataField=metadata  (+ a source_uri text column Bedrock also writes).
+  // The embedding dimension is 1024 (Amazon Titan Text Embeddings v2).
+  // These statements mirror the live table exactly so this is a faithful,
+  // non-destructive representation of the already-provisioned store.
+  `CREATE EXTENSION IF NOT EXISTS vector`,
+
+  `CREATE SCHEMA IF NOT EXISTS bedrock_kb`,
+
+  `CREATE TABLE IF NOT EXISTS bedrock_kb.kb (
+     id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+     embedding   vector(1024),
+     chunks      text,
+     metadata    jsonb,
+     source_uri  text
+   )`,
+
+  // HNSW index on the embedding for fast cosine-similarity retrieval, plus a
+  // GIN index on metadata for Bedrock's metadata filtering. Both idempotent.
+  `CREATE INDEX IF NOT EXISTS kb_embedding_idx
+     ON bedrock_kb.kb USING hnsw (embedding vector_cosine_ops)`,
+
+  `CREATE INDEX IF NOT EXISTS kb_metadata_idx
+     ON bedrock_kb.kb USING gin (metadata)`,
 ];
 
 /**
