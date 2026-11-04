@@ -98,10 +98,12 @@ class PracticeService
       return { feedback: input.message, withheld: true }
     end
 
+    response = input.text # names masked by the Guardrail
     feedback = feedback_for(p, response)
     output = ContentFilter.check_output(feedback)
     FilterAudit.record!(output, student_id: s.id, context: "practice", direction: "output", ref_id: attempt_id)
     feedback = "Nice effort. Reread the task and check that your answer covers each part of it." unless output.ok?
+    feedback = output.text if output.ok?
     save_attempt(attempt_id, p, s, response, feedback, false)
     { feedback: feedback, withheld: false }
   end

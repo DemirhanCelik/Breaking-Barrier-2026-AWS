@@ -47,6 +47,7 @@ class PreviewService
     FilterAudit.record!(input, student_id: s.id, context: "preview", direction: "input", ref_id: ref)
     return { withheld: true, message: input.message } unless input.ok?
 
+    prompt = input.text # names masked by the Guardrail
     html = generate(prompt, topic)
     output = ContentFilter.check_output(visible_text(html))
     FilterAudit.record!(output, student_id: s.id, context: "preview", direction: "output", ref_id: ref)

@@ -379,6 +379,21 @@ export class CodeAiInfraStack extends cdk.Stack {
           { type: 'PROMPT_ATTACK', inputStrength: 'HIGH', outputStrength: 'NONE' },
         ],
       },
+      // Student privacy (Safety Tenet, NFR2). Contact details are blocked.
+      // Names, ages and usernames are masked rather than blocked, because lesson
+      // answers legitimately mention sample names ("If I RSVP as Sam..."); the API
+      // stores and sends to the model only the masked text.
+      sensitiveInformationPolicyConfig: {
+        piiEntitiesConfig: [
+          { type: 'ADDRESS', action: 'BLOCK' },
+          { type: 'EMAIL', action: 'BLOCK' },
+          { type: 'PHONE', action: 'BLOCK' },
+          { type: 'PASSWORD', action: 'BLOCK' },
+          { type: 'NAME', action: 'ANONYMIZE' },
+          { type: 'AGE', action: 'ANONYMIZE' },
+          { type: 'USERNAME', action: 'ANONYMIZE' },
+        ],
+      },
     });
 
     apiInstanceRole.addToPolicy(
@@ -410,6 +425,9 @@ export class CodeAiInfraStack extends cdk.Stack {
       // 512 MB balances Rails cold-start CPU against cost; tune via context.
       memorySize: props.apiMemoryMb,
       timeout: cdk.Duration.seconds(30),
+      // The Function URL is public and has no rate limiting, so cap concurrency to
+      // bound Bedrock cost and abuse. 10 is plenty for a classroom demo.
+      reservedConcurrentExecutions: 10,
       // The Rails API image (api/Dockerfile, Lamby handler app.handler). Built
       // for linux/amd64 so it matches the function architecture on any host.
       code: lambda.DockerImageCode.fromImageAsset(path.join(__dirname, '../../api'), {

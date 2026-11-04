@@ -99,6 +99,8 @@ class LessonService
       return { submissionId: sub_id }
     end
 
+    # From here on only the filtered text (names masked) is stored or sent to the model.
+    response = input.text
     s.last_response[level_id] = response
     st = (s.level_status[level_id] ||= { "attempts" => 0, "status" => "in-progress" })
     st["attempts"] += 1
@@ -145,12 +147,12 @@ class LessonService
     FilterAudit.record!(input, student_id: s.id, context: "assistant", direction: "input", ref_id: ref)
     return { reply: input.message, withheld: true } unless input.ok?
 
-    reply = Coach.new.reply(level: cur.level(level_id), stages: s.stages, last_response: s.last_response[level_id], message: message,
+    reply = Coach.new.reply(level: cur.level(level_id), stages: s.stages, last_response: s.last_response[level_id], message: input.text,
                             agent: agent_token.present? ? { token: agent_token, student_id: s.id } : nil)
     output = ContentFilter.check_output(reply)
     FilterAudit.record!(output, student_id: s.id, context: "assistant", direction: "output", ref_id: ref)
     return { reply: "Let me think about that differently. Try rereading the step instructions.", withheld: true } unless output.ok?
-    { reply: reply, withheld: false }
+    { reply: output.text, withheld: false }
   end
 
   # ---------------------------------------------------------------- teacher --
@@ -285,7 +287,7 @@ class LessonService
     end
 
     s.add_validation!(level_code: level.code, mode: "adaptive", submission_id: sub_id,
-                      results: ev.results.map(&:as_json), model_meta: ev.model_meta)
+                      results: ev.results.map { |r| filtered_evidence(r.as_json) }, model_meta: ev.model_meta)
     ev.results.each do |r|
       if r.passed
         s.stages[r.concept_id] = r.target_stage
@@ -306,7 +308,7 @@ class LessonService
     end
     out = ContentFilter.check_output(coaching)
     FilterAudit.record!(out, student_id: s.id, context: "coaching", direction: "output", ref_id: sub_id)
-    coaching = "Keep going. Take another look at the instructions for this step." unless out.ok?
+    coaching = out.ok? ? out.text : "Keep going. Take another look at the instructions for this step."
 
     if ev.all_passed? || level.project?
       close_level(s, level.id, "passed")
@@ -331,6 +333,15 @@ class LessonService
     end
 
     { status: "done", nextAction: "revise", coaching: coaching, offerAssistant: true }
+  end
+
+  # Model-written evidence (teacher view only) also passes the output filter.
+  def filtered_evidence(result)
+    rubric, probes = result[:evidence].partition { |e| e.start_with?("Rubric: ") }
+    return result if rubric.empty?
+    checked = ContentFilter.check_output(rubric.join("\n"))
+    rubric = checked.ok? ? checked.text.split("\n") : ["Rubric: [evidence withheld by content filter]"]
+    result.merge(evidence: probes + rubric)
   end
 
   def continue_outcome(coaching) = { status: "done", nextAction: "continue", coaching: coaching, offerAssistant: false }
