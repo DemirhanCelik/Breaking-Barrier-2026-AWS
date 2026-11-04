@@ -9,10 +9,17 @@
  *  - fault injection drops the student onto the non-adaptive path (FR10, M6)
  * All users and data are synthetic (NFR2).
  */
-import type { ApiClient, DemoControls } from '../client';
+import type { ApiClient, CreateAssignmentBody, DemoControls, SaveCurriculumBody } from '../client';
 import {
   ApiError,
   type AssistantReply,
+  type Assignment,
+  type AssignableUnit,
+  type AdminDirectory,
+  type Appointment,
+  type CurriculumExtract,
+  type SavedCurriculum,
+  type UnitMatrix,
   type AttainmentStatus,
   type ClassAttainment,
   type ClassInsights,
@@ -994,6 +1001,77 @@ export class MockApiClient implements ApiClient, DemoControls {
     item.reviewedBy = teacher.id;
     this.persist();
     return item;
+  }
+
+  // Teacher assignments -----------------------------------------------------
+  // Mock mode has no assignment store; the UI compiles and runs, empty.
+  async listAssignments(): Promise<{ assignments: Assignment[]; units: AssignableUnit[] }> {
+    await delay(50);
+    return { assignments: [], units: [] };
+  }
+
+  async createAssignment(_body: CreateAssignmentBody): Promise<Assignment> {
+    throw new ApiError('Not available in demo', 501);
+  }
+
+  async archiveAssignment(_id: string): Promise<Assignment> {
+    throw new ApiError('Not available in demo', 501);
+  }
+
+  // Approval queue (teacher or admin) ---------------------------------------
+  async getReviewItems(_status?: string): Promise<{ items: ContentItem[] }> {
+    await delay(50);
+    return { items: [] };
+  }
+
+  async reviewItem(
+    _id: string,
+    _decision: 'approve' | 'reject',
+    _edits?: ContentEdits,
+    _note?: string,
+  ): Promise<ContentItem> {
+    throw new ApiError('Not available in demo', 501);
+  }
+
+  // Admin directory + appointments ------------------------------------------
+  async getAdminDirectory(): Promise<AdminDirectory> {
+    await delay(50);
+    return { teachers: [], students: [], units: [] };
+  }
+
+  async listAppointments(): Promise<{ appointments: Appointment[] }> {
+    await delay(50);
+    return { appointments: [] };
+  }
+
+  async createAppointment(
+    _teacherId: string,
+    _studentId: string,
+    _unitId: string,
+  ): Promise<{ teacherId: string; studentId: string; unitId: string }> {
+    throw new ApiError('Not available in demo', 501);
+  }
+
+  async removeAppointment(
+    _teacherId: string,
+    _studentId: string,
+    _unitId: string,
+  ): Promise<{ teacherId: string; studentId: string; unitId: string; removed: boolean }> {
+    throw new ApiError('Not available in demo', 501);
+  }
+
+  // Admin curriculum matrix -------------------------------------------------
+  async extractCurriculum(_unitId: string, _file: File): Promise<CurriculumExtract> {
+    throw new ApiError('Not available in demo', 501);
+  }
+
+  async saveCurriculum(_body: SaveCurriculumBody): Promise<UnitMatrix> {
+    throw new ApiError('Not available in demo', 501);
+  }
+
+  async getCurriculumMatrix(_unitId: string): Promise<SavedCurriculum> {
+    await delay(50);
+    return { unitId: _unitId, proposed: null };
   }
 
   async resetDemo() {

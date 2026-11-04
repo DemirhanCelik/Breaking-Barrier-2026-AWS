@@ -33,10 +33,21 @@ module FilterAudit
     Rails.logger.error("[filter-audit] write failed: #{e.class}: #{e.message}")
   end
 
-  # Teacher view: coverage + counts for one class.
-  def report(klass_id, limit: 25)
-    k = { k: klass_id, unit: Curriculum.current.id }
-    in_class = "unit_id = :unit AND student_id IN (SELECT student_id FROM enrollment WHERE klass_id = :k)"
+  # Teacher view: coverage + counts. Scoped to an explicit roster of student ids
+  # (the teacher's admin-appointed students for the active unit) AND the active
+  # unit. With no appointed students, nothing is in scope (authority rule).
+  # `klass_id` is retained for context only.
+  def report(klass_id, limit: 25, student_ids: nil)
+    ids = Array(student_ids)
+    if ids.empty?
+      in_class = "unit_id = :unit AND student_id IN (NULL)"
+      k = { unit: Curriculum.current.id }
+    else
+      placeholders = ids.each_index.map { |i| ":sid#{i}" }.join(", ")
+      in_class = "unit_id = :unit AND student_id IN (#{placeholders})"
+      k = ids.each_with_index.to_h { |id, i| ["sid#{i}".to_sym, id] }
+      k[:unit] = Curriculum.current.id
+    end
 
     subs = Db.query(<<~SQL, k).first
       SELECT count(*) AS required,

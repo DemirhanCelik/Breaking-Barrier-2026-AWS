@@ -155,15 +155,60 @@ class LessonService
 
   # ---------------------------------------------------------------- teacher --
 
-  def class_attainment
+  # Teacher progress reads are scoped by ADMIN-CREATED teaching appointments:
+  # a teacher sees a student's progress for the active unit only if an
+  # appointment (teacher, student, unit) exists. Class ownership alone grants
+  # nothing here. The roster is exactly the appointed students for the unit.
+  def class_attainment(teacher_id)
+    ids = TeachingAppointment.student_ids_for(teacher_id: teacher_id, unit_id: cur.id)
+    students = ids.filter_map { |id| StudentRecord.find(id) }.sort_by(&:display_name)
     { classId: cur.klass["id"], className: cur.klass["name"], unit: unit_info, bar: cur.bar, concepts: teacher_concepts,
-      students: StudentRecord.all_in_class(cur.klass["id"]).map { |s| attainment(s) } }
+      appointedStudents: ids.size, students: students.map { |s| attainment(s) } }
   end
 
-  def filter_audit = FilterAudit.report(cur.klass["id"])
-  def insights = InsightsService.new.report(cur.klass["id"])
+  def filter_audit(teacher_id) = FilterAudit.report(cur.klass["id"], student_ids: appointed_ids(teacher_id))
+  def insights(teacher_id) = InsightsService.new.report(cur.klass["id"], student_ids: appointed_ids(teacher_id))
 
-  def student_trace(student_id)
+  # ---- assignments (teacher) ----------------------------------------------
+  # Create/list/archive teacher assignments. Writes go through the Assignment
+  # repository, which validates the unit/level against the curriculum and the
+  # scope/target consistency. `teacher_id` scopes everything to the caller.
+
+  def list_assignments(teacher_id, status: nil)
+    { assignments: Assignment.for_teacher(teacher_id, status: status).map(&:to_json_dto),
+      units: Curriculum.selectable.map { |c| assignable_unit(c) } }
+  end
+
+  def create_assignment(teacher_id, scope:, target_kind:, unit_id:, klass_id: nil, student_id: nil, level_code: nil, note: nil)
+    # Enforce that the teacher owns the class / the student is in the teacher's class.
+    if scope.to_s == "class"
+      klass_id = klass_id.presence || cur.klass["id"]
+      raise Error.new("You do not own that class.", 403) unless teacher_owns_class?(teacher_id, klass_id)
+    elsif scope.to_s == "student"
+      raise Error.new("That student is not in your class.", 403) unless teacher_has_student?(teacher_id, student_id)
+    end
+    Assignment.create!(teacher_id: teacher_id, scope: scope, target_kind: target_kind, unit_id: unit_id,
+                       klass_id: klass_id, student_id: student_id, level_code: level_code, note: note).to_json_dto
+  rescue Assignment::Error => e
+    raise Error.new(e.message, e.status)
+  end
+
+  def archive_assignment(teacher_id, id)
+    Assignment.archive!(id, teacher_id: teacher_id).to_json_dto
+  rescue Assignment::Error => e
+    raise Error.new(e.message, e.status)
+  end
+
+  # A unit DTO for the assignment picker: id, name, and its assignable levels.
+  def assignable_unit(c)
+    { id: c.id, name: c.unit["name"],
+      levels: c.levels.map { |l| { code: l.code, title: l.title, kind: l.kind } } }
+  end
+
+  def student_trace(teacher_id, student_id)
+    unless TeachingAppointment.allows?(teacher_id: teacher_id, student_id: student_id, unit_id: cur.id)
+      raise Error.new("You are not appointed to this student for this unit.", 403)
+    end
     s = StudentRecord.find(student_id) or raise Error.new("Student not found", 404)
     roadmap = s.diagnostic ? Engine.build_roadmap(s.engine_state) : { steps: [], gaps: [] }
     base = attainment(s)
@@ -173,7 +218,7 @@ class LessonService
     base.merge(
       bar: cur.bar, concepts: teacher_concepts, roadmap: roadmap[:steps],
       decisions: s.decisions.map { |d| { at: StudentRecord.iso(d["at_ms"]), levelCode: d["level_code"], levelTitle: d["level_title"], rule: d["rule"], vector: d["vector_json"], advisor: d["advisor_json"] } },
-      validations: s.validations.map { |v| { at: StudentRecord.iso(v["at_ms"]), levelCode: v["level_code"], mode: v["mode"], results: v["results_json"], signals: v["signals_json"] } },
+      validations: s.validations.map { |v| { at: StudentRecord.iso(v["at_ms"]), levelCode: v["level_code"], mode: v["mode"], results: v["results_json"], signals: v["signals_json"], response: v["response"] } },
       practice: PracticeService.new.for_student(s.id),
     )
   end
@@ -206,6 +251,23 @@ class LessonService
   end
 
   private
+
+  # Students this teacher may see for the active unit (admin appointments).
+  def appointed_ids(teacher_id) = TeachingAppointment.student_ids_for(teacher_id: teacher_id, unit_id: cur.id)
+
+  # A teacher owns a class iff klass.teacher_id == teacher_id.
+  def teacher_owns_class?(teacher_id, klass_id)
+    Db.query("SELECT 1 AS ok FROM klass WHERE id = :k AND teacher_id = :t", k: klass_id, t: teacher_id).any?
+  end
+
+  # A teacher "has" a student iff the student is enrolled in a class the teacher owns.
+  def teacher_has_student?(teacher_id, student_id)
+    return false if student_id.to_s.empty?
+    Db.query(<<~SQL, t: teacher_id, s: student_id).any?
+      SELECT 1 AS ok FROM enrollment e JOIN klass k ON k.id = e.klass_id
+      WHERE e.student_id = :s AND k.teacher_id = :t LIMIT 1
+    SQL
+  end
 
   def validate_and_route(s, level, response, sub_id, signals = {})
     s.create_submission!(sub_id, level.id, response, {}, signals)
@@ -289,7 +351,15 @@ class LessonService
     when :level
       if s.current_level_id != r[:level_id]
         advisor = nil
-        if r[:candidates] && RoutingAdvisor.enabled?
+        # Teacher assignments PRIORITIZE (not force): if an active assignment for
+        # this student matches one of the rule-approved candidates, pick it and
+        # skip the AI advisor. Logged as teacher-assigned for the trace. The
+        # engine's own rules still define the candidate set, so an assignment can
+        # never route to a level the rules disallow.
+        assigned = assigned_pick(s, r)
+        if assigned
+          r = r.merge(level_id: assigned[:level_id], rule: assigned[:rule])
+        elsif r[:candidates] && RoutingAdvisor.enabled?
           advised = RoutingAdvisor.new.advise(s, r)
           r = r.merge(level_id: advised[:level_id], rule: advised[:rule])
           advisor = advised[:advisor]
@@ -310,6 +380,33 @@ class LessonService
   def close_level(s, level_id, status)
     s.level_status[level_id] = { "attempts" => s.level_status.dig(level_id, "attempts") || 0, "status" => status }
     s.completed_order << level_id unless s.completed_order.include?(level_id)
+  end
+
+  # If a teacher has an active LEVEL assignment for this student (direct or via
+  # class) in the current unit, and that level is among the rule-approved
+  # candidates the engine returned, return the override pick. Otherwise nil.
+  # Unit-scoped assignments don't pin a specific level (every candidate is
+  # already in the active unit), so they don't override here.
+  def assigned_pick(s, route)
+    candidates = route[:candidates]
+    return nil unless candidates&.any?
+    assignments = begin
+      Assignment.active_for_student_in_unit(s.id, cur.id)
+    rescue StandardError => e
+      Rails.logger.warn("[assignment] lookup failed: #{e.message}")
+      return nil
+    end
+    assignments.each do |a|
+      next unless a.target_kind == "level"
+      match = candidates.find { |c| cur.level(c[:level_id]).code == a.level_code }
+      next unless match
+      lvl = cur.level(match[:level_id])
+      scope = a.scope == "student" ? "this student" : "the class"
+      return { level_id: match[:level_id],
+               rule: "Teacher-assigned: #{lvl.code} (#{lvl.title}) was assigned to #{scope}; " \
+                     "it is among the #{candidates.size} rule-approved candidate(s), so it was prioritized over the adaptive pick." }
+    end
+    nil
   end
 
   def student_level(level_id, s = nil)

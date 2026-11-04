@@ -55,6 +55,15 @@ class Curriculum
     (@units ||= {})[id.to_s] ||= load_file(DIR.join("#{id}.yml"))
   end
 
+  # The concept ids referenced by a unit's level transitions, read straight from
+  # the YAML (no matrix overlay). Used to check that an admin-uploaded matrix is
+  # compatible with the unit's existing levels before it is saved.
+  def self.yaml_transition_concepts(unit_id)
+    raise ArgumentError, "Unknown unit #{unit_id}" unless unit_ids.include?(unit_id.to_s)
+    data = YAML.safe_load_file(DIR.join("#{unit_id}.yml"))
+    Array(data["levels"]).flat_map { |l| Array(l["transitions"]).map { |t| t["concept"] } }.compact.uniq
+  end
+
   # Every YAML in config/curriculum with a top-level `unit:` block.
   def self.unit_ids
     @unit_ids ||= Dir[DIR.join("*.yml")].map { |f| File.basename(f, ".yml") }
@@ -110,9 +119,24 @@ class Curriculum
     new(YAML.safe_load_file(path))
   end
 
+  # Drop a cached unit so the next access reloads it (used after an admin saves a
+  # new concept matrix for the unit).
+  def self.invalidate!(unit_id = nil)
+    if unit_id
+      @units&.delete(unit_id.to_s)
+    else
+      @units = {}
+    end
+  end
+
   def initialize(data)
     @unit = data.fetch("unit")
     @klass = data.fetch("class")
+    # Overlay an admin-uploaded concept matrix (DB) on top of the YAML concepts/
+    # required/bar when one exists for this unit. The engine is concept-agnostic,
+    # so this is a pure data substitution. DB errors (or no DB, e.g. during synth)
+    # fall through to the YAML values.
+    data = apply_matrix_overlay(data, @unit["id"])
     @bar = @klass.fetch("bar")
     @required_concepts = data.fetch("required_concepts")
     @concepts = data.fetch("concepts").map do |c|
@@ -162,6 +186,29 @@ class Curriculum
   end
 
   private
+
+  # Returns `data` with concepts/required_concepts/class.bar replaced by the
+  # unit's admin-uploaded matrix, if one exists. Non-destructive to the YAML file;
+  # only the in-memory hash used to build this instance is changed.
+  def apply_matrix_overlay(data, unit_id)
+    matrix = begin
+      UnitMatrix.find(unit_id)
+    rescue StandardError => e
+      Rails.logger.warn("[curriculum] matrix overlay skipped for #{unit_id}: #{e.message}") if defined?(Rails)
+      nil
+    end
+    return data unless matrix
+
+    overlaid = data.dup
+    overlaid["class"] = data["class"].merge("bar" => matrix.bar)
+    @klass = overlaid["class"]
+    overlaid["required_concepts"] = matrix.required
+    overlaid["concepts"] = matrix.concepts.map do |c|
+      { "id" => c["id"], "name" => c["name"], "order" => c["order"], "csta" => c["csta"],
+        "descriptors" => c["descriptors"] }
+    end
+    overlaid
+  end
 
   def validate!
     ids = @concepts.map(&:id)

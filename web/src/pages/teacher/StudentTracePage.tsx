@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link as RouterLink, useParams } from 'react-router-dom';
-import { Alert, Box, Button, Chip, CircularProgress, Container, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, Collapse, CircularProgress, Container, Typography } from '@mui/material';
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import FlagRoundedIcon from '@mui/icons-material/FlagRounded';
@@ -281,6 +281,8 @@ function signalText(s: NonNullable<ValidationRecord['signals']>) {
 
 function ValidationRow({ v, name }: { v: ValidationRecord; name: (id: string) => string }) {
   const mode = MODE_LABEL[v.mode];
+  const [showResponse, setShowResponse] = useState(false);
+  const response = v.response?.trim();
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '140px 1fr' }, gap: 1.5, pb: 2, borderBottom: `1px solid ${brand.borderLight}`, '&:last-child': { borderBottom: 0, pb: 0 } }}>
       <Box>
@@ -342,6 +344,39 @@ function ValidationRow({ v, name }: { v: ValidationRecord; name: (id: string) =>
             </Box>
           </Box>
         ))}
+        {response && (
+          <Box>
+            <Button
+              size="small"
+              onClick={() => setShowResponse((s) => !s)}
+              aria-expanded={showResponse}
+              sx={{ px: 0, color: brand.tealDark }}
+            >
+              {showResponse ? 'Hide student answer' : 'Show student answer'}
+            </Button>
+            <Collapse in={showResponse} unmountOnExit>
+              <Box
+                component="blockquote"
+                sx={{
+                  m: 0,
+                  mt: 0.5,
+                  p: 1.5,
+                  borderLeft: `3px solid ${brand.teal}`,
+                  bgcolor: brand.bg,
+                  borderRadius: 1,
+                  whiteSpace: 'pre-wrap',
+                  overflowWrap: 'anywhere',
+                  maxHeight: 320,
+                  overflowY: 'auto',
+                }}
+              >
+                <Typography variant="body2" sx={{ color: brand.charcoal }}>
+                  {response}
+                </Typography>
+              </Box>
+            </Collapse>
+          </Box>
+        )}
       </Box>
     </Box>
   );

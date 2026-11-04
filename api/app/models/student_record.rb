@@ -105,7 +105,7 @@ class StudentRecord
 
   def validations
     Db.query(<<~SQL, id: id, unit: unit_id)
-      SELECT v.level_code, v.mode, v.results_json, s.signals_json,
+      SELECT v.level_code, v.mode, v.results_json, s.signals_json, s.content AS response,
              CAST(floor(extract(epoch FROM v.created_at) * 1000) AS bigint) AS at_ms
       FROM validation_result v LEFT JOIN submission s ON s.id = v.submission_id
       WHERE v.student_id = :id AND v.unit_id = :unit ORDER BY v.id DESC LIMIT 100

@@ -158,6 +158,14 @@ export class CodeAiInfraStack extends cdk.Stack {
       description: 'Teachers — read-only attainment view; owns classes.',
       precedence: 10,
     });
+    // Admins — approve AI-generated content and upload a unit's concept matrix.
+    // Never see student progress (teacher-progress endpoints exclude them).
+    new cognito.CfnUserPoolGroup(this, 'AdminGroup', {
+      userPoolId: userPool.userPoolId,
+      groupName: 'admin',
+      description: 'Admins — approve AI content, upload curriculum matrix; no student progress.',
+      precedence: 5,
+    });
 
     // =========================================================================
     // 3. Aurora PostgreSQL Serverless v2 — Data API, scale-to-zero, secret.

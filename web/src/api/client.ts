@@ -22,6 +22,15 @@ import type {
   StudentTrace,
   SubmissionOutcome,
   SubmitResult,
+  Assignment,
+  AssignableUnit,
+  AdminDirectory,
+  Appointment,
+  CurriculumExtract,
+  SavedCurriculum,
+  UnitMatrix,
+  MatrixConcept,
+  Stage,
 } from './types';
 
 /**
@@ -66,6 +75,59 @@ export interface ApiClient {
   getAuthoring(): Promise<AuthoringState>;
   draftContent(req: DraftRequest): Promise<DraftResult>;
   reviewContent(id: string, decision: 'approve' | 'reject', edits?: ContentEdits, note?: string): Promise<ContentItem>;
+
+  // Teacher assignments (403 for student tokens)
+  listAssignments(status?: string): Promise<{ assignments: Assignment[]; units: AssignableUnit[] }>;
+  createAssignment(body: CreateAssignmentBody): Promise<Assignment>;
+  archiveAssignment(id: string): Promise<Assignment>;
+
+  // Approval queue (teacher OR admin)
+  getReviewItems(status?: string): Promise<{ items: ContentItem[] }>;
+  reviewItem(
+    id: string,
+    decision: 'approve' | 'reject',
+    edits?: ContentEdits,
+    note?: string,
+  ): Promise<ContentItem>;
+
+  // Admin directory + appointments (403 unless admin)
+  getAdminDirectory(): Promise<AdminDirectory>;
+  listAppointments(): Promise<{ appointments: Appointment[] }>;
+  createAppointment(
+    teacherId: string,
+    studentId: string,
+    unitId: string,
+  ): Promise<{ teacherId: string; studentId: string; unitId: string }>;
+  removeAppointment(
+    teacherId: string,
+    studentId: string,
+    unitId: string,
+  ): Promise<{ teacherId: string; studentId: string; unitId: string; removed: boolean }>;
+
+  // Admin curriculum matrix (403 unless admin)
+  extractCurriculum(unitId: string, file: File): Promise<CurriculumExtract>;
+  saveCurriculum(body: SaveCurriculumBody): Promise<UnitMatrix>;
+  getCurriculumMatrix(unitId: string): Promise<SavedCurriculum>;
+}
+
+/** Body for POST /api/teacher/assignments. */
+export interface CreateAssignmentBody {
+  scope: 'class' | 'student';
+  targetKind: 'unit' | 'level';
+  unitId: string;
+  klassId?: string;
+  studentId?: string;
+  levelCode?: string;
+  note?: string;
+}
+
+/** Body for POST /api/admin/curriculum. */
+export interface SaveCurriculumBody {
+  unitId: string;
+  bar: Stage;
+  required: string[];
+  concepts: MatrixConcept[];
+  sourceName?: string;
 }
 
 /** Demo-only controls: mock mode, or HTTP mode against a backend with AUTH_MODE=demo. */

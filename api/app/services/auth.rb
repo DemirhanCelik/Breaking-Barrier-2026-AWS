@@ -11,6 +11,9 @@ module Auth
   User = Struct.new(:id, :display_name, :role, keyword_init: true) do
     def teacher? = role == "teacher"
     def student? = role == "student"
+    def admin? = role == "admin"
+    # Teacher or admin may approve AI-generated content.
+    def approver? = teacher? || admin?
     def as_json(*) = { id: id, displayName: display_name, role: role }
   end
 
@@ -20,6 +23,15 @@ module Auth
 
   def mode = ENV.fetch("AUTH_MODE", "cognito")
   def demo? = mode == "demo"
+
+  # Cognito group -> role. admin wins, then teacher, else student. A user in the
+  # 'admin' group is an admin even if also in 'teacher' (admin is the narrower,
+  # progress-blind role by policy; approval power is a superset via approver?).
+  def role_for(groups)
+    return "admin" if groups.include?("admin")
+    return "teacher" if groups.include?("teacher")
+    "student"
+  end
 
   # Returns an Auth::User or nil.
   def authenticate(request)
@@ -38,7 +50,7 @@ module Auth
     return nil unless token
     claims = verify(token)
     return nil unless claims
-    role = Array(claims["cognito:groups"]).include?("teacher") ? "teacher" : "student"
+    role = role_for(Array(claims["cognito:groups"]))
     provision(claims["sub"], role, link_id: claims["preferred_username"])
   end
 

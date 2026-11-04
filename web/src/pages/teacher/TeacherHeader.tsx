@@ -42,7 +42,9 @@ const TABS = [
   { path: '/teacher', label: 'Class' },
   { path: '/teacher/courses', label: 'Courses' },
   { path: '/teacher/insights', label: 'Insights' },
+  { path: '/teacher/assignments', label: 'Assignments' },
   { path: '/teacher/authoring', label: 'Authoring' },
+  { path: '/teacher/review', label: 'Review' },
   { path: '/teacher/evidence', label: 'Launch gates' },
   { path: '/teacher/safety', label: 'Safety log' },
 ];

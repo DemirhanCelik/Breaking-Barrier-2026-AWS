@@ -7,7 +7,7 @@
  *  - Demo: when the backend runs with AUTH_MODE=demo, the chosen synthetic user
  *    id is sent as X-Demo-User. Synthetic data only.
  */
-import type { ApiClient, DemoControls } from './client';
+import type { ApiClient, CreateAssignmentBody, DemoControls, SaveCurriculumBody } from './client';
 import {
   ApiError,
   type AssistantReply,
@@ -33,6 +33,13 @@ import {
   type StudentTrace,
   type SubmissionOutcome,
   type SubmitResult,
+  type Assignment,
+  type AssignableUnit,
+  type AdminDirectory,
+  type Appointment,
+  type CurriculumExtract,
+  type SavedCurriculum,
+  type UnitMatrix,
 } from './types';
 
 export type TokenProvider = () => Promise<string | null>;
@@ -57,25 +64,17 @@ export class HttpApiClient implements ApiClient, DemoControls {
     }
   }
 
-  private async request<T>(
-    method: 'GET' | 'POST',
-    path: string,
-    body?: unknown,
-    extraHeaders: Record<string, string> = {},
-  ): Promise<T> {
+  /** Auth headers shared by JSON and multipart requests (Cognito Bearer or demo user). */
+  private async authHeaders(): Promise<Record<string, string>> {
     const token = await this.getToken();
     const demoUser = this.demoUser();
-    const res = await fetch(`${this.baseUrl.replace(/\/$/, '')}${path}`, {
-      method,
-      headers: {
-        Accept: 'application/json',
-        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(!token && demoUser ? { 'X-Demo-User': demoUser } : {}),
-        ...extraHeaders,
-      },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
+    return {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(!token && demoUser ? { 'X-Demo-User': demoUser } : {}),
+    };
+  }
+
+  private async handle<T>(res: Response): Promise<T> {
     if (!res.ok) {
       let message = res.statusText;
       try {
@@ -87,6 +86,41 @@ export class HttpApiClient implements ApiClient, DemoControls {
       throw new ApiError(message, res.status);
     }
     return (await res.json()) as T;
+  }
+
+  private async request<T>(
+    method: 'GET' | 'POST',
+    path: string,
+    body?: unknown,
+    extraHeaders: Record<string, string> = {},
+  ): Promise<T> {
+    const res = await fetch(`${this.baseUrl.replace(/\/$/, '')}${path}`, {
+      method,
+      headers: {
+        Accept: 'application/json',
+        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...(await this.authHeaders()),
+        ...extraHeaders,
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+    return this.handle<T>(res);
+  }
+
+  /**
+   * Multipart POST for file uploads. Content-Type is intentionally omitted so the
+   * browser sets the multipart boundary; auth headers are attached the same way.
+   */
+  private async requestForm<T>(path: string, form: FormData): Promise<T> {
+    const res = await fetch(`${this.baseUrl.replace(/\/$/, '')}${path}`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        ...(await this.authHeaders()),
+      },
+      body: form,
+    });
+    return this.handle<T>(res);
   }
 
   getSession() {
@@ -192,6 +226,66 @@ export class HttpApiClient implements ApiClient, DemoControls {
       edits,
       note,
     });
+  }
+
+  // Teacher assignments -----------------------------------------------------
+  listAssignments(status?: string) {
+    const q = status ? `?status=${encodeURIComponent(status)}` : '';
+    return this.request<{ assignments: Assignment[]; units: AssignableUnit[] }>('GET', `/api/teacher/assignments${q}`);
+  }
+  createAssignment(body: CreateAssignmentBody) {
+    return this.request<Assignment>('POST', '/api/teacher/assignments', body);
+  }
+  archiveAssignment(id: string) {
+    return this.request<Assignment>('POST', `/api/teacher/assignments/${encodeURIComponent(id)}/archive`);
+  }
+
+  // Approval queue (teacher or admin) ---------------------------------------
+  getReviewItems(status = 'pending') {
+    return this.request<{ items: ContentItem[] }>('GET', `/api/review/items?status=${encodeURIComponent(status)}`);
+  }
+  reviewItem(id: string, decision: 'approve' | 'reject', edits?: ContentEdits, note?: string) {
+    return this.request<ContentItem>('POST', `/api/review/items/${encodeURIComponent(id)}/review`, {
+      decision,
+      edits,
+      note,
+    });
+  }
+
+  // Admin directory + appointments ------------------------------------------
+  getAdminDirectory() {
+    return this.request<AdminDirectory>('GET', '/api/admin/directory');
+  }
+  listAppointments() {
+    return this.request<{ appointments: Appointment[] }>('GET', '/api/admin/appointments');
+  }
+  createAppointment(teacherId: string, studentId: string, unitId: string) {
+    return this.request<{ teacherId: string; studentId: string; unitId: string }>('POST', '/api/admin/appointments', {
+      teacherId,
+      studentId,
+      unitId,
+    });
+  }
+  removeAppointment(teacherId: string, studentId: string, unitId: string) {
+    return this.request<{ teacherId: string; studentId: string; unitId: string; removed: boolean }>(
+      'POST',
+      '/api/admin/appointments/remove',
+      { teacherId, studentId, unitId },
+    );
+  }
+
+  // Admin curriculum matrix -------------------------------------------------
+  extractCurriculum(unitId: string, file: File) {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('unitId', unitId);
+    return this.requestForm<CurriculumExtract>('/api/admin/curriculum/extract', form);
+  }
+  saveCurriculum(body: SaveCurriculumBody) {
+    return this.request<UnitMatrix>('POST', '/api/admin/curriculum', body);
+  }
+  getCurriculumMatrix(unitId: string) {
+    return this.request<SavedCurriculum>('GET', `/api/admin/curriculum/${encodeURIComponent(unitId)}`);
   }
 
   // Demo controls (backend AUTH_MODE=demo only)

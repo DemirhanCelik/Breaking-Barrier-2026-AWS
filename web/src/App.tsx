@@ -14,8 +14,22 @@ import { EvidencePage } from './pages/teacher/EvidencePage';
 import { AuthoringPage } from './pages/teacher/AuthoringPage';
 import { InsightsPage } from './pages/teacher/InsightsPage';
 import { StudentTracePage } from './pages/teacher/StudentTracePage';
+import { AssignmentsPage } from './pages/teacher/AssignmentsPage';
+import { AdminHomePage } from './pages/admin/AdminHomePage';
+import { AppointmentsPage } from './pages/admin/AppointmentsPage';
+import { ReviewQueuePage } from './pages/admin/ReviewQueuePage';
+import { CurriculumUploadPage } from './pages/admin/CurriculumUploadPage';
 
-const homeFor = (role: Role) => (role === 'teacher' ? '/teacher' : '/student');
+const homeFor = (role: Role) => {
+  switch (role) {
+    case 'teacher':
+      return '/teacher';
+    case 'admin':
+      return '/admin';
+    default:
+      return '/student';
+  }
+};
 
 /**
  * Client-side guard for navigation only. Authorization of record is the API
@@ -102,6 +116,54 @@ export function App() {
           element={
             <RequireRole role="teacher">
               <StudentTracePage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/teacher/assignments"
+          element={
+            <RequireRole role="teacher">
+              <AssignmentsPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/teacher/review"
+          element={
+            <RequireRole role="teacher">
+              <ReviewQueuePage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <RequireRole role="admin">
+              <AdminHomePage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/admin/appointments"
+          element={
+            <RequireRole role="admin">
+              <AppointmentsPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/admin/review"
+          element={
+            <RequireRole role="admin">
+              <ReviewQueuePage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/admin/curriculum"
+          element={
+            <RequireRole role="admin">
+              <CurriculumUploadPage />
             </RequireRole>
           }
         />

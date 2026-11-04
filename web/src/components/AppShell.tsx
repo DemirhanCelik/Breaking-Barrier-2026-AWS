@@ -193,7 +193,7 @@ function UserMenu() {
         <Box sx={{ px: 2, py: 1 }}>
           <Typography fontWeight={700}>{user.displayName}</Typography>
           <Typography variant="body2" color="text.secondary">
-            {user.role === 'teacher' ? 'Teacher' : 'Student'}
+            {user.role === 'teacher' ? 'Teacher' : user.role === 'admin' ? 'Admin' : 'Student'}
           </Typography>
         </Box>
         <Divider />
@@ -250,6 +250,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Typography sx={{ color: 'rgba(255,255,255,0.75)', fontWeight: 600, display: { xs: 'none', md: 'block' } }}>
               Teacher workspace
             </Typography>
+          )}
+          {user?.role === 'admin' && (
+            <Button component={RouterLink} to="/admin" sx={{ color: '#d5e5df', whiteSpace: 'nowrap', minWidth: 0, fontSize: 13 }}>
+              Admin workspace
+            </Button>
           )}
           <Box sx={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'center' }}>{slot}</Box>
           {api.mode === 'mock' && (

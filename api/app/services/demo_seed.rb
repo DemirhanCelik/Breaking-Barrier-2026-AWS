@@ -2,6 +2,7 @@
 # seeded class so the teacher view has students in different states.
 module DemoSeed
   TEACHER = { id: "t-rivera", name: "Ms. Rivera (teacher)" }.freeze
+  ADMIN = { id: "a-khan", name: "Mr. Khan (admin)" }.freeze
   STUDENTS = {
     "s-ava" => "Ava M.", "s-ben" => "Ben O.", "s-chloe" => "Chloe P.", "s-dev" => "Dev R.",
     "s-eli" => "Eli S.", "s-fay" => "Fay T.", "s-gus" => "Gus W.",
@@ -18,16 +19,21 @@ module DemoSeed
   end
 
   def seed!
-    Db.execute("TRUNCATE practice_attempt, practice_item, filter_event, route_decision, validation_result, submission, diagnostic_result, mastery_state, student_progress, enrollment, klass, app_user")
+    Db.execute("TRUNCATE teaching_appointment, assignment, practice_attempt, practice_item, filter_event, route_decision, validation_result, submission, diagnostic_result, mastery_state, student_progress, enrollment, klass, app_user")
     # Keep class settings (unit, routing mode); clear demo switches like fault injection.
     Db.execute("DELETE FROM app_setting WHERE key NOT IN ('unit', 'routing')")
     cur = Curriculum.current
     insert_user(TEACHER[:id], TEACHER[:name], "teacher")
+    insert_user(ADMIN[:id], ADMIN[:name], "admin")
     Db.execute("INSERT INTO klass (id, teacher_id, name, bar_stage) VALUES (:id, :t, :name, :bar)",
                id: cur.klass["id"], t: TEACHER[:id], name: cur.klass["name"], bar: cur.bar)
     STUDENTS.each do |id, name|
       insert_user(id, name, "student")
       Db.execute("INSERT INTO enrollment (student_id, klass_id) VALUES (:s, :k)", s: id, k: cur.klass["id"])
+      # Admin appoints the teacher to each student for the active unit. Teaching
+      # appointments are AUTHORITATIVE: without these the teacher sees nothing.
+      Db.execute("INSERT INTO teaching_appointment (teacher_id, student_id, unit_id, created_by) VALUES (:t, :s, :u, :by) ON CONFLICT DO NOTHING",
+                 t: TEACHER[:id], s: id, u: cur.id, by: ADMIN[:id])
     end
 
     svc = LessonService.new

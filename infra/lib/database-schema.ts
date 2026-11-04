@@ -254,6 +254,63 @@ export const MIGRATION_STATEMENTS: string[] = [
   `CREATE INDEX IF NOT EXISTS kb_chunks_fts_idx
      ON bedrock_kb.kb USING gin (to_tsvector('simple', chunks))`,
   readFileSync(path.join(__dirname, '../../api/db/migrations/001_independent_courses.sql'), 'utf8'),
+
+  // Teacher assignments (prioritize, not force): a teacher targets a unit or a
+  // specific level at a whole class or an individual student. A matching level
+  // is boosted in the engine's candidate set; the routing decision is logged.
+  `CREATE TABLE IF NOT EXISTS assignment (
+     id           text PRIMARY KEY,
+     teacher_id   text NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+     scope        text NOT NULL CHECK (scope IN ('class', 'student')),
+     klass_id     text REFERENCES klass(id) ON DELETE CASCADE,
+     student_id   text REFERENCES app_user(id) ON DELETE CASCADE,
+     target_kind  text NOT NULL CHECK (target_kind IN ('unit', 'level')),
+     unit_id      text NOT NULL,
+     level_code   text,
+     status       text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
+     note         text,
+     created_at   timestamptz NOT NULL DEFAULT now(),
+     CHECK ((scope = 'class' AND klass_id IS NOT NULL AND student_id IS NULL)
+         OR (scope = 'student' AND student_id IS NOT NULL AND klass_id IS NULL)),
+     CHECK ((target_kind = 'unit' AND level_code IS NULL)
+         OR (target_kind = 'level' AND level_code IS NOT NULL))
+   )`,
+  `CREATE INDEX IF NOT EXISTS assignment_teacher_idx ON assignment (teacher_id, status)`,
+  `CREATE INDEX IF NOT EXISTS assignment_student_idx ON assignment (student_id, status)`,
+  `CREATE INDEX IF NOT EXISTS assignment_klass_idx ON assignment (klass_id, status)`,
+
+  // Allow an 'admin' role (approves AI content, uploads a unit's concept matrix;
+  // never sees student progress). Re-create the CHECK to add the value.
+  `ALTER TABLE app_user DROP CONSTRAINT IF EXISTS app_user_role_check`,
+  `ALTER TABLE app_user ADD CONSTRAINT app_user_role_check CHECK (role IN ('student', 'teacher', 'admin'))`,
+
+  // Teaching appointments (admin-created, AUTHORITATIVE for teacher visibility):
+  // a teacher may see a student's progress for a unit only if an appointment
+  // exists. Class ownership alone does not grant progress visibility.
+  `CREATE TABLE IF NOT EXISTS teaching_appointment (
+     teacher_id   text NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+     student_id   text NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+     unit_id      text NOT NULL,
+     created_by   text NOT NULL,
+     created_at   timestamptz NOT NULL DEFAULT now(),
+     PRIMARY KEY (teacher_id, student_id, unit_id)
+   )`,
+  `CREATE INDEX IF NOT EXISTS appointment_teacher_unit_idx ON teaching_appointment (teacher_id, unit_id)`,
+  `CREATE INDEX IF NOT EXISTS appointment_student_idx ON teaching_appointment (student_id)`,
+
+  // One concept matrix per unit (admin-uploadable): concepts + stage 0-3
+  // descriptors, required concepts, bar. Overlays the YAML concepts when present.
+  `CREATE TABLE IF NOT EXISTS unit_matrix (
+     unit_id        text PRIMARY KEY,
+     bar            smallint NOT NULL CHECK (bar BETWEEN 1 AND 3),
+     required_json  jsonb NOT NULL,
+     concepts_json  jsonb NOT NULL,
+     source_name    text,
+     status         text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
+     created_by     text NOT NULL,
+     created_at     timestamptz NOT NULL DEFAULT now(),
+     updated_at     timestamptz NOT NULL DEFAULT now()
+   )`,
 ];
 
 /** All DDL in execution order: base tables first, then migrations. */

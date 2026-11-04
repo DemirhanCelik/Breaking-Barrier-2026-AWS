@@ -28,9 +28,23 @@ class ApplicationController < ActionController::API
   end
 
   # Stage, score and placement are served only behind this check (FR12/FR13).
+  # Teacher ONLY — admins are intentionally excluded from all student-progress
+  # views (an admin never sees student progress).
   def require_teacher!
     return render(json: { error: "Not signed in" }, status: :unauthorized) unless current_user
     render json: { error: "Forbidden: teacher-scoped endpoint" }, status: :forbidden unless current_user.teacher?
+  end
+
+  # Approving AI-generated content: a teacher OR an admin may approve.
+  def require_approver!
+    return render(json: { error: "Not signed in" }, status: :unauthorized) unless current_user
+    render json: { error: "Forbidden: approver-scoped endpoint" }, status: :forbidden unless current_user.approver?
+  end
+
+  # Uploading a unit's concept matrix: admin only.
+  def require_curriculum_admin!
+    return render(json: { error: "Not signed in" }, status: :unauthorized) unless current_user
+    render json: { error: "Forbidden: admin-scoped endpoint" }, status: :forbidden unless current_user.admin?
   end
 
   def service = (@service ||= LessonService.new)

@@ -51,7 +51,10 @@ class PracticeService
 
   def cur = Curriculum.current
 
-  # Returns the student-facing practice item (no quality or origin details beyond aiGenerated).
+  # Returns the student-facing practice item. AI-generated items are NEVER served
+  # directly: a freshly generated item is sent to the teacher/admin approval queue
+  # (content_item, status 'pending') and the student is served an already-APPROVED
+  # item instead. So no unapproved AI-generated content reaches a student.
   def create(s, level_id)
     raise LessonService::Error.new("That step is not current.", 409) unless s.current_level_id == level_id
     level = cur.level(level_id)
@@ -60,12 +63,24 @@ class PracticeService
 
     id = SecureRandom.uuid
     item, origin, reason, quality, meta, content_item_id = generate(s, level, t, id)
+
+    # Approval gate: a newly generated item goes to the queue (pending), and we
+    # serve an approved item in its place. Items that already came from the
+    # approved bank / authored YAML (origin 'bank'/'authored') are served as-is.
+    if origin == "generated"
+      queue_for_approval(s.id, t, item, quality, meta)
+      item, origin, reason, quality, meta, content_item_id =
+        fallback(t, "awaiting teacher approval of the AI-generated item", quality, meta)
+    end
+
     Db.execute(<<~SQL, id: id, s: s.id, unit: s.unit_id, lvl: level_id, c: t.concept, f: t.from, to: t.to, ti: item["title"], sc: item["scenario"], ta: item["task"], tip: item["tip"], o: origin, ci: content_item_id, r: reason, q: quality && Db.json(quality), m: meta && Db.json(meta))
       INSERT INTO practice_item (id, student_id, unit_id, level_id, concept, from_stage, to_stage, title, scenario, task, tip,
                                  origin, content_item_id, fallback_reason, quality_json, model_meta_json)
       VALUES (:id, :s, :unit, :lvl, :c, :f, :to, :ti, :sc, :ta, :tip, :o, :ci, :r, CAST(:q AS jsonb), CAST(:m AS jsonb))
     SQL
-    { id: id, title: item["title"], scenario: item["scenario"], task: item["task"], tip: item["tip"], aiGenerated: origin == "generated" }
+    # aiGenerated is now always false for served items (an AI item is only served
+    # after a human approves it, at which point it is a 'bank' item).
+    { id: id, title: item["title"], scenario: item["scenario"], task: item["task"], tip: item["tip"], aiGenerated: false }
   end
 
   def answer(s, practice_id, response)
@@ -155,6 +170,29 @@ class PracticeService
     [item, "generated", nil, quality, result.meta, nil]
   rescue ModelClient::Unavailable, ModelJson::Invalid => e
     fallback(t, "generation failed: #{e.message}"[0, 300])
+  end
+
+  # Send a freshly AI-generated practice item to the teacher/admin approval queue
+  # (content_item, status 'pending'). It has already passed the content filter and
+  # the quality judge in `generate`; a human must still approve before it can be
+  # served to any student. De-duplicated by (concept, from_stage, title) so the
+  # same pending item isn't queued repeatedly across students.
+  def queue_for_approval(student_id, t, item, quality, meta)
+    dup = Db.query(<<~SQL, c: t.concept, f: t.from, ti: item["title"].to_s, u: cur.id).first
+      SELECT 1 AS x FROM content_item
+      WHERE status = 'pending' AND concept = :c AND from_stage = :f AND title = :ti AND (unit = :u OR unit IS NULL)
+      LIMIT 1
+    SQL
+    return if dup
+
+    cid = SecureRandom.uuid
+    Db.execute(<<~SQL, id: cid, c: t.concept, f: t.from, to: t.to, ti: item["title"], sc: item["scenario"], ta: item["task"], tip: item["tip"], q: quality && Db.json(quality), fj: Db.json({ ok: true, source: "generated" }), by: "ai:practice", unit: cur.id)
+      INSERT INTO content_item (id, concept, from_stage, to_stage, title, scenario, task, tip, status,
+                                source_title, quality_json, filter_json, created_by, unit)
+      VALUES (:id, :c, :f, :to, :ti, :sc, :ta, :tip, 'pending', 'AI-generated practice', CAST(:q AS jsonb), CAST(:fj AS jsonb), :by, :unit)
+    SQL
+  rescue StandardError => e
+    Rails.logger.warn("[practice] could not queue generated item for approval: #{e.message}")
   end
 
   # Approved authoring-queue items first, then the authored bank.

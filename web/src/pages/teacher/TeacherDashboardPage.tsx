@@ -102,6 +102,9 @@ export function TeacherDashboardPage() {
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2, mb: 2 }}>
           <Box><Typography variant="h2" sx={{ mb: 0.5 }}>Your class at a glance</Typography><Typography variant="body2" color="text.secondary">Select a learner to understand their path and next steps.</Typography></Box>
           <Box sx={{ flex: 1 }} />
+          <Button component={RouterLink} to="/teacher/assignments" sx={{ color: brand.charcoal }}>
+            Assign work
+          </Button>
           <Button disabled={refreshing} startIcon={refreshing ? <CircularProgress size={16} /> : <RefreshIcon />} onClick={load} sx={{ color: brand.charcoal }}>
             {refreshing ? 'Refreshing…' : 'Refresh'}
           </Button>

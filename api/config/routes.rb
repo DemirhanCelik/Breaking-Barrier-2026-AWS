@@ -29,6 +29,27 @@ Rails.application.routes.draw do
       get "authoring", action: :authoring
       post "authoring/drafts", action: :draft
       post "authoring/items/:id/review", action: :review
+      get "assignments", action: :assignments
+      post "assignments", action: :create_assignment
+      post "assignments/:id/archive", action: :archive_assignment
+    end
+
+    # Approval queue for AI-generated content (teacher OR admin).
+    scope :review, controller: :review do
+      get "items", action: :items
+      post "items/:id/review", action: :review
+    end
+
+    # Admin-only: a unit's concept matrix (upload -> AI proposal -> review -> save),
+    # and teaching appointments (appoint a teacher to a student for a unit).
+    scope :admin, controller: :admin do
+      get "directory", action: :directory
+      post "curriculum/extract", action: :extract_curriculum
+      post "curriculum", action: :save_curriculum
+      get "curriculum/:unitId", action: :show_curriculum
+      get "appointments", action: :appointments
+      post "appointments", action: :create_appointment
+      post "appointments/remove", action: :remove_appointment
     end
 
     scope :demo, controller: :demo do

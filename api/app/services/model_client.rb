@@ -42,6 +42,22 @@ class ModelClient
     raise Unavailable, errors.join("; ")
   end
 
+  # Single-turn completion with an attached document (PDF/DOCX). Bedrock reads
+  # the document natively via the Converse API document content block, so no
+  # server-side PDF/Word parsing dependency is needed. `format` is one of
+  # Bedrock's supported document formats (e.g. "pdf", "docx"). Raises Unavailable
+  # if every configured model fails.
+  def complete_with_document(system:, prompt:, bytes:, format:, name: "source", max_tokens: 2000, temperature: 0.0)
+    errors = []
+    [@model_id, @fallback_model_id].compact.uniq.each do |mid|
+      return call_with_document(mid, system, prompt, bytes, format, name, max_tokens, temperature)
+    rescue Aws::BedrockRuntime::Errors::ServiceError, Seahorse::Client::NetworkingError => e
+      Rails.logger.warn("[model] #{mid} (doc) failed: #{e.class.name.split('::').last}: #{e.message}")
+      errors << "#{mid}: #{e.class.name.split('::').last}"
+    end
+    raise Unavailable, errors.join("; ")
+  end
+
   private
 
   def call(model_id, system, prompt, max_tokens, temperature)
@@ -50,6 +66,30 @@ class ModelClient
       model_id: model_id,
       system: [{ text: system }],
       messages: [{ role: "user", content: [{ text: prompt }] }],
+      inference_config: { max_tokens: max_tokens, temperature: temperature },
+    )
+    text = resp.output.message.content.filter_map(&:text).join
+    Result.new(
+      text: text, model_id: model_id,
+      input_tokens: resp.usage&.input_tokens, output_tokens: resp.usage&.output_tokens,
+      latency_ms: ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round,
+    )
+  end
+
+  def call_with_document(model_id, system, prompt, bytes, format, name, max_tokens, temperature)
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    # Bedrock requires a document name of [A-Za-z0-9 -()[]] only; sanitize.
+    safe_name = name.to_s.gsub(/[^A-Za-z0-9 \-()\[\]]/, " ").strip[0, 200].presence || "source"
+    resp = @client.converse(
+      model_id: model_id,
+      system: [{ text: system }],
+      messages: [{
+        role: "user",
+        content: [
+          { document: { format: format, name: safe_name, source: { bytes: bytes } } },
+          { text: prompt },
+        ],
+      }],
       inference_config: { max_tokens: max_tokens, temperature: temperature },
     )
     text = resp.output.message.content.filter_map(&:text).join

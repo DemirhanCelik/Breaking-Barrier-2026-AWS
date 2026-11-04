@@ -6,7 +6,7 @@
  * which are served only by teacher-scoped endpoints.
  */
 
-export type Role = 'student' | 'teacher';
+export type Role = 'student' | 'teacher' | 'admin';
 export type ConceptId = string;
 export type Stage = 0 | 1 | 2 | 3;
 export type StageVector = Record<ConceptId, Stage>;
@@ -234,6 +234,8 @@ export interface ValidationRecord {
   mode: 'adaptive' | 'fallback' | 'error' | 'withheld';
   results: ValidationConceptResult[];
   signals?: WorkSignals | null;
+  /** The student's raw answer text for this submission (teacher-only). */
+  response?: string;
 }
 
 // Teacher Insights (GET /api/teacher/insights)
@@ -410,6 +412,94 @@ export interface FilterAudit {
   bySource: { direction: 'input' | 'output'; outcome: FilterOutcome; source: string; count: number }[];
   recent: FilterEvent[];
 }
+
+// ---------------------------------------------------------------------------
+// Teacher assignments (GET/POST /api/teacher/assignments...)
+// ---------------------------------------------------------------------------
+
+export type AssignmentScope = 'class' | 'student';
+export type AssignmentTargetKind = 'unit' | 'level';
+export type AssignmentStatus = 'active' | 'archived';
+
+export interface Assignment {
+  id: string;
+  scope: AssignmentScope;
+  klassId?: string;
+  studentId?: string;
+  targetKind: AssignmentTargetKind;
+  unitId: string;
+  levelCode?: string;
+  status: AssignmentStatus;
+  note?: string;
+  createdAt: string;
+}
+
+export interface AssignableLevel {
+  code: string;
+  title: string;
+  kind: string;
+}
+
+export interface AssignableUnit {
+  id: string;
+  name: string;
+  levels: AssignableLevel[];
+}
+
+// ---------------------------------------------------------------------------
+// Admin directory + appointments (GET/POST /api/admin/...)
+// ---------------------------------------------------------------------------
+
+export interface AdminDirectory {
+  teachers: { id: string; name: string }[];
+  students: { id: string; name: string }[];
+  units: { id: string; name: string }[];
+}
+
+export interface Appointment {
+  teacherId: string;
+  teacherName: string;
+  studentId: string;
+  studentName: string;
+  unitId: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Admin curriculum matrix (GET/POST /api/admin/curriculum...)
+// ---------------------------------------------------------------------------
+
+export interface MatrixConcept {
+  id: string;
+  name: string;
+  order?: number;
+  csta?: string;
+  descriptors: { '0': string; '1': string; '2': string; '3': string };
+}
+
+/** A proposed or saved unit matrix (the AI extract, or the stored one). */
+export interface UnitMatrix {
+  unitId: string;
+  bar: Stage;
+  /** Concept ids required to meet the bar. */
+  required: string[];
+  concepts: MatrixConcept[];
+  sourceName?: string | null;
+}
+
+/** Result of extracting a matrix from an uploaded source (AI-proposed, unsaved). */
+export interface CurriculumExtract {
+  unitId: string;
+  sourceName: string;
+  proposed: { bar: Stage; required: string[]; concepts: MatrixConcept[] };
+  modelMeta?: unknown;
+}
+
+/** The saved matrix for a unit, or `{ unitId, proposed: null }` when none exists. */
+export type SavedCurriculum =
+  | { unitId: string; bar: Stage; requiredConcepts: string[]; concepts: MatrixConcept[]; sourceName?: string | null }
+  | { unitId: string; proposed: null };
 
 export class ApiError extends Error {
   constructor(
