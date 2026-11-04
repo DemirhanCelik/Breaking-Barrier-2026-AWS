@@ -98,7 +98,7 @@ export function SignInPage() {
         >
           <Box sx={{ flex: 1 }}>
             <Typography variant="overline" sx={{ color: brand.orange }}>
-              Hour of AI · Adaptive lesson demo
+              CodeAI · Adaptive lessons
             </Typography>
             <Typography
               variant="h1"
@@ -109,10 +109,10 @@ export function SignInPage() {
                 maxWidth: 640,
               }}
             >
-              Build a club webpage by directing an AI
+              Every student, their own path to the same goal
             </Typography>
             <Typography sx={{ fontSize: '1.1rem', opacity: 0.92, maxWidth: 560 }}>
-              Every student starts where they are and gets their own path to the same goal.{' '}
+              Lessons adapt to what each student shows, with an AI tutor beside them and a teacher view that shows who needs help.{' '}
               {users.length > 0 ? 'Pick a demo account to try it.' : 'Sign in to continue.'}
             </Typography>
           </Box>

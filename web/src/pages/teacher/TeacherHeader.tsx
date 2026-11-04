@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { Box, Container, Typography } from '@mui/material';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Box, Container, Tab, Tabs, Typography } from '@mui/material';
 import { brand } from '../../theme';
 
 /** Purple band used on teacher pages (teacher surfaces are visually distinct from the student lesson). */
@@ -16,7 +17,7 @@ export function TeacherHeader({
 }) {
   return (
     <Box sx={{ bgcolor: brand.purple, color: '#fff' }}>
-      <Container maxWidth="xl" sx={{ pt: 3.5, pb: 3.5 }}>
+      <Container maxWidth="xl" sx={{ pt: 3.5, pb: 2 }}>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 3 }}>
           <Box sx={{ flex: 1, minWidth: 260 }}>
             {eyebrow && (
@@ -32,7 +33,52 @@ export function TeacherHeader({
           {right}
         </Box>
       </Container>
+      <TeacherTabs />
     </Box>
+  );
+}
+
+const TABS = [
+  { path: '/teacher', label: 'Class' },
+  { path: '/teacher/insights', label: 'Insights' },
+  { path: '/teacher/authoring', label: 'Authoring' },
+  { path: '/teacher/evidence', label: 'Launch gates' },
+  { path: '/teacher/safety', label: 'Safety log' },
+];
+
+/** One navigation bar for every teacher page. */
+function TeacherTabs() {
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const current =
+    TABS.find((t) => t.path === pathname)?.path ?? (pathname.startsWith('/teacher/students') ? '/teacher' : false);
+  return (
+    <Container maxWidth="xl">
+      <Tabs
+        value={current}
+        onChange={(_, v: string) => navigate(v)}
+        variant="scrollable"
+        scrollButtons="auto"
+        aria-label="Teacher pages"
+        textColor="inherit"
+        TabIndicatorProps={{ sx: { bgcolor: '#fff', height: 3 } }}
+        sx={{
+          minHeight: 44,
+          '& .MuiTab-root': {
+            minHeight: 44,
+            color: 'rgba(255,255,255,0.8)',
+            fontWeight: 700,
+            textTransform: 'none',
+            fontSize: 15,
+          },
+          '& .Mui-selected': { color: '#fff' },
+        }}
+      >
+        {TABS.map((t) => (
+          <Tab key={t.path} value={t.path} label={t.label} />
+        ))}
+      </Tabs>
+    </Container>
   );
 }
 

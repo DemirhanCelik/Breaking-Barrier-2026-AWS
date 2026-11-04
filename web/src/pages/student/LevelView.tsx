@@ -9,6 +9,7 @@ import { api, type StudentLevel, type SubmissionOutcome } from '../../api';
 import { PaneHeader, SpeechBubble } from '../../components/brand';
 import { brand } from '../../theme';
 import { BitTutorPanel } from './BitTutorPanel';
+import { Splitter, usePaneSize } from '../../components/Splitter';
 import { FillEditor, ParsonsEditor } from './InteractionEditors';
 import { PracticeDialog } from './PracticeDialog';
 import { PreviewPanel } from './PreviewPanel';
@@ -35,6 +36,11 @@ export function LevelView({
 }) {
   const [response, setResponse] = useState('');
   const [feedback, setFeedback] = useState<Feedback>({ kind: 'none' });
+  // Resizable panes, remembered per browser (drag, arrow keys, or double-click to reset).
+  const outer = useRef<HTMLDivElement>(null);
+  const leftCol = useRef<HTMLDivElement>(null);
+  const [leftPct, setLeftPct, leftMin, leftMax] = usePaneSize('left', 42, 25, 70);
+  const [taskPct, setTaskPct, taskMin, taskMax] = usePaneSize('task', 58, 20, 85);
   // Bumped by the Hint button: Bit (under the task) is asked for a hint.
   const [hintSignal, setHintSignal] = useState(0);
   const [practiceOpen, setPracticeOpen] = useState(false);
@@ -95,22 +101,26 @@ export function LevelView({
 
   return (
     <Box
+      ref={outer}
       sx={{
         flex: 1,
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: 'minmax(360px, 42%) 1fr' },
+        gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: `minmax(0, ${leftPct}%) 6px minmax(0, 1fr)` },
         gridTemplateRows: { xs: 'auto auto', md: '1fr' },
         height: { md: 'calc(100vh - 60px)' },
         bgcolor: brand.bg,
+        minWidth: 0,
       }}
     >
-      {/* Instructions pane */}
+      {/* Instructions pane: the task on top, Bit below (both resizable) */}
       <Box
+        ref={leftCol}
         sx={{
           display: 'grid',
-          gridTemplateRows: { xs: 'auto 380px', md: 'minmax(0, 1fr) minmax(240px, 42%)' },
+          gridTemplateRows: { xs: 'auto 380px', md: `minmax(0, ${taskPct}%) 6px minmax(0, 1fr)` },
+          gridTemplateColumns: 'minmax(0, 1fr)',
           minHeight: 0,
-          borderRight: { md: `1px solid ${brand.border}` },
+          minWidth: 0,
         }}
       >
         <Box
@@ -198,14 +208,35 @@ export function LevelView({
             <Feedback feedback={feedback} />
           </Box>
         </Box>
+        <Splitter
+          container={leftCol}
+          axis="y"
+          value={taskPct}
+          min={taskMin}
+          max={taskMax}
+          onChange={setTaskPct}
+          onReset={() => setTaskPct(58)}
+          label="Resize the task and the Bit tutor"
+        />
         <BitTutorPanel level={level} hintSignal={hintSignal} />
       </Box>
+
+      <Splitter
+        container={outer}
+        axis="x"
+        value={leftPct}
+        min={leftMin}
+        max={leftMax}
+        onChange={setLeftPct}
+        onReset={() => setLeftPct(42)}
+        label="Resize the instructions and your work"
+      />
 
       {/* Workspace pane */}
       <Box
         component="section"
         aria-label="Your work"
-        sx={{ display: 'flex', flexDirection: 'column', minHeight: { xs: 420, md: 0 } }}
+        sx={{ display: 'flex', flexDirection: 'column', minHeight: { xs: 420, md: 0 }, minWidth: 0 }}
       >
         <PaneHeader
           title="Your work"

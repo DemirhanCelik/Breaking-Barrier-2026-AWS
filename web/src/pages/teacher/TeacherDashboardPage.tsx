@@ -17,10 +17,6 @@ import {
 } from '@mui/material';
 import FlagRoundedIcon from '@mui/icons-material/FlagRounded';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
-import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
-import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
-import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { api, type ClassAttainment } from '../../api';
 import { Initials } from '../../components/brand';
@@ -79,22 +75,6 @@ export function TeacherDashboardPage() {
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2, mb: 2 }}>
           <StageLegend bar={data.bar} />
           <Box sx={{ flex: 1 }} />
-          <Button variant="contained" startIcon={<InsightsOutlinedIcon />} onClick={() => navigate('/teacher/insights')}>
-            Insights
-          </Button>
-          <Button
-            startIcon={<AutoAwesomeOutlinedIcon />}
-            onClick={() => navigate('/teacher/authoring')}
-            sx={{ color: brand.charcoal }}
-          >
-            Authoring
-          </Button>
-          <Button startIcon={<FactCheckOutlinedIcon />} onClick={() => navigate('/teacher/evidence')} sx={{ color: brand.charcoal }}>
-            Launch gates
-          </Button>
-          <Button startIcon={<ShieldOutlinedIcon />} onClick={() => navigate('/teacher/safety')} sx={{ color: brand.charcoal }}>
-            Safety log
-          </Button>
           <Button startIcon={<RefreshIcon />} onClick={load} sx={{ color: brand.charcoal }}>
             Refresh
           </Button>
@@ -112,7 +92,7 @@ export function TeacherDashboardPage() {
                       <Box>
                         <Typography sx={{ fontWeight: 700, fontSize: 14 }}>{c.name}</Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {c.csta}
+                          {c.csta.split(/[ (,]/)[0]}
                         </Typography>
                       </Box>
                     </Tooltip>
