@@ -21,7 +21,7 @@ class Validator
   end
 
   SYSTEM_PROMPT = <<~PROMPT.freeze
-    You score high-school students' work in a computer science lesson about directing AI to build a webpage.
+    You score high-school students' work in %<context>s.
     For each concept you are given, decide which Stage (0-3) the submission demonstrates, using ONLY that
     concept's Stage descriptors. Score demonstrated competency, not whether code would run, spelling, or length.
     A stage counts only if the submission explicitly shows EVERY behavior in that stage's descriptor. Do not credit
@@ -49,7 +49,7 @@ class Validator
   def evaluate(level, stages, text)
     probes = Engine.probe(level, stages, text)
     return Outcome.new(results: [], model_meta: nil) if probes.empty?
-    return probe_only(probes) if self.class.mode == "probes"
+    return probe_only(probes) if self.class.mode == "probes" || level.deterministic?
 
     rubric, meta = rubric_eval(level, probes.map { |p| p[:transition] }, text)
     results = probes.map do |p|
@@ -106,7 +106,7 @@ class Validator
       </student_submission>
     P
 
-    result = (@model || ModelClient.default).complete(system: SYSTEM_PROMPT, prompt: prompt, max_tokens: 500)
+    result = (@model || ModelClient.default).complete(system: format(SYSTEM_PROMPT, context: Curriculum.current.context), prompt: prompt, max_tokens: 500)
     parsed = parse(result.text, transitions.map(&:concept))
     @cache.shift while @cache.size >= CACHE_LIMIT
     @cache[key] = parsed

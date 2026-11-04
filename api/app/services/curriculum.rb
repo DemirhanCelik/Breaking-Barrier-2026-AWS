@@ -1,6 +1,7 @@
 # Authored curriculum loaded from config/curriculum/*.yml. Concept-agnostic:
 # the engine only reads these structures, so swapping the unit is a data change.
 require "yaml"
+require "json"
 require "digest"
 
 class Curriculum
@@ -15,25 +16,93 @@ class Curriculum
       when "list_items"
         items = text.lines.count { |l| l.match?(/\A\s*([-*•]|\d+[.)])\s+\S/) }
         items >= spec["min"] || text.split(",").size >= spec["min"] + 1
+      # Drag-and-drop ordering (Parsons problem): the submitted lines, in order, match the solution.
+      when "parsons"
+        text.lines.map(&:rstrip).reject(&:empty?) == spec["solution"].map(&:rstrip)
+      # Fill in the blank: response is {"blanks": [...]}; blank `index` must fully match one accepted pattern.
+      when "blank"
+        answer = (JSON.parse(text)["blanks"] || [])[spec["index"]].to_s.strip rescue ""
+        spec["accept"].any? { |p| answer.match?(/\A(?:#{p})\z/) }
       else raise ArgumentError, "Unknown check type #{type}"
       end
     end
   end
   Transition = Struct.new(:concept, :from, :to, :checks, keyword_init: true)
   Level = Struct.new(:id, :code, :kind, :title, :intro, :instructions, :ai_output,
-                     :response_label, :response_placeholder, :transitions, keyword_init: true) do
+                     :response_label, :response_placeholder, :transitions, :interaction, keyword_init: true) do
     def project? = kind == "project"
+    # Scaffolded task types (parsons, fill) are graded deterministically, with no model call.
+    def deterministic? = interaction.present?
   end
   DiagnosticOption = Struct.new(:id, :text, keyword_init: true)
   # One multiple-choice question for one concept at one stage; `answer` is an option id.
   DiagnosticQuestion = Struct.new(:id, :concept, :stage, :prompt, :figure, :options, :answer, keyword_init: true)
 
   attr_reader :unit, :klass, :bar, :required_concepts, :concepts, :checks, :levels,
-              :project_level_id, :fallback_sequence, :diagnostic_intro, :diagnostic_bank
+              :project_level_id, :fallback_sequence, :diagnostic_intro, :diagnostic_bank, :practice, :topics
 
-  def self.current
-    @current ||= load_file(Rails.root.join("config/curriculum/#{ENV.fetch('CURRICULUM', 'ai_generated_design')}.yml"))
+  DIR = Rails.root.join("config/curriculum")
+  DEFAULT_UNIT = "digital_magazine"
+  SETTING_TTL = 5 # seconds; the active unit is a class setting shared by all API instances
+
+  # The class's active unit. Engines are concept-agnostic: swapping the unit is a
+  # data change (one YAML file). Thread.current[:codeai_unit] pins a unit for a
+  # block of work (benchmark, seeding).
+  def self.current = unit(current_unit_id)
+
+  def self.unit(id)
+    raise ArgumentError, "Unknown unit #{id}" unless unit_ids.include?(id.to_s)
+    (@units ||= {})[id.to_s] ||= load_file(DIR.join("#{id}.yml"))
   end
+
+  # Every YAML in config/curriculum with a top-level `unit:` block.
+  def self.unit_ids
+    @unit_ids ||= Dir[DIR.join("*.yml")].map { |f| File.basename(f, ".yml") }
+                    .select { |id| YAML.safe_load_file(DIR.join("#{id}.yml")).is_a?(Hash) && YAML.safe_load_file(DIR.join("#{id}.yml")).key?("unit") }
+                    .sort
+  end
+
+  # Units a teacher can pick (the original demo unit is kept only for the M5 benchmark).
+  def self.selectable
+    unit_ids.map { |id| unit(id) }.select { |c| c.unit["selectable"] }
+  end
+
+  def self.current_unit_id
+    return Thread.current[:codeai_unit] if Thread.current[:codeai_unit]
+    now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    if @setting_at.nil? || now - @setting_at > SETTING_TTL
+      @setting = begin
+        Db.query("SELECT value_json FROM app_setting WHERE key = 'unit'").first&.fetch("value_json")
+      rescue StandardError
+        nil
+      end
+      @setting_at = now
+    end
+    id = @setting.presence || ENV["CURRICULUM"].presence || DEFAULT_UNIT
+    unit_ids.include?(id) ? id : DEFAULT_UNIT
+  end
+
+  def self.current_unit_id=(id)
+    raise ArgumentError, "Unknown unit #{id}" unless unit_ids.include?(id.to_s)
+    Db.execute(<<~SQL, v: Db.json(id.to_s))
+      INSERT INTO app_setting (key, value_json) VALUES ('unit', CAST(:v AS jsonb))
+      ON CONFLICT (key) DO UPDATE SET value_json = EXCLUDED.value_json
+    SQL
+    @setting = id.to_s
+    @setting_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  end
+
+  def self.with_unit(id)
+    prev = Thread.current[:codeai_unit]
+    Thread.current[:codeai_unit] = id.to_s
+    yield
+  ensure
+    Thread.current[:codeai_unit] = prev
+  end
+
+  def id = @unit["id"]
+  # One line describing the lesson, used in every AI prompt (coach, validator, generators).
+  def context = @unit["context"].presence || "a computer science lesson"
 
   def self.load_file(path)
     new(YAML.safe_load_file(path))
@@ -55,12 +124,15 @@ class Curriculum
       Level.new(
         id: l["id"], code: l["code"], kind: l["kind"], title: l["title"], intro: l["intro"],
         instructions: l["instructions"], ai_output: l["ai_output"],
-        response_label: l["response_label"], response_placeholder: l["response_placeholder"],
+        response_label: l["response_label"], response_placeholder: l["response_placeholder"], interaction: l["interaction"],
         transitions: (l["transitions"] || []).map { |t| Transition.new(concept: t["concept"], from: t["from"], to: t["to"], checks: t["checks"]) },
       )
     end
     @project_level_id = data.fetch("project_level_id")
     @fallback_sequence = data.fetch("fallback_sequence")
+    @practice = data["practice"] || []
+    # Optional personalization: the student picks a topic; {{topic}} in level text is filled in.
+    @topics = data["topics"] || []
     @diagnostic_intro = data.dig("diagnostic", "intro")
     @diagnostic_bank = data.dig("diagnostic", "bank").map do |q|
       DiagnosticQuestion.new(id: q["id"], concept: q["concept"], stage: q["stage"], prompt: q["prompt"], figure: q["figure"],

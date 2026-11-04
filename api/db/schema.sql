@@ -178,3 +178,7 @@ ALTER TABLE route_decision ADD COLUMN IF NOT EXISTS advisor_json jsonb;
 
 -- Migration: quiet formative signals per submission (time on step, edit sessions, pastes).
 ALTER TABLE submission ADD COLUMN IF NOT EXISTS signals_json jsonb;
+
+-- Migrations: the student's chosen topic; which unit an authored item belongs to.
+ALTER TABLE student_progress ADD COLUMN IF NOT EXISTS topic text;
+ALTER TABLE content_item ADD COLUMN IF NOT EXISTS unit text;

@@ -5,6 +5,8 @@
 namespace :benchmark do
   desc "Score benchmark/submissions.yml and report agreement with human raters"
   task run: :environment do
+    # The benchmark items were written for the original demo unit.
+    Thread.current[:codeai_unit] = ENV.fetch("BENCHMARK_UNIT", "ai_generated_design")
     cur = Curriculum.current
     items = YAML.safe_load_file(Rails.root.join("benchmark/submissions.yml")).fetch("items")
     validator = Validator.new(cache: {})

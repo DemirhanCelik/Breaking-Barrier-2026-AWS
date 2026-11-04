@@ -78,8 +78,8 @@ class AuthoringService
   end
 
   def list(status: nil)
-    where = status.present? ? "WHERE status = :st" : ""
-    rows = Db.query(<<~SQL, st: status.to_s)
+    where = "WHERE (unit = :u OR unit IS NULL)" + (status.present? ? " AND status = :st" : "")
+    rows = Db.query(<<~SQL, st: status.to_s, u: cur.id)
       SELECT *, CAST(floor(extract(epoch FROM created_at) * 1000) AS bigint) AS at_ms
       FROM content_item #{where} ORDER BY created_at DESC LIMIT 200
     SQL
@@ -120,7 +120,7 @@ class AuthoringService
 
   # Servable practice per concept transition: authored bank + approved drafts.
   def bank_summary
-    approved = Db.query("SELECT concept, from_stage, count(*) AS n FROM content_item WHERE status = 'approved' GROUP BY 1, 2")
+    approved = Db.query("SELECT concept, from_stage, count(*) AS n FROM content_item WHERE status = 'approved' AND (unit = :u OR unit IS NULL) GROUP BY 1, 2", u: cur.id)
     cur.required_concepts.flat_map do |cid|
       (0..2).map do |from|
         { conceptId: cid, fromStage: from, targetStage: from + 1,
@@ -145,10 +145,10 @@ class AuthoringService
     verified = quote.size >= 10 && normalize(source).include?(normalize(quote))
     blocked = !filter.ok?
     fields = QualityJudge::FIELDS.to_h { |f| [f, blocked ? "[withheld by content filter]" : d[f].to_s.strip.presence || "(empty)"] }
-    Db.execute(<<~SQL, id: id, c: concept_id, f: from, to: to, ti: fields["title"], sc: fields["scenario"], ta: fields["task"], tip: fields["tip"], st: blocked ? "rejected" : "pending", stt: source_title.to_s[0, 200].presence, q: blocked ? nil : quote, qv: verified && !blocked, qj: Db.json(quality), fj: Db.json({ ok: filter.ok?, source: filter.source.to_s, redactions: redactions }), n: blocked ? "Blocked by content filter." : nil, by: teacher_id)
+    Db.execute(<<~SQL, id: id, c: concept_id, f: from, to: to, ti: fields["title"], sc: fields["scenario"], ta: fields["task"], tip: fields["tip"], st: blocked ? "rejected" : "pending", stt: source_title.to_s[0, 200].presence, q: blocked ? nil : quote, qv: verified && !blocked, qj: Db.json(quality), fj: Db.json({ ok: filter.ok?, source: filter.source.to_s, redactions: redactions }), n: blocked ? "Blocked by content filter." : nil, by: teacher_id, unit: cur.id)
       INSERT INTO content_item (id, concept, from_stage, to_stage, title, scenario, task, tip, status, source_title, source_quote,
-                                quote_verified, quality_json, filter_json, reviewer_note, created_by)
-      VALUES (:id, :c, :f, :to, :ti, :sc, :ta, :tip, :st, :stt, :q, :qv, CAST(:qj AS jsonb), CAST(:fj AS jsonb), :n, :by)
+                                quote_verified, quality_json, filter_json, reviewer_note, created_by, unit)
+      VALUES (:id, :c, :f, :to, :ti, :sc, :ta, :tip, :st, :stt, :q, :qv, CAST(:qj AS jsonb), CAST(:fj AS jsonb), :n, :by, :unit)
     SQL
     dto(Db.query("SELECT *, CAST(floor(extract(epoch FROM created_at) * 1000) AS bigint) AS at_ms FROM content_item WHERE id = :id", id: id).first)
   end

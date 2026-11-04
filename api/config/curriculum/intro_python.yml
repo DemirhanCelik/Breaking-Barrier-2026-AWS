@@ -1,0 +1,1206 @@
+# Unit: Intro to Python.
+#
+# Same objectives for everyone, different support: Stage 0->1 steps are drag-and-drop
+# (Parsons problems: put the lines in order), 1->2 steps are fill-in-the-blank, and 2->3
+# steps are written from scratch. Parsons and fill steps are graded deterministically
+# (no model call). SYNTHETIC drafts by the engineering team; T&L must review (FR7).
+unit:
+  id: intro_python
+  name: Intro to Python
+  selectable: true
+  context: an introductory Python programming lesson for high-school students covering variables, conditionals, loops, and functions
+  summary: 'Variables, if statements, loops, and functions. Steps adapt to you: put lines in order, fill in the blanks, or write it yourself. Ends with your own quiz game.'
+class:
+  id: k-period3
+  name: Period 3 - Intro to Python
+  bar: 2
+topics:
+- school life
+- sports
+- music
+- gaming
+- robotics
+- art
+- esports
+- science
+required_concepts:
+- c1
+- c2
+- c3
+- c4
+concepts:
+- id: c1
+  name: Variables and data
+  csta: 3A-AP-14
+  order: 1
+  descriptors:
+    0: Cannot yet say what a variable holds or why order of lines matters.
+    1: Stores and prints values in variables in a working order.
+    2: Uses input, converts between text and numbers, and combines values correctly.
+    3: Writes complete programs that read, convert, and calculate with user input on their own.
+- id: c2
+  name: Conditionals
+  csta: 3A-AP-15
+  order: 2
+  descriptors:
+    0: Cannot yet predict which branch of an if statement runs.
+    1: Orders a working if / else and predicts its output.
+    2: Completes if / elif / else chains with correct comparisons, including boundary values.
+    3: Writes multi-branch decisions from a description and tests the boundary cases.
+- id: c3
+  name: Loops
+  csta: 3A-AP-15
+  order: 3
+  descriptors:
+    0: Cannot yet tell which lines repeat in a loop.
+    1: Orders a working for or while loop and predicts how many times it runs.
+    2: Completes loops that go through a list and build up a result.
+    3: Writes loops with counters or conditions from a description, without infinite loops.
+- id: c4
+  name: Functions
+  csta: 3A-AP-18
+  order: 4
+  descriptors:
+    0: Cannot yet tell a function definition from a function call.
+    1: Orders a working function definition and call.
+    2: Completes functions with parameters and return values and calls them correctly.
+    3: Designs and writes their own functions, returns results, and reuses them.
+checks:
+  uses_input:
+    label: Asks the user for input
+    hint: Use input(...) to ask the user something.
+    type: regex
+    pattern: "\\binput\\s*\\("
+  converts:
+    label: Converts text to a number
+    hint: input() gives text; use int(...) or float(...) to do math with it.
+    type: regex
+    pattern: "\\b(int|float)\\s*\\("
+  prints:
+    label: Prints a result
+    hint: Use print(...) to show the result.
+    type: regex
+    pattern: "\\bprint\\s*\\("
+  if_elif_else:
+    label: Uses if, elif, and else
+    hint: Handle all three cases with if, elif, and else.
+    type: all_of
+    patterns:
+    - "\\bif\\b"
+    - "\\belif\\b"
+    - "\\belse\\b"
+  comparison:
+    label: Compares values
+    hint: Use a comparison like >=, <, or ==.
+    type: regex
+    pattern: "(>=|<=|==|!=|<|>)"
+  edge_value:
+    label: Handles the boundary value
+    hint: Check the exact boundary, like age 12 or a score of exactly 80.
+    type: regex
+    pattern: "(>=|<=|==)"
+  loop:
+    label: Uses a loop
+    hint: Use a for or while loop to go through the list.
+    type: regex
+    pattern: "\\b(for|while)\\b"
+  counter:
+    label: Keeps a count
+    hint: Start a counter at 0 and add 1 when the condition is true.
+    type: all_of
+    patterns:
+    - "=\\s*0\\b"
+    - "(\\+=\\s*1|=\\s*\\w+\\s*\\+\\s*1)"
+  defines:
+    label: Defines a function
+    hint: 'Define a function with def name(parameters):'
+    type: regex
+    pattern: "\\bdef\\s+\\w+\\s*\\("
+  returns:
+    label: Returns a value
+    hint: Use return to send the answer back.
+    type: regex
+    pattern: "\\breturn\\b"
+  modulo:
+    label: Uses % to test evenness
+    hint: n % 2 == 0 is true when n is even.
+    type: regex
+    pattern: "%\\s*2"
+  calls:
+    label: Calls the function
+    hint: Call your function with a value and use the result.
+    type: regex
+    pattern: "\\b\\w+\\s*\\([^)]*\\)\\s*(\\)|$|:|\\n|,)"
+  order_l1:
+    label: Lines in a working order
+    hint: A variable has to be created before it is used. Which line creates name?
+    type: parsons
+    solution:
+    - name = "Sam"
+    - greeting = "Welcome, " + name
+    - print(greeting)
+  order_l2:
+    label: Lines in a working order
+    hint: You can only add score and bonus after both exist.
+    type: parsons
+    solution:
+    - score = 40
+    - bonus = 10
+    - total = score + bonus
+    - print("Total:", total)
+  order_l3:
+    label: Lines in a working order
+    hint: The if line checks the condition; the indented line under it runs only when it's true.
+    type: parsons
+    solution:
+    - temp = 30
+    - 'if temp > 25:'
+    - '    print("Hot!")'
+    - 'else:'
+    - '    print("Nice")'
+  order_l4:
+    label: Lines in a working order
+    hint: Set age first, then check it with if.
+    type: parsons
+    solution:
+    - age = 16
+    - 'if age >= 18:'
+    - '    print("You can vote")'
+    - 'else:'
+    - '    print("Not yet")'
+  order_l5:
+    label: Lines in a working order
+    hint: Lines indented under the for repeat; a line that isn't indented runs once, after the loop.
+    type: parsons
+    solution:
+    - 'for lap in range(1, 4):'
+    - '    print("Lap", lap)'
+    - print("Done!")
+  order_l6:
+    label: Lines in a working order
+    hint: The loop needs n before it starts, and n has to get smaller inside the loop or it never ends.
+    type: parsons
+    solution:
+    - n = 3
+    - 'while n > 0:'
+    - "    print(n)"
+    - "    n = n - 1"
+    - print("Go!")
+  order_l7:
+    label: Lines in a working order
+    hint: Define the function (def) before you call it.
+    type: parsons
+    solution:
+    - 'def greet(name):'
+    - '    return "Hi, " + name'
+    - print(greet("Ana"))
+  order_l8:
+    label: Lines in a working order
+    hint: The function has to exist before you call it, and you print the answer after you get it.
+    type: parsons
+    solution:
+    - 'def double(n):'
+    - "    return n * 2"
+    - answer = double(21)
+    - print(answer)
+  blank_l9_1:
+    label: 'Blank 1: turns text into a number'
+    hint: 'Blank 1: input() gives you text. Which function turns text into a whole number?'
+    type: blank
+    index: 0
+    accept:
+    - int
+    - float
+  blank_l9_2:
+    label: 'Blank 2: adds the values'
+    hint: 'Blank 2: Which symbol adds two numbers?'
+    type: blank
+    index: 1
+    accept:
+    - "\\+"
+  blank_l9_3:
+    label: 'Blank 3: prints the right variable'
+    hint: 'Blank 3: Which variable holds the answer?'
+    type: blank
+    index: 2
+    accept:
+    - total
+  blank_l10_1:
+    label: 'Blank 1: turns a number into text'
+    hint: 'Blank 1: You can''t add a number to text directly. Which function turns 7 into "7"?'
+    type: blank
+    index: 0
+    accept:
+    - str
+  blank_l10_2:
+    label: 'Blank 2: shows the message'
+    hint: 'Blank 2: Which function shows text on the screen?'
+    type: blank
+    index: 1
+    accept:
+    - print
+  blank_l11_1:
+    label: 'Blank 1: includes 90 itself'
+    hint: 'Blank 1: 90 should be an A. Which comparison includes 90?'
+    type: blank
+    index: 0
+    accept:
+    - ">="
+  blank_l11_2:
+    label: 'Blank 2: checks the next case'
+    hint: 'Blank 2: Which keyword checks another condition after if?'
+    type: blank
+    index: 1
+    accept:
+    - elif
+  blank_l11_3:
+    label: 'Blank 3: catches everything else'
+    hint: 'Blank 3: Which keyword handles every case not caught above?'
+    type: blank
+    index: 2
+    accept:
+    - else
+  blank_l12_1:
+    label: 'Blank 1: under 12 means not 12'
+    hint: 'Blank 1: "Under 12" means 12 itself pays full price. Which comparison is that?'
+    type: blank
+    index: 0
+    accept:
+    - "<"
+  blank_l12_2:
+    label: 'Blank 2: everyone else'
+    hint: 'Blank 2: Which keyword covers everyone the if didn''t catch?'
+    type: blank
+    index: 1
+    accept:
+    - else
+  blank_l13_1:
+    label: 'Blank 1: loops over the list'
+    hint: 'Blank 1: Which list do you want to go through?'
+    type: blank
+    index: 0
+    accept:
+    - scores
+  blank_l13_2:
+    label: 'Blank 2: adds each score'
+    hint: 'Blank 2: Inside the loop, which variable holds the current score?'
+    type: blank
+    index: 1
+    accept:
+    - s
+  blank_l14_1:
+    label: 'Blank 1: repeats a set number of times'
+    hint: 'Blank 1: Which function gives you the numbers 0, 1, 2, 3?'
+    type: blank
+    index: 0
+    accept:
+    - range
+  blank_l14_2:
+    label: 'Blank 2: shows the cheer'
+    hint: 'Blank 2: Which function shows text?'
+    type: blank
+    index: 1
+    accept:
+    - print
+  blank_l15_1:
+    label: 'Blank 1: sends the answer back'
+    hint: 'Blank 1: Which keyword sends the answer out of the function?'
+    type: blank
+    index: 0
+    accept:
+    - return
+  blank_l15_2:
+    label: 'Blank 2: multiplies'
+    hint: 'Blank 2: Area is width times height. Which symbol multiplies?'
+    type: blank
+    index: 1
+    accept:
+    - "\\*"
+  blank_l15_3:
+    label: 'Blank 3: calls the function'
+    hint: 'Blank 3: Which function do you call?'
+    type: blank
+    index: 2
+    accept:
+    - area
+  blank_l16_1:
+    label: 'Blank 1: starts a function'
+    hint: 'Blank 1: Which keyword defines a function?'
+    type: blank
+    index: 0
+    accept:
+    - def
+  blank_l16_2:
+    label: 'Blank 2: uses the parameter'
+    hint: 'Blank 2: Which value was passed into the function?'
+    type: blank
+    index: 1
+    accept:
+    - name
+levels:
+- id: l1
+  code: L1
+  kind: task
+  title: Say hello
+  intro: A program runs top to bottom. Put these lines in an order that greets a member of the {{topic}} club.
+  instructions:
+  - Drag the lines into an order that works (or use the arrow buttons).
+  - Indentation is already set; think about what has to happen first.
+  response_label: Your program
+  response_placeholder: ''
+  interaction:
+    type: parsons
+    lines:
+    - name = "Sam"
+    - greeting = "Welcome, " + name
+    - print(greeting)
+  transitions:
+  - concept: c1
+    from: 0
+    to: 1
+    checks:
+    - order_l1
+- id: l2
+  code: L2
+  kind: task
+  title: Keep score
+  intro: Put these lines in order so the program adds a bonus to a score and shows the total.
+  instructions:
+  - Drag the lines into an order that works (or use the arrow buttons).
+  - Indentation is already set; think about what has to happen first.
+  response_label: Your program
+  response_placeholder: ''
+  interaction:
+    type: parsons
+    lines:
+    - score = 40
+    - bonus = 10
+    - total = score + bonus
+    - print("Total:", total)
+  transitions:
+  - concept: c1
+    from: 0
+    to: 1
+    checks:
+    - order_l2
+- id: l3
+  code: L3
+  kind: task
+  title: Hot or not
+  intro: Put these lines in order so the program prints "Hot!" when it is over 25 degrees and "Nice" otherwise.
+  instructions:
+  - Drag the lines into an order that works (or use the arrow buttons).
+  - Indentation is already set; think about what has to happen first.
+  response_label: Your program
+  response_placeholder: ''
+  interaction:
+    type: parsons
+    lines:
+    - temp = 30
+    - 'if temp > 25:'
+    - '    print("Hot!")'
+    - 'else:'
+    - '    print("Nice")'
+  transitions:
+  - concept: c2
+    from: 0
+    to: 1
+    checks:
+    - order_l3
+- id: l4
+  code: L4
+  kind: task
+  title: Can you vote?
+  intro: Put these lines in order so the program says whether someone is old enough to vote.
+  instructions:
+  - Drag the lines into an order that works (or use the arrow buttons).
+  - Indentation is already set; think about what has to happen first.
+  response_label: Your program
+  response_placeholder: ''
+  interaction:
+    type: parsons
+    lines:
+    - age = 16
+    - 'if age >= 18:'
+    - '    print("You can vote")'
+    - 'else:'
+    - '    print("Not yet")'
+  transitions:
+  - concept: c2
+    from: 0
+    to: 1
+    checks:
+    - order_l4
+- id: l5
+  code: L5
+  kind: task
+  title: Three laps
+  intro: Put these lines in order so the program prints Lap 1, Lap 2, Lap 3, then Done! once.
+  instructions:
+  - Drag the lines into an order that works (or use the arrow buttons).
+  - Indentation is already set; think about what has to happen first.
+  response_label: Your program
+  response_placeholder: ''
+  interaction:
+    type: parsons
+    lines:
+    - 'for lap in range(1, 4):'
+    - '    print("Lap", lap)'
+    - print("Done!")
+  transitions:
+  - concept: c3
+    from: 0
+    to: 1
+    checks:
+    - order_l5
+- id: l6
+  code: L6
+  kind: task
+  title: Count down
+  intro: Put these lines in order so the program counts down 3, 2, 1 and then prints Go!
+  instructions:
+  - Drag the lines into an order that works (or use the arrow buttons).
+  - Indentation is already set; think about what has to happen first.
+  response_label: Your program
+  response_placeholder: ''
+  interaction:
+    type: parsons
+    lines:
+    - n = 3
+    - 'while n > 0:'
+    - "    print(n)"
+    - "    n = n - 1"
+    - print("Go!")
+  transitions:
+  - concept: c3
+    from: 0
+    to: 1
+    checks:
+    - order_l6
+- id: l7
+  code: L7
+  kind: task
+  title: Make a greeter
+  intro: Put these lines in order to define a function and then use it.
+  instructions:
+  - Drag the lines into an order that works (or use the arrow buttons).
+  - Indentation is already set; think about what has to happen first.
+  response_label: Your program
+  response_placeholder: ''
+  interaction:
+    type: parsons
+    lines:
+    - 'def greet(name):'
+    - '    return "Hi, " + name'
+    - print(greet("Ana"))
+  transitions:
+  - concept: c4
+    from: 0
+    to: 1
+    checks:
+    - order_l7
+- id: l8
+  code: L8
+  kind: task
+  title: Double it
+  intro: Put these lines in order to define a function that doubles a number, then print double of 21.
+  instructions:
+  - Drag the lines into an order that works (or use the arrow buttons).
+  - Indentation is already set; think about what has to happen first.
+  response_label: Your program
+  response_placeholder: ''
+  interaction:
+    type: parsons
+    lines:
+    - 'def double(n):'
+    - "    return n * 2"
+    - answer = double(21)
+    - print(answer)
+  transitions:
+  - concept: c4
+    from: 0
+    to: 1
+    checks:
+    - order_l8
+- id: l9
+  code: L9
+  kind: task
+  title: Ask for a number
+  intro: This program asks for a score, adds 5 bonus points, and prints the total.
+  instructions:
+  - Fill in each blank so the program works.
+  - Read the whole program first, then fill the blanks.
+  response_label: Fill the blanks
+  response_placeholder: ''
+  interaction:
+    type: fill
+    code: |-
+      score = ____(input("Score? "))
+      bonus = 5
+      total = score ____ bonus
+      print("Total:", ____)
+    blanks:
+    - - int
+      - float
+    - - "\\+"
+    - - total
+  transitions:
+  - concept: c1
+    from: 1
+    to: 2
+    checks:
+    - blank_l9_1
+    - blank_l9_2
+    - blank_l9_3
+- id: l10
+  code: L10
+  kind: task
+  title: Mix text and numbers
+  intro: This program builds a sentence with a player's name and jersey number.
+  instructions:
+  - Fill in each blank so the program works.
+  - Read the whole program first, then fill the blanks.
+  response_label: Fill the blanks
+  response_placeholder: ''
+  interaction:
+    type: fill
+    code: |-
+      name = "Kai"
+      number = 7
+      message = name + " wears number " + ____(number)
+      ____(message)
+    blanks:
+    - - str
+    - - print
+  transitions:
+  - concept: c1
+    from: 1
+    to: 2
+    checks:
+    - blank_l10_1
+    - blank_l10_2
+- id: l11
+  code: L11
+  kind: task
+  title: Letter grades
+  intro: Fill in the blanks so 90 and up is an A, 80 to 89 is a B, and everything else is a C.
+  instructions:
+  - Fill in each blank so the program works.
+  - Read the whole program first, then fill the blanks.
+  response_label: Fill the blanks
+  response_placeholder: ''
+  interaction:
+    type: fill
+    code: |-
+      score = 85
+      if score ____ 90:
+          grade = "A"
+      ____ score >= 80:
+          grade = "B"
+      ____:
+          grade = "C"
+      print(grade)
+    blanks:
+    - - ">="
+    - - elif
+    - - else
+  transitions:
+  - concept: c2
+    from: 1
+    to: 2
+    checks:
+    - blank_l11_1
+    - blank_l11_2
+    - blank_l11_3
+- id: l12
+  code: L12
+  kind: task
+  title: Ticket prices
+  intro: Kids under 12 pay $5, everyone else pays $10. Fill in the blanks.
+  instructions:
+  - Fill in each blank so the program works.
+  - Read the whole program first, then fill the blanks.
+  response_label: Fill the blanks
+  response_placeholder: ''
+  interaction:
+    type: fill
+    code: |-
+      age = 12
+      if age ____ 12:
+          price = 5
+      ____:
+          price = 10
+      print("Price:", price)
+    blanks:
+    - - "<"
+    - - else
+  transitions:
+  - concept: c2
+    from: 1
+    to: 2
+    checks:
+    - blank_l12_1
+    - blank_l12_2
+- id: l13
+  code: L13
+  kind: task
+  title: Add up the scores
+  intro: This program adds up every score in the list.
+  instructions:
+  - Fill in each blank so the program works.
+  - Read the whole program first, then fill the blanks.
+  response_label: Fill the blanks
+  response_placeholder: ''
+  interaction:
+    type: fill
+    code: |-
+      scores = [70, 85, 92]
+      total = 0
+      for s in ____:
+          total = total + ____
+      print(total)
+    blanks:
+    - - scores
+    - - s
+  transitions:
+  - concept: c3
+    from: 1
+    to: 2
+    checks:
+    - blank_l13_1
+    - blank_l13_2
+- id: l14
+  code: L14
+  kind: task
+  title: Repeat a cheer
+  intro: Print the cheer "Go team!" exactly 4 times.
+  instructions:
+  - Fill in each blank so the program works.
+  - Read the whole program first, then fill the blanks.
+  response_label: Fill the blanks
+  response_placeholder: ''
+  interaction:
+    type: fill
+    code: |-
+      for i in ____(4):
+          ____("Go team!")
+    blanks:
+    - - range
+    - - print
+  transitions:
+  - concept: c3
+    from: 1
+    to: 2
+    checks:
+    - blank_l14_1
+    - blank_l14_2
+- id: l15
+  code: L15
+  kind: task
+  title: Area of a rectangle
+  intro: Finish the function so it returns the area, then print the area of a 3 by 4 rectangle.
+  instructions:
+  - Fill in each blank so the program works.
+  - Read the whole program first, then fill the blanks.
+  response_label: Fill the blanks
+  response_placeholder: ''
+  interaction:
+    type: fill
+    code: |-
+      def area(width, height):
+          ____ width ____ height
+
+      print(____(3, 4))
+    blanks:
+    - - return
+    - - "\\*"
+    - - area
+  transitions:
+  - concept: c4
+    from: 1
+    to: 2
+    checks:
+    - blank_l15_1
+    - blank_l15_2
+    - blank_l15_3
+- id: l16
+  code: L16
+  kind: task
+  title: Function with a default
+  intro: Finish this function that welcomes a member of the {{topic}} club.
+  instructions:
+  - Fill in each blank so the program works.
+  - Read the whole program first, then fill the blanks.
+  response_label: Fill the blanks
+  response_placeholder: ''
+  interaction:
+    type: fill
+    code: |-
+      ____ welcome(name):
+          return "Welcome to the club, " + ____
+
+      print(welcome("Lee"))
+    blanks:
+    - - def
+    - - name
+  transitions:
+  - concept: c4
+    from: 1
+    to: 2
+    checks:
+    - blank_l16_1
+    - blank_l16_2
+- id: l17
+  code: L17
+  kind: task
+  title: Next year's age
+  intro: Now write it yourself. No blanks this time.
+  instructions:
+  - Write a program that asks for the user's name and age.
+  - Print a sentence like "Sam, next year you will be 16."
+  response_label: Your code
+  response_placeholder: |-
+    name = input("Name? ")
+    ...
+  transitions:
+  - concept: c1
+    from: 2
+    to: 3
+    checks:
+    - uses_input
+    - converts
+    - prints
+- id: l18
+  code: L18
+  kind: task
+  title: Ticket booth
+  intro: Write the pricing rules for a {{topic}} event yourself.
+  instructions:
+  - Kids under 12 pay $5, students 12 to 17 pay $8, adults 18 and up pay $12.
+  - Ask for an age and print the price. Make sure 12 and 18 land in the right group.
+  response_label: Your code
+  response_placeholder: |-
+    age = int(input("Age? "))
+    ...
+  transitions:
+  - concept: c2
+    from: 2
+    to: 3
+    checks:
+    - if_elif_else
+    - comparison
+    - edge_value
+- id: l19
+  code: L19
+  kind: task
+  title: How many made the cut?
+  intro: Write it yourself.
+  instructions:
+  - Given scores = [72, 95, 88, 64, 81], count how many scores are 80 or higher.
+  - Print the count.
+  response_label: Your code
+  response_placeholder: |-
+    scores = [72, 95, 88, 64, 81]
+    ...
+  transitions:
+  - concept: c3
+    from: 2
+    to: 3
+    checks:
+    - loop
+    - counter
+    - comparison
+- id: l20
+  code: L20
+  kind: task
+  title: Even or odd
+  intro: Write your own function and use it.
+  instructions:
+  - Write a function is_even(n) that returns True when n is even.
+  - Use it in a loop to print every even number from 1 to 10.
+  response_label: Your code
+  response_placeholder: |-
+    def is_even(n):
+        ...
+  transitions:
+  - concept: c4
+    from: 2
+    to: 3
+    checks:
+    - defines
+    - returns
+    - modulo
+    - loop
+- id: p1
+  code: P1
+  kind: project
+  title: Build a mini quiz game
+  intro: 'Put it all together: build a small quiz game about {{topic}}.'
+  instructions:
+  - Store at least three questions and answers.
+  - Loop through them, ask each one, and check the answer with if.
+  - Use at least one function, and print the final score.
+  response_label: Your code
+  response_placeholder: |-
+    def ask(question, answer):
+        ...
+  transitions: []
+project_level_id: p1
+fallback_sequence:
+- l1
+- l3
+- l5
+- l7
+- l9
+- l11
+- l13
+- l15
+- p1
+practice:
+- id: pp-c1-01
+  concept: c1
+  from: 0
+  to: 1
+  title: Your own variable
+  scenario: Programs remember things in variables.
+  task: 'Write two lines: one that stores your favorite food in a variable, and one that prints it.'
+  tip: food = "..." then print(...)
+- id: pp-c1-12
+  concept: c1
+  from: 1
+  to: 2
+  title: Text vs numbers
+  scenario: print("3" + "4") shows 34, but print(3 + 4) shows 7.
+  task: Explain why, and write a line that turns "3" into a number.
+  tip: Quotes make text.
+- id: pp-c1-23
+  concept: c1
+  from: 2
+  to: 3
+  title: Minutes to hours
+  scenario: A program asks how many minutes you practiced this week.
+  task: Write code that asks for minutes and prints the hours and leftover minutes.
+  tip: "// and % are useful here."
+- id: pp-c2-01
+  concept: c2
+  from: 0
+  to: 1
+  title: Raincoat check
+  scenario: If it's raining, you need a raincoat.
+  task: Write an if statement that prints "Take a raincoat" when raining is True.
+  tip: 'if raining:'
+- id: pp-c2-12
+  concept: c2
+  from: 1
+  to: 2
+  title: Three-way check
+  scenario: A game says "Too low", "Too high", or "Got it!" for a guess.
+  task: Write the if / elif / else for a guess and a secret number.
+  tip: Compare guess to secret with < and >.
+- id: pp-c2-23
+  concept: c2
+  from: 2
+  to: 3
+  title: Boundary hunt
+  scenario: Free shipping applies to orders of $50 or more.
+  task: Write the condition, then list the values you'd test to be sure it's right.
+  tip: Test 49.99, 50, and 50.01.
+- id: pp-c3-01
+  concept: c3
+  from: 0
+  to: 1
+  title: Repeat yourself
+  scenario: You want to print "Practice!" 5 times.
+  task: Write a for loop that does it.
+  tip: 'for i in range(5):'
+- id: pp-c3-12
+  concept: c3
+  from: 1
+  to: 2
+  title: Longest name
+  scenario: names = ["Al", "Jordan", "Mia"]
+  task: Write a loop that finds and prints the longest name.
+  tip: Keep track of the longest so far.
+- id: pp-c3-23
+  concept: c3
+  from: 2
+  to: 3
+  title: Keep asking
+  scenario: A program keeps asking for a password until the user types "open".
+  task: Write it with a while loop.
+  tip: Loop while the answer is not "open".
+- id: pp-c4-01
+  concept: c4
+  from: 0
+  to: 1
+  title: Say it twice
+  scenario: You want a function that prints any message twice.
+  task: Write the function and call it once.
+  tip: 'def twice(message):'
+- id: pp-c4-12
+  concept: c4
+  from: 1
+  to: 2
+  title: Return, don't print
+  scenario: A function should give back the bigger of two numbers.
+  task: Write bigger(a, b) using return, and print bigger(3, 9).
+  tip: return sends the value back to the caller.
+- id: pp-c4-23
+  concept: c4
+  from: 2
+  to: 3
+  title: Reuse it
+  scenario: You need the average of three different lists of scores.
+  task: Write one average function and use it on all three lists.
+  tip: Write it once, call it three times.
+diagnostic:
+  intro: Before you start, answer a few quick questions about reading Python code. This just helps us pick where you start. It is not a test, and nothing here is graded.
+  bank:
+  - id: c1-1a
+    concept: c1
+    stage: 1
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: What does this program print?
+    figure: |-
+      x = 5
+      print(x)
+    options:
+    - id: a
+      text: x
+    - id: b
+      text: '5'
+    - id: c
+      text: x = 5
+    - id: d
+      text: Nothing
+    answer: b
+  - id: c1-2a
+    concept: c1
+    stage: 2
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: What does this program print?
+    figure: |-
+      a = "5"
+      b = "7"
+      print(a + b)
+    options:
+    - id: a
+      text: '57'
+    - id: b
+      text: '12'
+    - id: c
+      text: An error
+    - id: d
+      text: 5 + 7
+    answer: a
+  - id: c1-3a
+    concept: c1
+    stage: 3
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: Why does this program crash when the user types 15?
+    figure: |-
+      age = input("Age? ")
+      print(age + 1)
+    options:
+    - id: a
+      text: input() always returns text, so it must be converted with int() before adding
+    - id: b
+      text: 15 is too big
+    - id: c
+      text: print can't show numbers
+    - id: d
+      text: You can't name a variable age
+    answer: a
+  - id: c2-1a
+    concept: c2
+    stage: 1
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: What does this program print?
+    figure: |-
+      temp = 30
+      if temp > 25:
+          print("Hot")
+      else:
+          print("Cold")
+    options:
+    - id: a
+      text: Hot
+    - id: b
+      text: Cold
+    - id: c
+      text: Both
+    - id: d
+      text: Nothing
+    answer: a
+  - id: c2-2a
+    concept: c2
+    stage: 2
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: What does this program print when score is 80?
+    figure: |-
+      score = 80
+      if score >= 90:
+          print("A")
+      elif score >= 80:
+          print("B")
+      else:
+          print("C")
+    options:
+    - id: a
+      text: A
+    - id: b
+      text: B
+    - id: c
+      text: C
+    - id: d
+      text: Nothing
+    answer: b
+  - id: c2-3a
+    concept: c2
+    stage: 3
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: This should print "Teen" for ages 13 to 19. Which age does it get wrong?
+    figure: |-
+      if age > 12 and age < 19:
+          print("Teen")
+    options:
+    - id: a
+      text: '15'
+    - id: b
+      text: '13'
+    - id: c
+      text: '19'
+    - id: d
+      text: '16'
+    answer: c
+  - id: c3-1a
+    concept: c3
+    stage: 1
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: How many times does this print "Hi"?
+    figure: |-
+      for i in range(3):
+          print("Hi")
+    options:
+    - id: a
+      text: '2'
+    - id: b
+      text: '3'
+    - id: c
+      text: '4'
+    - id: d
+      text: Forever
+    answer: b
+  - id: c3-2a
+    concept: c3
+    stage: 2
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: What does this program print?
+    figure: |-
+      total = 0
+      for n in [1, 2, 3]:
+          total = total + n
+      print(total)
+    options:
+    - id: a
+      text: '6'
+    - id: b
+      text: '123'
+    - id: c
+      text: '3'
+    - id: d
+      text: '0'
+    answer: a
+  - id: c3-3a
+    concept: c3
+    stage: 3
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: What is wrong with this loop?
+    figure: |-
+      n = 5
+      while n > 0:
+          print(n)
+    options:
+    - id: a
+      text: It never stops, because n never changes
+    - id: b
+      text: It prints nothing
+    - id: c
+      text: It counts by 2
+    - id: d
+      text: Nothing is wrong
+    answer: a
+  - id: c4-1a
+    concept: c4
+    stage: 1
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: What does this program print?
+    figure: |-
+      def greet(name):
+          return "Hi " + name
+
+      print(greet("Sam"))
+    options:
+    - id: a
+      text: Hi Sam
+    - id: b
+      text: greet
+    - id: c
+      text: Hi name
+    - id: d
+      text: An error
+    answer: a
+  - id: c4-2a
+    concept: c4
+    stage: 2
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: What does this program print?
+    figure: |-
+      def double(n):
+          return n * 2
+
+      x = double(5)
+      print(x)
+    options:
+    - id: a
+      text: None
+    - id: b
+      text: '10'
+    - id: c
+      text: '5'
+    - id: d
+      text: double
+    answer: b
+  - id: c4-3a
+    concept: c4
+    stage: 3
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: Why does this print None?
+    figure: |-
+      def double(n):
+          print(n * 2)
+
+      result = double(5)
+      print(result)
+    options:
+    - id: a
+      text: The function prints the result but does not return it
+    - id: b
+      text: 5 times 2 is None
+    - id: c
+      text: print can't show function results
+    - id: d
+      text: double is a reserved word
+    answer: a

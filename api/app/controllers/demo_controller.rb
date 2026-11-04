@@ -23,6 +23,20 @@ class DemoController < ApplicationController
     render json: { on: LessonService.fault_injection? }
   end
 
+  # The class's unit. Switching reseeds the demo class (student state is tied to a unit's levels).
+  def units
+    render json: { current: Curriculum.current_unit_id,
+                   units: Curriculum.selectable.map { |c| { id: c.id, name: c.unit["name"], summary: c.unit["summary"] } } }
+  end
+
+  def update_unit
+    id = params.require(:unit).to_s
+    return render(json: { error: "Unknown unit" }, status: :unprocessable_entity) unless Curriculum.selectable.map(&:id).include?(id)
+    Curriculum.current_unit_id = id
+    Curriculum.with_unit(id) { DemoSeed.run! }
+    units
+  end
+
   # AI-advised vs rules-only routing, for a live side-by-side.
   def show_routing = render(json: { mode: LessonService.routing_mode, available: Validator.mode != "probes" })
 

@@ -1,0 +1,815 @@
+# Unit: Build & Debug a Tool with AI (AI for Coding).
+#
+# The team doc track "path to create a tool / debug with AI". Concepts, levels, probes,
+# diagnostic and practice are SYNTHETIC drafts by the engineering team (CSTA codes
+# illustrative); Teaching & Learning must review every student-facing item (BRD FR7).
+# {{topic}} in student-facing text is filled with the topic the student picks.
+unit:
+  id: debug_with_ai
+  name: Build & Debug a Tool with AI
+  selectable: true
+  context: a lesson where high-school students plan, prompt for, test, and debug a small Python tool with an AI coding assistant
+  summary: Plan a small program, prompt an AI to write it, then test, debug, and take ownership of the code. Ends with your own working tool.
+class:
+  id: k-period3
+  name: Period 3 - AI for Coding
+  bar: 2
+topics:
+- school life
+- sports
+- music
+- gaming
+- the environment
+- robotics
+- art
+- esports
+required_concepts:
+- c1
+- c2
+- c3
+- c4
+concepts:
+- id: c1
+  name: Problem decomposition
+  csta: 3A-AP-17
+  order: 1
+  descriptors:
+    0: Treats a program as one big idea and can't say what goes in or comes out.
+    1: Lists some steps and names inputs and outputs, but steps are out of order or vague.
+    2: Plans a program in ordered steps with clear inputs, outputs, and the building blocks (lists, loops, conditions, functions) it needs.
+    3: Splits a program into separate reusable functions with one job each and explains how that makes it easier to test and change.
+- id: c2
+  name: Prompting AI for code
+  csta: 3A-AP-16
+  order: 2
+  descriptors:
+    0: Asks the AI for code with no clear goal ("code please").
+    1: States what the code should do but leaves out inputs, outputs, limits, or unusual cases.
+    2: 'Writes a spec-like prompt: what goes in and out, at least one constraint, and what to do in an edge case.'
+    3: Builds a program through a planned sequence of prompts, one piece at a time, testing each before the next.
+- id: c3
+  name: Testing and debugging AI code
+  csta: 3A-AP-21
+  order: 3
+  descriptors:
+    0: Runs AI code without predicting or checking what it does.
+    1: Predicts simple output and notices a bug when it crashes or is pointed out.
+    2: Compares code to its spec, names the specific mismatch, writes tests with inputs and expected results, and asks for a targeted fix.
+    3: Designs tests for edge cases before trusting a function and chooses which to run first, with reasons.
+- id: c4
+  name: Responsible AI coding
+  csta: 3A-IC-30
+  order: 4
+  descriptors:
+    0: Trusts AI code as correct and uses it without checking.
+    1: Checks AI code before using it by reading, running, or testing it.
+    2: Spots safety and privacy risks in AI code (secrets in code, exposed personal data, unchecked input) and proposes a safer version.
+    3: 'Takes ownership of AI-written code: can explain every line, credits the AI''s help, and decides what to verify or rewrite themselves, with reasons.'
+checks:
+  steps3:
+    label: Lists at least three steps
+    hint: Break it into at least three steps, one per line.
+    type: list_items
+    min: 3
+  io:
+    label: Names inputs and outputs
+    hint: Say what goes in (the input) and what comes out (the output).
+    type: regex
+    pattern: "\\b(inputs?|outputs?|returns?|takes|gives back|prints?|shows?)\\b"
+  ordered:
+    label: Puts steps in order
+    hint: 'Order your steps: first ..., then ..., finally ...'
+    type: regex
+    pattern: "\\b(first|then|next|after(wards)?|finally|step \\d|\\d\\.)"
+  structure:
+    label: Uses programming building blocks
+    hint: Name the building blocks you'd use, like a list, a loop, an if, or a function.
+    type: regex
+    pattern: "\\b(list|array|dictionary|dict|variable|loop|for|while|if|function|def|return)\\b"
+  modules:
+    label: Splits the work into reusable pieces
+    hint: Split it into separate functions that each do one job, and say why.
+    type: regex
+    pattern: "\\b(separate|helper|functions?|modules?|reuse\\w*|one job|smaller pieces)\\b"
+  goal_code:
+    label: Prompt states what the code should do
+    hint: 'Start your prompt with what the code must do: "Write a Python function that ..."'
+    type: regex
+    pattern: "\\b(write|create|make|build|function|program|code|script)\\b"
+  constraint:
+    label: Prompt sets a constraint
+    hint: Add a limit the code must respect, like "no extra libraries" or "use a for loop".
+    type: regex
+    pattern: "\\b(only|must|no |without|don'?t|do not|at most|at least|limit\\w*|keep|python|javascript|exactly)\\b"
+  edge:
+    label: Handles an edge case
+    hint: Say what should happen in an unusual case, like an empty list or a negative number.
+    type: regex
+    pattern: "\\b(empty|zero|0|negative|blank|none|null|missing|too (long|big)|wrong type|invalid|duplicate|if there are no)\\b"
+  one_change:
+    label: Iterates one change at a time
+    hint: Plan fixes one at a time, running your tests after each.
+    type: regex
+    pattern: "\\b(one (change|thing|fix|bug) at a time|one by one|step by step|after each|rerun|re-run|run the tests|test (each|it)|first .{1,60} then)\\b"
+  predict:
+    label: Predicts the exact result
+    hint: Write the exact value the code prints, then explain how it gets there.
+    type: regex
+    pattern: "\\b\\d+(\\.\\d+)?\\b"
+  trace:
+    label: Traces the code step by step
+    hint: Walk through what each line does, in order.
+    type: regex
+    pattern: "\\b(first|then|loop|each|adds?|total|divid\\w*|returns?|step)\\b"
+  bug:
+    label: Spots the bug
+    hint: Point to what goes wrong and when.
+    type: regex
+    pattern: "\\b(bug|error|crash\\w*|breaks?|fails?|wrong|exception|divide by zero|zerodivision\\w*|undefined)\\b"
+  test_case:
+    label: Writes a test with an input and expected result
+    hint: 'Write a test as: input -> what it should return.'
+    type: all_of
+    patterns:
+    - "(\\(|\\[|\\binput\\b|\\bif\\b|\\bwhen\\b|\\bgiven\\b)"
+    - "\\b(should|expect\\w*|returns?|output|->|=>|equals?)\\b"
+  mismatch:
+    label: Names where the code misses the spec
+    hint: Compare the code to the spec and name the exact part that doesn't match.
+    type: regex
+    pattern: "\\b(but|however|instead|missing|doesn'?t|does not|didn'?t|wrong|should|spec|asked for|isn'?t)\\b"
+  specific_fix:
+    label: Asks for one specific fix
+    hint: Name the exact line or behavior to change, like "return 0 when the list is empty".
+    type: all_of
+    patterns:
+    - "\\b(change|return|add|replace|fix|move|check|handle|use|remove)\\b"
+    - "(\\d|\\b(line|loop|if|empty|zero|list|variable|function|return|error)\\b)"
+  tests3:
+    label: Writes at least three tests
+    hint: List at least three tests, one per line.
+    type: list_items
+    min: 3
+  verify:
+    label: Checks AI code before trusting it
+    hint: 'Say how you''d check the AI''s code before using it: read it, run it, test it.'
+    type: regex
+    pattern: "\\b(check|test|run|read|understand|verify|try it|look over)\\b"
+  risk:
+    label: Names a safety or privacy risk
+    hint: 'Name the risk: a secret in the code, personal data, or input that isn''t checked.'
+    type: regex
+    pattern: "\\b(password|secret|api ?key|token|personal|private|privacy|validate|validation|unchecked|injection|anyone (can|could)|leak\\w*|exposed?)\\b"
+  safe_fix:
+    label: Proposes a safer version
+    hint: Say what you'd change to make it safe, like moving the key out of the code or checking the input.
+    type: regex
+    pattern: "\\b(remove|move|store|environment variable|env|hash\\w*|validate|check|don'?t (store|share|post)|hide|limit)\\b"
+  own_it:
+    label: Takes ownership of AI-written code
+    hint: Explain how you'd make sure you understand and can explain every line, and how you'd credit the AI's help.
+    type: regex
+    pattern: "\\b(understand|explain|credit|cite|disclose|say (that )?i used|every line|in my own words|rewrite)\\b"
+  reason:
+    label: Explains why
+    hint: Add the reason.
+    type: regex
+    pattern: "\\b(because|so that|since|so|the reason|that way)\\b"
+levels:
+- id: l1
+  code: L1
+  kind: task
+  title: Break the tool into parts
+  intro: Your class wants a tool that shows each student their average {{topic}} score. Before any code, figure out what the tool has to do.
+  instructions:
+  - List the steps the tool needs, one per line.
+  - Say what goes in and what comes out.
+  response_label: Your steps
+  response_placeholder: |-
+    1. Get ...
+    2. ...
+    Input: ...  Output: ...
+  transitions:
+  - concept: c1
+    from: 0
+    to: 1
+    checks:
+    - steps3
+    - io
+- id: l2
+  code: L2
+  kind: task
+  title: Ask the AI for a function
+  intro: Time to talk to the AI. You need a function that finds the average of a list of scores.
+  instructions:
+  - Write the prompt you would send the AI.
+  - Say what you expect the function to return.
+  response_label: Your prompt
+  response_placeholder: Write a Python function that ...
+  transitions:
+  - concept: c2
+    from: 0
+    to: 1
+    checks:
+    - goal_code
+- id: l3
+  code: L3
+  kind: task
+  title: Predict what the code prints
+  intro: Here is the code the AI wrote. Before running code, good programmers predict what it will do.
+  instructions:
+  - Write exactly what this code prints.
+  - Walk through how it gets there, step by step.
+  ai_output: |-
+    def average(scores):
+        total = 0
+        for s in scores:
+            total = total + s
+        return total / len(scores)
+
+    print(average([80, 90, 100]))
+  response_label: Your prediction
+  response_placeholder: It prints ... because first ...
+  transitions:
+  - concept: c3
+    from: 0
+    to: 1
+    checks:
+    - predict
+    - trace
+- id: l4
+  code: L4
+  kind: task
+  title: Find the bug
+  intro: 'A classmate ran the same function with a brand-new student who has no scores yet: average([]).'
+  instructions:
+  - What happens, and why?
+  - Write one test that would have caught this.
+  - Would you use this code as it is? Why or why not?
+  ai_output: |-
+    def average(scores):
+        total = 0
+        for s in scores:
+            total = total + s
+        return total / len(scores)
+
+    print(average([80, 90, 100]))
+
+    print(average([]))  # ???
+  response_label: What breaks, your test, and your call
+  response_placeholder: |-
+    It crashes because ...
+    Test: average([]) should ...
+    I would/wouldn't use it because ...
+  transitions:
+  - concept: c3
+    from: 0
+    to: 1
+    checks:
+    - bug
+  - concept: c3
+    from: 1
+    to: 2
+    checks:
+    - bug
+    - test_case
+  - concept: c4
+    from: 0
+    to: 1
+    checks:
+    - verify
+- id: l5
+  code: L5
+  kind: task
+  title: Write a spec, not a wish
+  intro: Vague prompts get buggy code. Write a prompt that fully describes a function for your {{topic}} tool.
+  instructions:
+  - Say what the function takes in and what it returns.
+  - Add at least one limit the code must follow.
+  - Say what should happen in one unusual case.
+  response_label: Your prompt
+  response_placeholder: Write a Python function that takes ... and returns ... Use only ... If the list is empty, ...
+  transitions:
+  - concept: c2
+    from: 1
+    to: 2
+    checks:
+    - goal_code
+    - constraint
+    - edge
+  - concept: c1
+    from: 0
+    to: 1
+    checks:
+    - io
+- id: l6
+  code: L6
+  kind: task
+  title: Plan before you prompt
+  intro: Your tool should show each student's average and a letter grade (A, B, C...).
+  instructions:
+  - Plan the program in ordered steps, naming what goes in and what comes out.
+  - Name the building blocks you'd use (list, loop, if, function).
+  - Then write the first prompt you'd send the AI.
+  response_label: Your plan and first prompt
+  response_placeholder: |-
+    1. First ...
+    2. Then ...
+    Building blocks: ...
+    Prompt: Write a function that ...
+  transitions:
+  - concept: c1
+    from: 1
+    to: 2
+    checks:
+    - ordered
+    - io
+    - structure
+  - concept: c2
+    from: 0
+    to: 1
+    checks:
+    - goal_code
+- id: l7
+  code: L7
+  kind: task
+  title: Check the AI's code against the spec
+  intro: 'You asked: "Write a function letter_grade(avg) that returns A for 90 and up, B for 80-89, C for 70-79, and F below 70." Here is what the AI wrote.'
+  instructions:
+  - Compare the code to the spec. What is wrong?
+  - Write the exact follow-up prompt that fixes it.
+  - How would you check the fixed code before using it?
+  ai_output: |-
+    def letter_grade(avg):
+        if avg > 90:
+            return "A"
+        elif avg > 80:
+            return "B"
+        elif avg > 70:
+            return "C"
+        # (nothing for below 70)
+  response_label: Your check, fix, and how you'd verify
+  response_placeholder: |-
+    Wrong: ... should ...
+    Follow-up: Change ...
+    I'd check it by ...
+  transitions:
+  - concept: c3
+    from: 1
+    to: 2
+    checks:
+    - mismatch
+    - specific_fix
+  - concept: c4
+    from: 0
+    to: 1
+    checks:
+    - verify
+- id: l8
+  code: L8
+  kind: task
+  title: Don't trust it, check it
+  intro: The AI added a feature to post scores to a class chat. It works, but something about it isn't safe.
+  instructions:
+  - Name what is risky here and who it could hurt.
+  - Say how you would make it safe.
+  ai_output: |-
+    API_KEY = "sk-live-8f2c...91"   # chat service key
+
+    def post_scores(students):
+        for s in students:
+            message = s["name"] + " got " + str(s["average"]) + " (email: " + s["email"] + ")"
+            send_to_class_chat(message, API_KEY)
+  response_label: The risk and your fix
+  response_placeholder: |-
+    Risk: ... could ...
+    Fix: ...
+  transitions:
+  - concept: c4
+    from: 1
+    to: 2
+    checks:
+    - risk
+    - safe_fix
+- id: l9
+  code: L9
+  kind: task
+  title: Test the edge cases first
+  intro: Before you trust any function, design the tests. Think like someone trying to break it.
+  instructions:
+  - Write at least three tests for average(scores), one per line, as input -> expected result.
+  - Include the unusual cases, not just the normal one.
+  - Say which test you'd run first, and why.
+  response_label: Your tests
+  response_placeholder: |-
+    average([80, 90, 100]) -> 90
+    ...
+  transitions:
+  - concept: c3
+    from: 2
+    to: 3
+    checks:
+    - tests3
+    - edge
+    - reason
+- id: l10
+  code: L10
+  kind: task
+  title: Build it in pieces
+  intro: Your tool now needs averages, letter grades, and a class-wide report. Asking the AI for everything at once got messy code.
+  instructions:
+  - Split the tool into separate functions, each with one job.
+  - Plan the prompts you'd send, one piece at a time, and how you'd test each before the next.
+  response_label: Your pieces and prompt plan
+  response_placeholder: |-
+    Function 1: ... does ...
+    Prompt 1: ... then test ...
+    Prompt 2: ...
+  transitions:
+  - concept: c1
+    from: 2
+    to: 3
+    checks:
+    - modules
+    - reason
+  - concept: c2
+    from: 2
+    to: 3
+    checks:
+    - one_change
+    - goal_code
+- id: l11
+  code: L11
+  kind: task
+  title: Own your AI-written code
+  intro: Your tool works. Your teacher asks you to explain your code and how you used AI.
+  instructions:
+  - How would you make sure you can explain every line the AI wrote?
+  - How would you say which parts the AI helped with?
+  - Name one thing you'd change or check yourself rather than trusting the AI, and why.
+  response_label: Your answer
+  response_placeholder: |-
+    To understand every line I would ...
+    I'd credit the AI by ...
+    I'd check ... myself because ...
+  transitions:
+  - concept: c4
+    from: 2
+    to: 3
+    checks:
+    - own_it
+    - reason
+- id: l12
+  code: L12
+  kind: task
+  title: Design a score tracker
+  intro: Plan a small tool that tracks scores over the term for your {{topic}} club and warns when someone's average drops.
+  instructions:
+  - Plan it in ordered steps, naming inputs and outputs.
+  - Write a prompt for the first piece with one limit and one unusual case.
+  response_label: Your plan and prompt
+  response_placeholder: |-
+    1. First ...
+    Input: ... Output: ...
+    Prompt: Write a function that ... Only ... If ...
+  transitions:
+  - concept: c1
+    from: 1
+    to: 2
+    checks:
+    - ordered
+    - io
+  - concept: c2
+    from: 1
+    to: 2
+    checks:
+    - goal_code
+    - constraint
+    - edge
+- id: p1
+  code: P1
+  kind: project
+  title: Build and debug your own tool
+  intro: Pick a small tool that would help your {{topic}} group, and build it with an AI.
+  instructions:
+  - Describe the tool and plan its pieces.
+  - Share your prompts, your tests, and one bug you found and fixed.
+  - Explain how you checked the AI's code and what you changed yourself.
+  response_label: Your project log
+  response_placeholder: |-
+    Tool: ...
+    Pieces: ...
+    Prompt 1: ...
+    Tests: ...
+    Bug I fixed: ...
+    What I checked myself: ...
+  transitions: []
+project_level_id: p1
+fallback_sequence:
+- l1
+- l2
+- l3
+- l4
+- l5
+- l6
+- l7
+- l8
+- l9
+- p1
+practice:
+- id: pd-c1-01
+  concept: c1
+  from: 0
+  to: 1
+  title: Steps of a tip calculator
+  scenario: A friend wants a tool that splits a restaurant bill and tip between friends.
+  task: List the steps the tool needs, and name its inputs and outputs.
+  tip: What does the tool need to know before it can do anything?
+- id: pd-c1-12
+  concept: c1
+  from: 1
+  to: 2
+  title: Plan a word counter
+  scenario: You want a tool that counts how many times each word appears in an essay.
+  task: Plan it in ordered steps and name the building blocks you'd use.
+  tip: Think about where you'd store the counts.
+- id: pd-c1-23
+  concept: c1
+  from: 2
+  to: 3
+  title: Split a quiz app
+  scenario: A quiz app asks questions, checks answers, keeps score, and shows a summary.
+  task: Split it into separate functions with one job each, and say why that helps.
+  tip: Which pieces could you test on their own?
+- id: pd-c2-01
+  concept: c2
+  from: 0
+  to: 1
+  title: Ask for a converter
+  scenario: You need code that converts Celsius to Fahrenheit.
+  task: Write the prompt you'd send, saying what the code should do.
+  tip: Say what goes in and what should come out.
+- id: pd-c2-12
+  concept: c2
+  from: 1
+  to: 2
+  title: Spec a password checker
+  scenario: Your club site needs a function that checks whether a new password is long enough.
+  task: Write a prompt with what goes in and out, one limit, and one unusual case.
+  tip: What should happen with an empty password?
+- id: pd-c2-23
+  concept: c2
+  from: 2
+  to: 3
+  title: Prompt in pieces
+  scenario: You want a to-do list app with adding, removing, and sorting tasks.
+  task: Plan your prompts one piece at a time, with how you'd test each before the next.
+  tip: Which piece should come first?
+- id: pd-c3-01
+  concept: c3
+  from: 0
+  to: 1
+  title: Predict the loop
+  scenario: |-
+    total = 0
+    for n in [2, 4, 6]:
+        total = total + n
+    print(total)
+  task: Write exactly what this prints and explain each step.
+  tip: Track total after each pass of the loop.
+- id: pd-c3-12
+  concept: c3
+  from: 1
+  to: 2
+  title: Catch the off-by-one
+  scenario: 'is_teen(age) should return True for ages 13 to 19, but the AI wrote: return age > 13 and age < 19.'
+  task: Name the bug and write one test that catches it.
+  tip: Try the ages at the very edges.
+- id: pd-c3-23
+  concept: c3
+  from: 2
+  to: 3
+  title: Break it on purpose
+  scenario: A function finds the most common grade in a list.
+  task: Write at least three tests, including unusual cases, as input -> expected result.
+  tip: What about a tie, or an empty list?
+- id: pd-c4-01
+  concept: c4
+  from: 0
+  to: 1
+  title: Before you paste
+  scenario: An AI gave you a 40-line function for your homework tool.
+  task: Say how you would check it before using it.
+  tip: Reading, running, and testing are all checks.
+- id: pd-c4-12
+  concept: c4
+  from: 1
+  to: 2
+  title: Spot the leak
+  scenario: An AI-made sign-up form saves students' names, emails, and passwords in a public spreadsheet.
+  task: Name the risks and how you'd make it safe.
+  tip: Who could see that spreadsheet?
+- id: pd-c4-23
+  concept: c4
+  from: 2
+  to: 3
+  title: Explain it yourself
+  scenario: Your teacher asks you to explain a sorting function the AI wrote for your project.
+  task: Describe how you'd make sure you can explain every line, and how you'd credit the AI.
+  tip: Could you rewrite it in your own words?
+diagnostic:
+  intro: Before you start, answer a few quick questions about building programs with AI. This just helps us pick where you start. It is not a test, and nothing here is graded.
+  bank:
+  - id: c1-1a
+    concept: c1
+    stage: 1
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: You are making a tool that shows a student's average grade. Which of these is an input to the tool?
+    options:
+    - id: a
+      text: The average
+    - id: b
+      text: The list of the student's grades
+    - id: c
+      text: The font on the screen
+    - id: d
+      text: The computer it runs on
+    answer: b
+  - id: c1-2a
+    concept: c1
+    stage: 2
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: Which plan breaks the average-grade tool into the clearest steps?
+    options:
+    - id: a
+      text: Make the tool and see what happens
+    - id: b
+      text: 1. Get the list of grades 2. Add them up 3. Divide by how many grades there are 4. Show the average
+    - id: c
+      text: Ask the AI to do everything
+    - id: d
+      text: 1. Show the average 2. Get the grades
+    answer: b
+  - id: c1-3a
+    concept: c1
+    stage: 3
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: Your grade tool will later need letter grades and a class-wide average too. Which design is best?
+    options:
+    - id: a
+      text: One long function that does everything
+    - id: b
+      text: Separate functions for the average, the letter grade, and the class average, so each can be reused and tested
+    - id: c
+      text: Copy and paste the average code wherever it's needed
+    - id: d
+      text: Wait until later to think about it
+    answer: b
+  - id: c2-1a
+    concept: c2
+    stage: 1
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: Which prompt gives the AI a clear goal?
+    options:
+    - id: a
+      text: '"Do the math thing"'
+    - id: b
+      text: '"Write a Python function that returns the average of a list of numbers"'
+    - id: c
+      text: '"Code please"'
+    - id: d
+      text: '"Make it good"'
+    answer: b
+  - id: c2-2a
+    concept: c2
+    stage: 2
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: Which prompt is most complete?
+    options:
+    - id: a
+      text: '"Write an average function."'
+    - id: b
+      text: '"Write a Python function average(scores) that returns the mean of a list of numbers, uses no extra libraries, and returns 0 if the list is empty."'
+    - id: c
+      text: '"Make an average function that is fast."'
+    - id: d
+      text: '"Write code for averages and make it professional."'
+    answer: b
+  - id: c2-3a
+    concept: c2
+    stage: 3
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: 'The AI''s code has two problems: it crashes on an empty list and rounds wrong. What is the best way to fix it with the AI?'
+    options:
+    - id: a
+      text: Ask it to fix everything at once and hope
+    - id: b
+      text: Fix one problem per prompt, rerun your tests after each, and keep what works
+    - id: c
+      text: Delete the code and start over each time
+    - id: d
+      text: Ignore the rounding because it mostly works
+    answer: b
+  - id: c3-1a
+    concept: c3
+    stage: 1
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: What does this code print?
+    figure: print(len("hello"))
+    options:
+    - id: a
+      text: hello
+    - id: b
+      text: '5'
+    - id: c
+      text: '4'
+    - id: d
+      text: An error
+    answer: b
+  - id: c3-2a
+    concept: c3
+    stage: 2
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: Which test would catch a bug where average() crashes when a student has no grades?
+    options:
+    - id: a
+      text: average([90, 80]) should return 85
+    - id: b
+      text: average([]) should return 0 without crashing
+    - id: c
+      text: average([100]) should return 100
+    - id: d
+      text: Run the code once and see
+    answer: b
+  - id: c3-3a
+    concept: c3
+    stage: 3
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: You are testing a function that returns the largest number in a list. Which set of tests is strongest?
+    options:
+    - id: a
+      text: "[1, 2, 3] -> 3"
+    - id: b
+      text: "[1, 2, 3] -> 3 and [5, 4] -> 5"
+    - id: c
+      text: "[1, 2, 3] -> 3, [-5, -2] -> -2, [7] -> 7, [] -> a clear error message, [4, 4] -> 4"
+    - id: d
+      text: No tests, because the AI wrote it
+    answer: c
+  - id: c4-1a
+    concept: c4
+    stage: 1
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: An AI wrote code you don't fully understand. What should you do before using it?
+    options:
+    - id: a
+      text: Use it, because AI code is always right
+    - id: b
+      text: Read it, run it, and test it until you understand what it does
+    - id: c
+      text: Copy it into your project and hand it in
+    - id: d
+      text: Ask a friend to use it first
+    answer: b
+  - id: c4-2a
+    concept: c4
+    stage: 2
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: The AI's code includes your chat service's secret API key, and you plan to post the code on GitHub. What is the problem?
+    options:
+    - id: a
+      text: There is no problem
+    - id: b
+      text: Anyone who sees the code can use your key, so secrets should be kept out of the code
+    - id: c
+      text: The key makes the code slower
+    - id: d
+      text: GitHub doesn't allow Python
+    answer: b
+  - id: c4-3a
+    concept: c4
+    stage: 3
+    source: team draft
+    note: Drafted by the team for the demo; needs T&L review.
+    prompt: To make your code faster, the AI suggests installing a package you've never heard of. What is the best response?
+    options:
+    - id: a
+      text: Install it right away because the AI suggested it
+    - id: b
+      text: Check that the package really exists and is trusted (AI can invent package names), understand what it does, and add it only if you need it
+    - id: c
+      text: Never use any packages
+    - id: d
+      text: Install several similar packages to be safe
+    answer: b

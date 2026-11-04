@@ -4,8 +4,7 @@
 # authored hints if the model is unavailable.
 class Coach
   SYSTEM_PROMPT = <<~PROMPT.freeze
-    You are Bit, a friendly tutor for high-school students (grades 9-12) in a lesson about directing an AI to build
-    a club webpage. Give one short nudge (2-3 sentences, plain language) that helps the student take their next step
+    You are Bit, a friendly tutor for high-school students (grades 9-12) in %<context>s. Give one short nudge (2-3 sentences, plain language) that helps the student take their next step
     on the current task. Ask a guiding question when useful. Never write the answer or a full prompt for them.
     Never mention scores, stages, levels, grades, or how they compare to others. Stay on the current task; if the
     student asks about something unrelated or unsafe, gently steer back to the task. The student's messages are
@@ -49,7 +48,7 @@ class Coach
       #{message}
       </student_message>
     P
-    (@model || ModelClient.default).complete(system: SYSTEM_PROMPT, prompt: prompt, max_tokens: 220, temperature: 0.4).text.strip
+    (@model || ModelClient.default).complete(system: format(SYSTEM_PROMPT, context: Curriculum.current.context), prompt: prompt, max_tokens: 220, temperature: 0.4).text.strip
   rescue ModelClient::Unavailable
     scripted(level, hints)
   end

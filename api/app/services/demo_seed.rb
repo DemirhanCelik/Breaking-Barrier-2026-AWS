@@ -18,7 +18,9 @@ module DemoSeed
   end
 
   def seed!
-    Db.execute("TRUNCATE practice_attempt, practice_item, filter_event, route_decision, validation_result, submission, diagnostic_result, mastery_state, student_progress, enrollment, klass, app_user, app_setting")
+    Db.execute("TRUNCATE practice_attempt, practice_item, filter_event, route_decision, validation_result, submission, diagnostic_result, mastery_state, student_progress, enrollment, klass, app_user")
+    # Keep class settings (unit, routing mode); clear demo switches like fault injection.
+    Db.execute("DELETE FROM app_setting WHERE key NOT IN ('unit', 'routing')")
     cur = Curriculum.current
     insert_user(TEACHER[:id], TEACHER[:name], "teacher")
     Db.execute("INSERT INTO klass (id, teacher_id, name, bar_stage) VALUES (:id, :t, :name, :bar)",

@@ -215,6 +215,9 @@ export const MIGRATION_STATEMENTS: string[] = [
   `ALTER TABLE route_decision ADD COLUMN IF NOT EXISTS advisor_json jsonb`,
   // Quiet formative signals per submission (time on step, edit sessions, pastes).
   `ALTER TABLE submission ADD COLUMN IF NOT EXISTS signals_json jsonb`,
+  // Multiple units: the student's chosen topic, and which unit an authored item belongs to.
+  `ALTER TABLE student_progress ADD COLUMN IF NOT EXISTS topic text`,
+  `ALTER TABLE content_item ADD COLUMN IF NOT EXISTS unit text`,
 ];
 
 /** All DDL in execution order: base tables first, then migrations. */

@@ -13,8 +13,11 @@
 #                 or at least `min + 1` comma-separated chunks
 
 unit:
-  id: ai-generated-design
-  name: "AI-Generated Design: Robotics Club Page"
+  id: ai_generated_design
+  name: "AI-Generated Design: Robotics Club Page (benchmark unit)"
+  # Kept for the M5 benchmark (its items were written for these levels); not offered to teachers.
+  selectable: false
+  context: a lesson about directing an AI to build a club webpage
 
 class:
   id: k-period3

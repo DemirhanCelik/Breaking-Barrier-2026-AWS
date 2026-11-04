@@ -11,6 +11,7 @@ Rails.application.routes.draw do
       post "levels/:level_id/submissions", action: :create_submission
       get "submissions/:id", action: :show_submission
       post "depth", action: :depth
+      post "topic", action: :topic
       post "levels/:level_id/assistant", action: :assistant
       post "levels/:level_id/practice", action: :create_practice
       post "practice/:id/answers", action: :answer_practice
@@ -31,6 +32,8 @@ Rails.application.routes.draw do
       get "users", action: :users
       get "fault", action: :show_fault
       post "fault", action: :update_fault
+      get "units", action: :units
+      post "unit", action: :update_unit
       get "routing", action: :show_routing
       post "routing", action: :update_routing
       post "reset", action: :reset

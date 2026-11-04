@@ -3,7 +3,7 @@
 class StudentRecord
   attr_reader :id, :display_name
   attr_accessor :mode, :stages, :level_status, :depth_choice, :diagnostic, :current_level_id,
-                :completed_order, :complete, :flags, :transition_fails, :last_response
+                :completed_order, :complete, :flags, :transition_fails, :last_response, :topic
 
   # Epoch milliseconds (no colons in SQL literals, which the Data API could read as params).
   TS = "CAST(floor(extract(epoch FROM created_at) * 1000) AS bigint) AS at_ms"
@@ -38,15 +38,16 @@ class StudentRecord
   def save!
     Db.execute(<<~SQL, **progress_params)
       INSERT INTO student_progress (student_id, mode, current_level_id, depth_choice, complete,
-        level_status_json, completed_order_json, transition_fails_json, last_response_json, flags_json, updated_at)
+        level_status_json, completed_order_json, transition_fails_json, last_response_json, flags_json, topic, updated_at)
       VALUES (:id, :mode, :current_level_id, :depth_choice, :complete,
         CAST(:level_status AS jsonb), CAST(:completed_order AS jsonb), CAST(:transition_fails AS jsonb),
-        CAST(:last_response AS jsonb), CAST(:flags AS jsonb), now())
+        CAST(:last_response AS jsonb), CAST(:flags AS jsonb), :topic, now())
       ON CONFLICT (student_id) DO UPDATE SET
         mode = EXCLUDED.mode, current_level_id = EXCLUDED.current_level_id, depth_choice = EXCLUDED.depth_choice,
         complete = EXCLUDED.complete, level_status_json = EXCLUDED.level_status_json,
         completed_order_json = EXCLUDED.completed_order_json, transition_fails_json = EXCLUDED.transition_fails_json,
-        last_response_json = EXCLUDED.last_response_json, flags_json = EXCLUDED.flags_json, updated_at = now()
+        last_response_json = EXCLUDED.last_response_json, flags_json = EXCLUDED.flags_json, topic = EXCLUDED.topic,
+        updated_at = now()
     SQL
     stages.each do |concept, stage|
       Db.execute(<<~SQL, id: id, concept: concept, stage: stage)
@@ -123,6 +124,7 @@ class StudentRecord
     @transition_fails = row["transition_fails_json"] || {}
     @last_response = row["last_response_json"] || {}
     @flags = row["flags_json"] || []
+    @topic = row["topic"]
 
     @stages = Engine.zero_vector
     Db.query("SELECT concept_id, current_stage FROM mastery_state WHERE student_id = :id", id: id)
@@ -134,6 +136,7 @@ class StudentRecord
   def progress_params
     { id: id, mode: mode, current_level_id: current_level_id, depth_choice: depth_choice, complete: complete,
       level_status: Db.json(level_status), completed_order: Db.json(completed_order),
-      transition_fails: Db.json(transition_fails), last_response: Db.json(last_response), flags: Db.json(flags) }
+      transition_fails: Db.json(transition_fails), last_response: Db.json(last_response), flags: Db.json(flags),
+      topic: topic }
   end
 end

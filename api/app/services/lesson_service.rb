@@ -19,16 +19,34 @@ class LessonService
 
   # ---------------------------------------------------------------- student --
 
-  def lesson_state(s)
+  def unit_info = { id: cur.id, name: cur.unit["name"], summary: cur.unit["summary"] }
+
+  def lesson_state(s) = lesson_phase(s).merge(unit: unit_info)
+
+  # Optional first step: pick a topic that personalizes every step ({{topic}}).
+  def choose_topic(s, topic)
+    raise Error.new("That topic is not available.", 422) unless cur.topics.include?(topic.to_s)
+    s.topic = topic.to_s
+    s.save!
+    lesson_state(s)
+  end
+
+  # The student's topic, or the unit's first topic as the default.
+  def topic_for(s) = s.topic.presence || cur.topics.first || "your school"
+
+  def personalize(text, s) = text.is_a?(String) ? text.gsub("{{topic}}", topic_for(s)) : text
+
+  def lesson_phase(s)
+    return { phase: "topic", topics: cur.topics } if cur.topics.any? && s.topic.blank? && !s.diagnostic
     return { phase: "diagnostic" } unless s.diagnostic
     steps = s.completed_order.size
     if s.complete
       message = s.mode == "fallback" ? "You worked through every step for today. Your teacher will pick up from here with you." :
-                                       "You finished the lesson and built your own club page. Great work today."
+                                       "You finished the lesson and built your own project. Great work today."
       return { phase: "complete", stepsCompleted: steps, message: message }
     end
     if s.current_level_id
-      return { phase: "level", level: student_level(s.current_level_id), path: student_path(s), stepsCompleted: steps }
+      return { phase: "level", level: student_level(s.current_level_id, s), path: student_path(s), stepsCompleted: steps }
     end
     r = Engine.route(s.engine_state)
     { phase: "choose-depth", options: r[:kind] == :choose_depth ? r[:options] : [], path: student_path(s), stepsCompleted: steps }
@@ -138,7 +156,7 @@ class LessonService
   # ---------------------------------------------------------------- teacher --
 
   def class_attainment
-    { classId: cur.klass["id"], className: cur.klass["name"], bar: cur.bar, concepts: teacher_concepts,
+    { classId: cur.klass["id"], className: cur.klass["name"], unit: unit_info, bar: cur.bar, concepts: teacher_concepts,
       students: StudentRecord.all_in_class(cur.klass["id"]).map { |s| attainment(s) } }
   end
 
@@ -294,10 +312,21 @@ class LessonService
     s.completed_order << level_id unless s.completed_order.include?(level_id)
   end
 
-  def student_level(level_id)
+  def student_level(level_id, s = nil)
     l = cur.level(level_id)
-    { id: l.id, kind: l.kind, title: l.title, intro: l.intro, instructions: l.instructions, aiOutput: l.ai_output,
-      responseLabel: l.response_label, responsePlaceholder: l.response_placeholder }.compact
+    p = ->(t) { s ? personalize(t, s) : t }
+    { id: l.id, kind: l.kind, title: p.(l.title), intro: p.(l.intro), instructions: l.instructions.map(&p), aiOutput: p.(l.ai_output),
+      responseLabel: p.(l.response_label), responsePlaceholder: p.(l.response_placeholder),
+      interaction: student_interaction(l) }.compact
+  end
+
+  # Scaffolded task types (Intro to Python): never sends the solution order or answers.
+  def student_interaction(l)
+    i = l.interaction or return nil
+    case i["type"]
+    when "parsons" then { type: "parsons", lines: i["lines"].shuffle(random: Random.new(l.id.sum)) }
+    when "fill" then { type: "fill", code: i["code"], blanks: i["blanks"].size }
+    end
   end
 
   def student_path(s)

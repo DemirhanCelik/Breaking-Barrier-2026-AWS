@@ -19,6 +19,7 @@ class StudentController < ApplicationController
   def show_submission = render(json: service.submission(student, params[:id]))
 
   def depth = render(json: service.choose_depth(student, params.require(:optionId).to_s))
+  def topic = render(json: service.choose_topic(student, params.require(:topic).to_s))
 
   def assistant
     # X-Agent-Token: the student's Cognito access token, forwarded to the AgentCore tutor.

@@ -26,10 +26,10 @@ class PracticeService
   ].freeze
 
   GEN_SYSTEM = <<~PROMPT.freeze
-    You write one short formative practice item for a high-school computer science student in a lesson about
-    directing an AI to build a webpage. Follow the constraints exactly:
+    You write one short formative practice item for a high-school computer science student in %<context>s.
+    Follow the constraints exactly:
     - Practice ONLY the given concept at the given target behavior. Do not ask for anything beyond it.
-    - Use the given scenario, not the robotics club page from the lesson.
+    - Use the given scenario, not the project from the lesson itself.
     - The scenario sets the scene in one or two sentences; the task is one clear thing to write.
     - The tip nudges without giving the answer. Never write the answer, a finished prompt, or a full list for them.
     - Plain, friendly language for ages 14-18. Inclusive and safe. No personal information.
@@ -138,7 +138,7 @@ class PracticeService
       Scenario to use: #{SCENARIOS.sample}
       #{missing.any? ? "Their last attempt was missing (focus the practice here, without naming it as a mistake):\n#{missing.map { |h| "- #{h}" }.join("\n")}" : ''}
     P
-    result = (@model || ModelClient.default).complete(system: GEN_SYSTEM, prompt: prompt, max_tokens: 350, temperature: 0.7)
+    result = (@model || ModelClient.default).complete(system: format(GEN_SYSTEM, context: cur.context), prompt: prompt, max_tokens: 350, temperature: 0.7)
     item = ModelJson.parse(result.text).slice(*QualityJudge::FIELDS).transform_values { |v| v.to_s.strip }
     return fallback(t, "generator returned an incomplete item", nil, result.meta) unless QualityJudge::FIELDS.all? { |f| item[f].present? }
 
@@ -159,9 +159,9 @@ class PracticeService
 
   # Approved authoring-queue items first, then the authored bank.
   def fallback(t, reason, quality = nil, meta = nil)
-    approved = Db.query(<<~SQL, c: t.concept, f: t.from).sample
+    approved = Db.query(<<~SQL, c: t.concept, f: t.from, u: cur.id).sample
       SELECT id, title, scenario, task, tip FROM content_item
-      WHERE status = 'approved' AND concept = :c AND from_stage = :f
+      WHERE status = 'approved' AND concept = :c AND from_stage = :f AND (unit = :u OR unit IS NULL)
     SQL
     return [approved.slice(*QualityJudge::FIELDS), "bank", reason, quality, meta, approved["id"]] if approved
 
@@ -170,8 +170,11 @@ class PracticeService
     [authored.slice(*QualityJudge::FIELDS), "authored", reason, quality, meta, authored["id"]]
   end
 
+  # The unit's authored practice (unit YAML `practice:`); the original unit keeps its own file.
   def self.bank
-    @bank ||= YAML.safe_load_file(Rails.root.join("config/curriculum/practice_bank.yml")).fetch("items")
+    cur = Curriculum.current
+    return cur.practice if cur.practice.any?
+    @legacy_bank ||= YAML.safe_load_file(Rails.root.join("config/curriculum/practice_bank.yml")).fetch("items")
   end
 
   def feedback_for(p, response)

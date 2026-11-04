@@ -16,8 +16,8 @@ class InsightsService
 
   MINI_LESSON_SYSTEM = <<~PROMPT.freeze
     You help a high-school computer science teacher run a 5-minute small-group mini-lesson for a few students who
-    share one gap, in a lesson about directing an AI to build a club webpage. Be concrete and classroom-ready.
-    Use a fresh example (not the robotics club page). Do not name or single out students. Never frame it as a test.
+    share one gap, in %<context>s. Be concrete and classroom-ready.
+    Use a fresh example, not the lesson's own project. Do not name or single out students. Never frame it as a test.
     Respond with only JSON:
     {"title":"...","goal":"<one sentence>","warmup":"<one question to open with>","example":"<a short worked example>",
      "tryIt":["<prompt 1>","<prompt 2>"],"check":"<one quick check for understanding>"}
@@ -52,7 +52,7 @@ class InsightsService
       Coaching hint we give students: #{check.hint}
       Concept: #{concept.name}. Target behavior: "#{concept.descriptors[t.to]}"
     P
-    r = ModelClient.default.complete(system: MINI_LESSON_SYSTEM, prompt: prompt, max_tokens: 600, temperature: 0.5)
+    r = ModelClient.default.complete(system: format(MINI_LESSON_SYSTEM, context: cur.context), prompt: prompt, max_tokens: 600, temperature: 0.5)
     data = ModelJson.parse(r.text)
     lesson = {
       title: data["title"].to_s, goal: data["goal"].to_s, warmup: data["warmup"].to_s, example: data["example"].to_s,
