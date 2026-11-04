@@ -5,15 +5,15 @@
 #
 # DEMO_PASSWORD is the shared password of the demo accounts. It ships in the SPA
 # bundle (VITE_DEMO_PASSWORD) for one-click demo sign-in, so treat it as public:
-# never reuse a real password. Pool policy: 12+ chars, upper, lower, digit, symbol.
+# never reuse a real password. Pool policy: 8+ chars with upper, lower and a digit.
 #
 # Each user's preferred_username is the seeded app_user id (api demo_seed.rb), which
 # links the Cognito user to that row on first sign-in. Emails use the reserved
-# .test TLD and invitations are suppressed, so no email is ever sent.
+# .test TLD (<name>@demo.test) and invitations are suppressed, so no email is ever sent.
 # Keep the list in sync with web/src/auth/demoAccounts.ts.
 set -euo pipefail
 
-: "${DEMO_PASSWORD:?Set DEMO_PASSWORD (12+ chars with upper, lower, digit, symbol)}"
+: "${DEMO_PASSWORD:?Set DEMO_PASSWORD (8+ chars with upper, lower and a digit)}"
 REGION=${AWS_REGION:-us-east-1}
 STACK=CodeAiAdaptiveEngineMvp
 POOL=$(aws cloudformation describe-stacks --region "$REGION" --stack-name "$STACK" \
@@ -22,7 +22,7 @@ POOL=$(aws cloudformation describe-stacks --region "$REGION" --stack-name "$STAC
 ACCOUNTS="t-rivera:teacher s-ava:student s-ben:student s-chloe:student s-dev:student s-eli:student s-fay:student s-gus:student"
 
 for entry in $ACCOUNTS; do
-  id=${entry%%:*}; group=${entry##*:}; email="$id@demo.codeai.test"
+  id=${entry%%:*}; group=${entry##*:}; email="${id#?-}@demo.test"
   if ! aws cognito-idp admin-get-user --region "$REGION" --user-pool-id "$POOL" --username "$email" >/dev/null 2>&1; then
     aws cognito-idp admin-create-user --region "$REGION" --user-pool-id "$POOL" --username "$email" \
       --message-action SUPPRESS \
