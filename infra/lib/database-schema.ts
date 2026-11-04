@@ -247,6 +247,10 @@ export const MIGRATION_STATEMENTS: string[] = [
   // Multiple units: the student's chosen topic, and which unit an authored item belongs to.
   `ALTER TABLE student_progress ADD COLUMN IF NOT EXISTS topic text`,
   `ALTER TABLE content_item ADD COLUMN IF NOT EXISTS unit text`,
+  // Bedrock validates text retrieval as well as vector and metadata indexes.
+  // Keep this append-only migration so existing DDL resource ids stay stable.
+  `CREATE INDEX IF NOT EXISTS kb_chunks_fts_idx
+     ON bedrock_kb.kb USING gin (to_tsvector('simple', chunks))`,
 ];
 
 /** All DDL in execution order: base tables first, then migrations. */
