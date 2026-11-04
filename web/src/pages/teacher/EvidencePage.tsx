@@ -144,15 +144,24 @@ export function EvidencePage() {
 
   // M7: from the filter audit log.
   const m7Gaps = audit
-    ? [audit.coverage.submissions, audit.coverage.coaching, audit.coverage.assistantReplies, audit.coverage.practice].reduce(
-        (n, c) => n + c.required - c.checked,
-        0,
-      )
+    ? [
+        audit.coverage.submissions,
+        audit.coverage.coaching,
+        audit.coverage.assistantReplies,
+        audit.coverage.practice,
+      ].reduce((n, c) => n + c.required - c.checked, 0)
     : null;
   const m7Total = audit ? audit.inputs.required + audit.outputs.required : 0;
   const m7 = audit !== null && m7Gaps === 0 && m7Total > 0;
 
   const met = [m1, m2, m3, m4, m6, m7].filter(Boolean).length;
+
+  // AI-advised routing: the advisor only ever picks among rule-approved candidates.
+  const advised = traces.flatMap((t) => t.decisions.filter((d) => d.advisor).map((d) => ({ t, d, a: d.advisor! })));
+  const accepted = advised.filter((x) => x.a.accepted);
+  const differed = accepted.filter((x) => !x.a.agreed);
+  const kept = advised.filter((x) => !x.a.accepted);
+  const outside = accepted.filter((x) => !x.a.candidates.includes(x.a.proposed ?? x.d.levelCode));
 
   return (
     <Box sx={{ flex: 1 }}>
@@ -178,6 +187,25 @@ export function EvidencePage() {
             Refresh
           </Button>
         </Box>
+
+        <Gate
+          id="AI"
+          title="AI-advised routing, guardrailed by the rules"
+          ok={advised.length > 0 ? outside.length === 0 : false}
+          claim="The rules list every level that keeps a student on track to the bar; the AI picks one from the student's evidence and explains why. Picks outside that list are refused."
+          todo="Turn on AI-advised routing in the Demo menu (on by default), then submit as a student."
+        >
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            {advised.length} routing decision(s) advised: {accepted.length - differed.length} same as the rules,{' '}
+            {differed.length} chose differently, {kept.length} kept the rules choice (advisor off-list or unavailable).{' '}
+            <b>Picks outside the rule-approved set: {outside.length}</b>
+          </Typography>
+          {differed.slice(0, 3).map(({ t, d, a }) => (
+            <Typography key={`${t.studentId}-${d.at}`} variant="body2" color="text.secondary">
+              {t.displayName}: {d.levelCode} instead of {a.ruleChoice} (from {a.candidates.join(', ')}). {a.reason}
+            </Typography>
+          ))}
+        </Gate>
 
         <Gate
           id="M1"

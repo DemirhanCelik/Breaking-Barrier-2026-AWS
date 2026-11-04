@@ -41,8 +41,10 @@ function DemoMenu() {
   const controls = authMode === 'cognito' && user?.role !== 'teacher' ? null : demoControls;
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [fault, setFault] = useState(false);
+  const [routing, setRouting] = useState<{ mode: 'advised' | 'rules'; available: boolean } | null>(null);
   useEffect(() => {
     controls?.getFaultInjection().then(setFault).catch(() => setFault(false));
+    controls?.getRoutingMode().then(setRouting).catch(() => setRouting(null));
   }, [controls]);
   if (!controls) return null;
 
@@ -88,6 +90,33 @@ function DemoMenu() {
           />
           <Typography variant="caption" color="text.secondary" display="block">
             The next submission moves the student to the non-adaptive path.
+          </Typography>
+        </Box>
+        <Divider />
+        <Box sx={{ px: 2, py: 1 }}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={routing?.mode === 'advised'}
+                disabled={!routing?.available}
+                onChange={async (e) => {
+                  const mode = e.target.checked ? 'advised' : 'rules';
+                  const prev = routing;
+                  setRouting((r) => (r ? { ...r, mode } : r));
+                  try {
+                    await controls.setRoutingMode(mode);
+                  } catch {
+                    setRouting(prev);
+                  }
+                }}
+              />
+            }
+            label="AI-advised routing"
+          />
+          <Typography variant="caption" color="text.secondary" display="block">
+            {routing?.available
+              ? 'On: AI picks the next level from the levels the rules allow. Off: rules only.'
+              : 'Needs the API with Bedrock. Routing here is rules only.'}
           </Typography>
         </Box>
         <Divider />

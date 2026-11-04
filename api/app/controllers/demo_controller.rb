@@ -23,6 +23,14 @@ class DemoController < ApplicationController
     render json: { on: LessonService.fault_injection? }
   end
 
+  # AI-advised vs rules-only routing, for a live side-by-side.
+  def show_routing = render(json: { mode: LessonService.routing_mode, available: Validator.mode != "probes" })
+
+  def update_routing
+    LessonService.routing_mode = params.require(:mode).to_s
+    show_routing
+  end
+
   def reset
     DemoSeed.run!
     render json: { ok: true }

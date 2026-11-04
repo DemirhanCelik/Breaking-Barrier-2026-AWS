@@ -139,13 +139,27 @@ class LessonService
     end
     base.merge(
       bar: cur.bar, concepts: teacher_concepts, roadmap: roadmap[:steps],
-      decisions: s.decisions.map { |d| { at: StudentRecord.iso(d["at_ms"]), levelCode: d["level_code"], levelTitle: d["level_title"], rule: d["rule"], vector: d["vector_json"] } },
+      decisions: s.decisions.map { |d| { at: StudentRecord.iso(d["at_ms"]), levelCode: d["level_code"], levelTitle: d["level_title"], rule: d["rule"], vector: d["vector_json"], advisor: d["advisor_json"] } },
       validations: s.validations.map { |v| { at: StudentRecord.iso(v["at_ms"]), levelCode: v["level_code"], mode: v["mode"], results: v["results_json"] } },
       practice: PracticeService.new.for_student(s.id),
     )
   end
 
   # ------------------------------------------------------------------ demo --
+
+  # "advised" (AI picks among rule-approved candidates) or "rules". Default from ROUTING_MODE.
+  def self.routing_mode
+    v = Db.query("SELECT value_json FROM app_setting WHERE key = 'routing'").first&.fetch("value_json")
+    %w[advised rules].include?(v) ? v : ENV.fetch("ROUTING_MODE", "advised")
+  end
+
+  def self.routing_mode=(mode)
+    raise Error.new("Routing mode must be advised or rules", 422) unless %w[advised rules].include?(mode)
+    Db.execute(<<~SQL, v: Db.json(mode))
+      INSERT INTO app_setting (key, value_json) VALUES ('routing', CAST(:v AS jsonb))
+      ON CONFLICT (key) DO UPDATE SET value_json = EXCLUDED.value_json
+    SQL
+  end
 
   def self.fault_injection?
     Db.query("SELECT value_json FROM app_setting WHERE key = 'fault'").first&.fetch("value_json") == true
@@ -241,8 +255,14 @@ class LessonService
     case r[:kind]
     when :level
       if s.current_level_id != r[:level_id]
+        advisor = nil
+        if r[:candidates] && RoutingAdvisor.enabled?
+          advised = RoutingAdvisor.new.advise(s, r)
+          r = r.merge(level_id: advised[:level_id], rule: advised[:rule])
+          advisor = advised[:advisor]
+        end
         lvl = cur.level(r[:level_id])
-        s.add_decision!(level_code: lvl.code, level_title: lvl.title, rule: r[:rule])
+        s.add_decision!(level_code: lvl.code, level_title: lvl.title, rule: r[:rule], advisor: advisor)
       end
       s.current_level_id = r[:level_id]
       s.level_status[r[:level_id]] ||= { "attempts" => 0, "status" => "in-progress" }

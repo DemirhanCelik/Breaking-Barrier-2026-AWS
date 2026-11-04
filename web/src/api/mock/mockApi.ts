@@ -689,6 +689,15 @@ export class MockApiClient implements ApiClient, DemoControls {
     return this.store.fault;
   }
 
+  async getRoutingMode() {
+    // The mock has no model, so routing is always rule-based.
+    return { mode: 'rules' as const, available: false };
+  }
+
+  async setRoutingMode() {
+    // No-op: AI-advised routing needs the API with Bedrock.
+  }
+
   async setFaultInjection(on: boolean) {
     this.store.fault = on;
     this.persist();

@@ -406,6 +406,8 @@ export class CodeAiInfraStack extends cdk.Stack {
         // Fault injection + demo reset for teachers (M6 demo). Set to 'false' for real classes.
         DEMO_CONTROLS: 'true',
         VALIDATION_MODE: 'model',
+        // AI picks among rule-approved candidates; the Demo menu can switch to 'rules'.
+        ROUTING_MODE: 'advised',
         ALLOWED_ORIGINS: `https://${distribution.distributionDomainName},http://localhost:5173`,
       },
     });

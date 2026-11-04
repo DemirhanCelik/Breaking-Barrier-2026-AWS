@@ -158,6 +158,24 @@ export interface ClassAttainment {
   students: StudentAttainment[];
 }
 
+/** AI routing advisor record: what it proposed vs what the rules would pick. */
+export interface RouteAdvisor {
+  mode: 'advised';
+  /** Level codes the rules allowed (the advisor must pick one of these). */
+  candidates: string[];
+  ruleChoice: string;
+  proposed?: string;
+  /** True when the advisor's pick was used. */
+  accepted: boolean;
+  /** True when the advisor picked the same level as the rules. */
+  agreed?: boolean;
+  /** Teacher-facing reason from the advisor. */
+  reason?: string;
+  /** Why the rules choice was used instead (off-list pick, model down, one candidate). */
+  note?: string;
+  latencyMs?: number;
+}
+
 export interface RouteDecision {
   at: string;
   levelCode: string;
@@ -165,6 +183,7 @@ export interface RouteDecision {
   /** Human-readable rule that produced this decision (NFR4 auditability). */
   rule: string;
   vector: StageVector;
+  advisor?: RouteAdvisor | null;
 }
 
 export interface ValidationConceptResult {

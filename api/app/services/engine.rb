@@ -40,7 +40,7 @@ module Engine
   def fmt_vector(v) = cur.required_concepts.map { |c| "#{cur.concept(c).name} #{v.fetch(c, 0)}" }.join(", ")
 
   # Returns one of:
-  #   { kind: :level, level_id:, rule: }
+  #   { kind: :level, level_id:, rule:, candidates: [{ level_id:, serves: }] }  (candidates only when below bar)
   #   { kind: :choose_depth, options: [...] }
   #   { kind: :complete }
   #   { kind: :fallback, reason: }
@@ -71,6 +71,8 @@ module Engine
       serves = pick[:serves].map { |t| "#{cur.concept(t.concept).name} #{t.from}→#{t.to}" }.join("; ")
       return {
         kind: :level, level_id: pick[:level].id,
+        # Every rule-approved option, for the AI routing advisor (RoutingAdvisor) to choose among.
+        candidates: scored.map { |c| { level_id: c[:level].id, serves: c[:serves] } },
         rule: "Below bar: #{names}. Picked #{pick[:level].code}: advances #{pick[:serves].size} below-bar concept(s) (#{serves}), " \
               "the most of #{scored.size} candidate level(s). Tie-break: lowest current stage, then concept order. " \
               "Vector: #{fmt_vector(stages)}.",

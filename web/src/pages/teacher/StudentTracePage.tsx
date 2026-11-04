@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link as RouterLink, useParams } from 'react-router-dom';
-import { Alert, Box, Button, CircularProgress, Container, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, CircularProgress, Container, Typography } from '@mui/material';
+import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import FlagRoundedIcon from '@mui/icons-material/FlagRounded';
 import StarIcon from '@mui/icons-material/Star';
@@ -153,7 +154,10 @@ export function StudentTracePage() {
             )}
           </Panel>
 
-          <Panel title="Why each step was chosen" note="Routing follows fixed rules. Each entry shows the rule and the stages it used. Newest first.">
+          <Panel
+            title="Why each step was chosen"
+            note="The rules list every level that keeps the student on track; with AI-advised routing, the AI picks one of them from the student's evidence. Newest first."
+          >
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               {trace.decisions.map((d, i) => (
                 <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '64px 1fr', gap: 1.5 }}>
@@ -164,9 +168,31 @@ export function StudentTracePage() {
                     <Typography sx={{ fontWeight: 700 }}>
                       {d.levelCode === '-' ? d.levelTitle : `${d.levelCode} · ${d.levelTitle}`}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {d.rule}
-                    </Typography>
+                    {d.advisor?.accepted ? (
+                      <>
+                        <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', my: 0.5 }}>
+                          <Chip size="small" icon={<AutoAwesomeOutlinedIcon />} label="AI advisor" color="secondary" variant="outlined" />
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            label={d.advisor.agreed ? 'Same as the rules' : `Rules would pick ${d.advisor.ruleChoice}`}
+                          />
+                          <Chip size="small" variant="outlined" label={`${d.advisor.candidates.length} allowed: ${d.advisor.candidates.join(', ')}`} />
+                        </Box>
+                        <Typography variant="body2">{d.advisor.reason}</Typography>
+                      </>
+                    ) : (
+                      <>
+                        <Typography variant="body2" color="text.secondary">
+                          {d.rule}
+                        </Typography>
+                        {d.advisor?.note && (
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            AI advisor: {d.advisor.note}
+                          </Typography>
+                        )}
+                      </>
+                    )}
                   </Box>
                 </Box>
               ))}

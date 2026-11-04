@@ -159,6 +159,12 @@ export class HttpApiClient implements ApiClient, DemoControls {
   async setFaultInjection(on: boolean) {
     await this.request('POST', '/api/demo/fault', { on });
   }
+  async getRoutingMode() {
+    return this.request<{ mode: 'advised' | 'rules'; available: boolean }>('GET', '/api/demo/routing');
+  }
+  async setRoutingMode(mode: 'advised' | 'rules') {
+    await this.request('POST', '/api/demo/routing', { mode });
+  }
   async resetDemo() {
     await this.request('POST', '/api/demo/reset', {});
   }

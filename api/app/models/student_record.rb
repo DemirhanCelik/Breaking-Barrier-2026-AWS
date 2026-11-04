@@ -68,10 +68,10 @@ class StudentRecord
     self.diagnostic = placed.dup
   end
 
-  def add_decision!(level_code:, level_title:, rule:)
-    Db.execute(<<~SQL, id: id, code: level_code, title: level_title, rule: rule, vector: Db.json(stages))
-      INSERT INTO route_decision (student_id, level_code, level_title, rule, vector_json)
-      VALUES (:id, :code, :title, :rule, CAST(:vector AS jsonb))
+  def add_decision!(level_code:, level_title:, rule:, advisor: nil)
+    Db.execute(<<~SQL, id: id, code: level_code, title: level_title, rule: rule, vector: Db.json(stages), adv: advisor && Db.json(advisor))
+      INSERT INTO route_decision (student_id, level_code, level_title, rule, vector_json, advisor_json)
+      VALUES (:id, :code, :title, :rule, CAST(:vector AS jsonb), CAST(:adv AS jsonb))
     SQL
   end
 
@@ -96,7 +96,7 @@ class StudentRecord
 
   def decisions
     Db.query(<<~SQL, id: id)
-      SELECT level_code, level_title, rule, vector_json, #{TS} FROM route_decision
+      SELECT level_code, level_title, rule, vector_json, advisor_json, #{TS} FROM route_decision
       WHERE student_id = :id ORDER BY id DESC LIMIT 100
     SQL
   end

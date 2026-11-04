@@ -14,6 +14,7 @@ Runs on AWS Lambda behind an API Gateway HTTP API (via the [Lamby](https://lamby
 | `app/services/model_client.rb` | Model abstraction over Bedrock Converse with a fallback model (NFR3, NFR6). |
 | `app/services/content_filter.rb` | Fail-closed filtering on input and output: local PII check, then Bedrock Guardrails when `GUARDRAIL_ID` is set (FR11, NFR1). |
 | `app/services/filter_audit.rb` | Filter audit log (M7): one `filter_event` row per check (no text) and the coverage report for `/api/teacher/safety`. |
+| `app/services/routing_advisor.rb` | AI-advised routing: Bedrock picks the next level from the rule-approved candidates using the student's evidence; off-list picks, bad output or timeouts keep the rules' choice. Both choices are logged per decision. |
 | `app/services/quality_judge.rb` | LLM-as-judge quality gate over `config/curriculum/quality_rubric.yml` (curriculum-quality rubric), with deterministic pre-checks (no evaluative wording, length, no copying from the source). |
 | `app/services/practice_service.rb` | AI-generated formative practice (design §7A): generated for the student's current concept and stage, filtered and judged, with fallback to approved/authored practice (`config/curriculum/practice_bank.yml`). |
 | `app/services/authoring_service.rb` | AI-assisted authoring (design §7B): drafts grounded in pasted source, provenance quotes verified against it, human approve/edit/reject. |
@@ -45,7 +46,7 @@ Runs on AWS Lambda behind an API Gateway HTTP API (via the [Lamby](https://lamby
 | GET | `/api/teacher/authoring` | teacher. Review queue, practice bank coverage, practice stats |
 | POST | `/api/teacher/authoring/drafts` | teacher. AI drafts practice grounded in pasted source (PII redacted, filtered, judged, provenance-checked) |
 | POST | `/api/teacher/authoring/items/:id/review` | teacher. `decision: approve|reject`, optional `edits` and `note` |
-| GET | `/api/demo/users`, GET/POST `/api/demo/fault`, POST `/api/demo/reset` | `AUTH_MODE=demo` only, else 404 |
+| GET | `/api/demo/users`, GET/POST `/api/demo/fault`, GET/POST `/api/demo/routing`, POST `/api/demo/reset` | `AUTH_MODE=demo` only, else 404 |
 
 Student responses never contain stage, score, placement or rubric output (FR13). Validation runs in the request (design §3A MVP shape); the submit-then-poll contract is kept so SQS can be added later without frontend changes.
 

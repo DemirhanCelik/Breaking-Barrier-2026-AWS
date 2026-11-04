@@ -29,6 +29,8 @@ Rails.application.routes.draw do
       get "users", action: :users
       get "fault", action: :show_fault
       post "fault", action: :update_fault
+      get "routing", action: :show_routing
+      post "routing", action: :update_routing
       post "reset", action: :reset
     end
   end

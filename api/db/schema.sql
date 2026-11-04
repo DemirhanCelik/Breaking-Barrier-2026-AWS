@@ -172,3 +172,6 @@ CREATE TABLE IF NOT EXISTS practice_attempt (
 
 -- Migration: filter_event contexts are validated in FilterAudit (adds practice contexts).
 ALTER TABLE filter_event DROP CONSTRAINT IF EXISTS filter_event_context_check;
+
+-- Migration: AI routing advisor record per decision (proposal, rules choice, reason).
+ALTER TABLE route_decision ADD COLUMN IF NOT EXISTS advisor_json jsonb;

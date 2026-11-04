@@ -211,6 +211,8 @@ export const SCHEMA_STATEMENTS: string[] = [
 export const MIGRATION_STATEMENTS: string[] = [
   // filter_event contexts are validated in the app (FilterAudit::CONTEXTS); adds practice contexts.
   `ALTER TABLE filter_event DROP CONSTRAINT IF EXISTS filter_event_context_check`,
+  // AI routing advisor record per decision (proposal, rules choice, candidates, reason).
+  `ALTER TABLE route_decision ADD COLUMN IF NOT EXISTS advisor_json jsonb`,
 ];
 
 /** All DDL in execution order: base tables first, then migrations. */

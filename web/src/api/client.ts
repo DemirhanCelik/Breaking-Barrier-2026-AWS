@@ -57,5 +57,8 @@ export interface ApiClient {
 export interface DemoControls {
   getFaultInjection(): Promise<boolean>;
   setFaultInjection(on: boolean): Promise<void>;
+  /** AI-advised vs rules-only routing; `available` is false without a model (mock, probes mode). */
+  getRoutingMode(): Promise<{ mode: 'advised' | 'rules'; available: boolean }>;
+  setRoutingMode(mode: 'advised' | 'rules'): Promise<void>;
   resetDemo(): Promise<void>;
 }
