@@ -242,15 +242,13 @@ levels:
 - id: l2
   code: L2
   kind: task
-  title: Meet your reader
-  intro: 'Great magazines are made for someone specific. Your reader is Jordan, 15. Jordan reads on an old phone with a cracked screen, mostly on the bus to school, often on slow data. Jordan says: "The text on most sites is tiny, pages take forever to load, and I give up if I can''t find something in a few seconds. I like short pieces I can finish before my stop."'
+  title: Would this work for Jordan?
+  intro: 'Great magazines are made for someone specific. Your reader is Jordan, 15. Jordan reads on an old phone with a cracked screen, mostly on the bus to school, often on slow data. Jordan says: "The text on most sites is tiny, pages take forever to load, and I give up if I can''t find something in a few seconds. I like short pieces I can finish before my stop." Your friend has an idea for the {{topic}} magazine: "Let''s open with a big autoplay video and small, thin, stylish text. It looks so cool."'
   instructions:
-  - Write down two things Jordan told you, in your own words.
-  - For each one, say what it means for a magazine about {{topic}}.
-  response_label: What Jordan told you
-  response_placeholder: |-
-    1. Jordan said ...
-       This means ...
+  - Decide whether your friend's idea works for Jordan.
+  - Back up your call with what Jordan actually said, not with what you like.
+  response_label: Your call, and why
+  response_placeholder: It would / wouldn't work for Jordan because Jordan said ...
   transitions:
   - concept: c1
     from: 0

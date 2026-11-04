@@ -8,7 +8,7 @@ import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import { api, type StudentLevel, type SubmissionOutcome } from '../../api';
 import { PaneHeader, SpeechBubble } from '../../components/brand';
 import { brand } from '../../theme';
-import { AssistantDrawer } from './AssistantDrawer';
+import { BitTutorPanel } from './BitTutorPanel';
 import { FillEditor, ParsonsEditor } from './InteractionEditors';
 import { PracticeDialog } from './PracticeDialog';
 import { PreviewPanel } from './PreviewPanel';
@@ -35,7 +35,8 @@ export function LevelView({
 }) {
   const [response, setResponse] = useState('');
   const [feedback, setFeedback] = useState<Feedback>({ kind: 'none' });
-  const [assistantOpen, setAssistantOpen] = useState(false);
+  // Bumped by the Hint button: Bit (under the task) is asked for a hint.
+  const [hintSignal, setHintSignal] = useState(0);
   const [practiceOpen, setPracticeOpen] = useState(false);
   // "Try it": the prompt the preview was made from (null = panel closed).
   const [previewOf, setPreviewOf] = useState<string | null>(null);
@@ -73,7 +74,10 @@ export function LevelView({
           return;
         }
         if (Date.now() - started > POLL_TIMEOUT_MS) {
-          setFeedback({ kind: 'error', message: 'This is taking longer than usual. Your work is saved, so try again in a moment.' });
+          setFeedback({
+            kind: 'error',
+            message: 'This is taking longer than usual. Your work is saved, so try again in a moment.',
+          });
           return;
         }
         await new Promise((r) => setTimeout(r, POLL_MS));
@@ -102,80 +106,107 @@ export function LevelView({
     >
       {/* Instructions pane */}
       <Box
-        component="section"
-        aria-label="Instructions"
-        sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, bgcolor: '#fff', borderRight: { md: `1px solid ${brand.border}` } }}
+        sx={{
+          display: 'grid',
+          gridTemplateRows: { xs: 'auto 380px', md: 'minmax(0, 1fr) minmax(240px, 42%)' },
+          minHeight: 0,
+          borderRight: { md: `1px solid ${brand.border}` },
+        }}
       >
-        <PaneHeader
-          title="Instructions"
-          right={
-            <Typography variant="overline" color="text.secondary">
-              {isProject ? 'Project' : `Step ${stepNumber}`}
+        <Box
+          component="section"
+          aria-label="Instructions"
+          sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, bgcolor: '#fff' }}
+        >
+          <PaneHeader
+            title="Instructions"
+            right={
+              <Typography variant="overline" color="text.secondary">
+                {isProject ? 'Project' : `Step ${stepNumber}`}
+              </Typography>
+            }
+          />
+          <Box
+            sx={{
+              flex: 1,
+              overflowY: 'auto',
+              px: { xs: 2, md: 3 },
+              py: 3,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2.5,
+            }}
+          >
+            <Typography variant="h2" component="h1">
+              {level.title}
             </Typography>
-          }
-        />
-        <Box sx={{ flex: 1, overflowY: 'auto', px: { xs: 2, md: 3 }, py: 3, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-          <Typography variant="h2" component="h1">
-            {level.title}
-          </Typography>
 
-          <SpeechBubble mood="happy">
-            <Typography>{level.intro}</Typography>
-          </SpeechBubble>
+            <SpeechBubble mood="happy">
+              <Typography>{level.intro}</Typography>
+            </SpeechBubble>
 
-          <Box component="ol" sx={{ listStyle: 'none', m: 0, p: 0, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-            {level.instructions.map((text, i) => (
-              <Box component="li" key={text} sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
-                <Box
-                  sx={{
-                    width: 26,
-                    height: 26,
-                    borderRadius: '50%',
-                    bgcolor: brand.purple,
-                    color: '#fff',
-                    fontWeight: 800,
-                    fontSize: 13,
-                    display: 'grid',
-                    placeItems: 'center',
-                    flexShrink: 0,
-                    mt: '1px',
-                  }}
-                  aria-hidden
-                >
-                  {i + 1}
+            <Box
+              component="ol"
+              sx={{ listStyle: 'none', m: 0, p: 0, display: 'flex', flexDirection: 'column', gap: 1.25 }}
+            >
+              {level.instructions.map((text, i) => (
+                <Box component="li" key={text} sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                  <Box
+                    sx={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: '50%',
+                      bgcolor: brand.purple,
+                      color: '#fff',
+                      fontWeight: 800,
+                      fontSize: 13,
+                      display: 'grid',
+                      placeItems: 'center',
+                      flexShrink: 0,
+                      mt: '1px',
+                    }}
+                    aria-hidden
+                  >
+                    {i + 1}
+                  </Box>
+                  <Typography sx={{ fontWeight: 500 }}>{text}</Typography>
                 </Box>
-                <Typography sx={{ fontWeight: 500 }}>{text}</Typography>
-              </Box>
-            ))}
-          </Box>
-
-          {level.aiOutput && (
-            <Box sx={{ borderRadius: 1.5, overflow: 'hidden', border: `1px solid ${brand.slate}` }}>
-              <PaneHeader title="What the AI made" dark />
-              <Box
-                component="pre"
-                sx={{
-                  m: 0,
-                  p: 2,
-                  bgcolor: brand.editor,
-                  color: '#d9e2ec',
-                  fontFamily: MONO,
-                  fontSize: 13.5,
-                  lineHeight: 1.6,
-                  whiteSpace: 'pre-wrap',
-                }}
-              >
-                {level.aiOutput}
-              </Box>
+              ))}
             </Box>
-          )}
 
-          <Feedback feedback={feedback} />
+            {level.aiOutput && (
+              <Box sx={{ borderRadius: 1.5, overflow: 'hidden', border: `1px solid ${brand.slate}` }}>
+                <PaneHeader title="What the AI made" dark />
+                <Box
+                  component="pre"
+                  sx={{
+                    m: 0,
+                    p: 2,
+                    bgcolor: brand.editor,
+                    color: '#d9e2ec',
+                    fontFamily: MONO,
+                    fontSize: 13.5,
+                    lineHeight: 1.6,
+                    whiteSpace: 'pre-wrap',
+                  }}
+                >
+                  {level.aiOutput}
+                </Box>
+              </Box>
+            )}
+
+            <Feedback feedback={feedback} />
+          </Box>
         </Box>
+        <BitTutorPanel level={level} hintSignal={hintSignal} />
       </Box>
 
       {/* Workspace pane */}
-      <Box component="section" aria-label="Your work" sx={{ display: 'flex', flexDirection: 'column', minHeight: { xs: 420, md: 0 } }}>
+      <Box
+        component="section"
+        aria-label="Your work"
+        sx={{ display: 'flex', flexDirection: 'column', minHeight: { xs: 420, md: 0 } }}
+      >
         <PaneHeader
           title="Your work"
           right={
@@ -203,7 +234,7 @@ export function LevelView({
                 <Button
                   size="small"
                   startIcon={<LightbulbOutlinedIcon />}
-                  onClick={() => setAssistantOpen(true)}
+                  onClick={() => setHintSignal((n) => n + 1)}
                   sx={{
                     color: brand.charcoal,
                     ...(outcome?.status === 'done' && outcome.offerAssistant
@@ -220,70 +251,74 @@ export function LevelView({
         {level.interaction ? (
           <Box sx={{ flex: 1, overflowY: 'auto', bgcolor: brand.bg }}>
             {level.interaction.type === 'parsons' ? (
-              <ParsonsEditor lines={level.interaction.lines} disabled={checking || canContinue} onChange={setResponse} />
+              <ParsonsEditor
+                lines={level.interaction.lines}
+                disabled={checking || canContinue}
+                onChange={setResponse}
+              />
             ) : (
               <FillEditor code={level.interaction.code} disabled={checking || canContinue} onChange={setResponse} />
             )}
           </Box>
         ) : (
           <>
-          <Box sx={{ px: 2, pt: 1.5, pb: 1, bgcolor: '#fff', borderBottom: `1px solid ${brand.borderLight}` }}>
-            <Typography component="label" htmlFor="workspace-editor" sx={{ fontWeight: 700, fontSize: 14 }}>
-              {level.responseLabel}
-            </Typography>
-          </Box>
-
-          <Box sx={{ flex: 1, overflowY: 'auto', bgcolor: '#fff', display: 'flex', alignItems: 'stretch' }}>
-            <Box
-              aria-hidden
-              sx={{
-                py: 1.5,
-                px: 1,
-                minWidth: 44,
-                textAlign: 'right',
-                bgcolor: '#f7f8f9',
-                borderRight: `1px solid ${brand.borderLight}`,
-                color: '#9aa3ab',
-                fontFamily: MONO,
-                fontSize: 14,
-                lineHeight: '24px',
-                userSelect: 'none',
-              }}
-            >
-              {Array.from({ length: lineCount }, (_, i) => (
-                <div key={i}>{i + 1}</div>
-              ))}
+            <Box sx={{ px: 2, pt: 1.5, pb: 1, bgcolor: '#fff', borderBottom: `1px solid ${brand.borderLight}` }}>
+              <Typography component="label" htmlFor="workspace-editor" sx={{ fontWeight: 700, fontSize: 14 }}>
+                {level.responseLabel}
+              </Typography>
             </Box>
-            <InputBase
-              id="workspace-editor"
-              multiline
-              fullWidth
-              minRows={lineCount}
-              value={response}
-              onChange={(e) => {
-                const sig = signals.current;
-                const now = Date.now();
-                if (now - sig.lastEditAt > 3000) sig.edits += 1;
-                sig.lastEditAt = now;
-                setResponse(e.target.value);
-              }}
-              onPaste={(e) => {
-                signals.current.pastes += 1;
-                signals.current.pastedChars += e.clipboardData.getData('text').length;
-              }}
-              placeholder={level.responsePlaceholder}
-              disabled={checking || canContinue}
-              sx={{
-                alignItems: 'flex-start',
-                px: 1.5,
-                py: 1.5,
-                fontFamily: MONO,
-                fontSize: 14,
-                '& textarea': { lineHeight: '24px', whiteSpace: 'pre-wrap' },
-                '& textarea::placeholder': { color: '#9aa3ab', opacity: 1 },
-              }}
-            />
-          </Box>
+
+            <Box sx={{ flex: 1, overflowY: 'auto', bgcolor: '#fff', display: 'flex', alignItems: 'stretch' }}>
+              <Box
+                aria-hidden
+                sx={{
+                  py: 1.5,
+                  px: 1,
+                  minWidth: 44,
+                  textAlign: 'right',
+                  bgcolor: '#f7f8f9',
+                  borderRight: `1px solid ${brand.borderLight}`,
+                  color: '#9aa3ab',
+                  fontFamily: MONO,
+                  fontSize: 14,
+                  lineHeight: '24px',
+                  userSelect: 'none',
+                }}
+              >
+                {Array.from({ length: lineCount }, (_, i) => (
+                  <div key={i}>{i + 1}</div>
+                ))}
+              </Box>
+              <InputBase
+                id="workspace-editor"
+                multiline
+                fullWidth
+                minRows={lineCount}
+                value={response}
+                onChange={(e) => {
+                  const sig = signals.current;
+                  const now = Date.now();
+                  if (now - sig.lastEditAt > 3000) sig.edits += 1;
+                  sig.lastEditAt = now;
+                  setResponse(e.target.value);
+                }}
+                onPaste={(e) => {
+                  signals.current.pastes += 1;
+                  signals.current.pastedChars += e.clipboardData.getData('text').length;
+                }}
+                placeholder={level.responsePlaceholder}
+                disabled={checking || canContinue}
+                sx={{
+                  alignItems: 'flex-start',
+                  px: 1.5,
+                  py: 1.5,
+                  fontFamily: MONO,
+                  fontSize: 14,
+                  '& textarea': { lineHeight: '24px', whiteSpace: 'pre-wrap' },
+                  '& textarea::placeholder': { color: '#9aa3ab', opacity: 1 },
+                }}
+              />
+            </Box>
           </>
         )}
 
@@ -335,7 +370,6 @@ export function LevelView({
         </Box>
       </Box>
 
-      <AssistantDrawer open={assistantOpen} onClose={() => setAssistantOpen(false)} level={level} />
       <PracticeDialog open={practiceOpen} onClose={() => setPracticeOpen(false)} level={level} />
     </Box>
   );
@@ -351,7 +385,10 @@ function promptPart(text: string) {
   if (start < 0) return text;
   const rest = lines.slice(start + 1);
   const end = rest.findIndex((l) => /^\s*[A-Z][\w '’-]{1,30}:/.test(l));
-  const block = [lines[start].replace(/^\s*(follow-up\s+)?prompt\s*(\d+)?\s*:\s*/i, ''), ...(end < 0 ? rest : rest.slice(0, end))];
+  const block = [
+    lines[start].replace(/^\s*(follow-up\s+)?prompt\s*(\d+)?\s*:\s*/i, ''),
+    ...(end < 0 ? rest : rest.slice(0, end)),
+  ];
   return block.join('\n').trim() || text;
 }
 
