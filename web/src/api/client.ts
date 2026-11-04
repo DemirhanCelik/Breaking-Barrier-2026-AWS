@@ -8,6 +8,9 @@ import type {
   PracticeFeedback,
   PracticeItem,
   ClassAttainment,
+  ClassInsights,
+  MiniLesson,
+  WorkSignals,
   DiagnosticAnswers,
   FilterAudit,
   DiagnosticForm,
@@ -35,7 +38,7 @@ export interface ApiClient {
   getLessonState(): Promise<LessonState>;
   getDiagnostic(): Promise<DiagnosticForm>;
   submitDiagnostic(answers: DiagnosticAnswers): Promise<LessonState>;
-  submitWork(levelId: string, response: string): Promise<SubmitResult>;
+  submitWork(levelId: string, response: string, signals?: WorkSignals): Promise<SubmitResult>;
   getSubmission(submissionId: string): Promise<SubmissionOutcome>;
   chooseDepth(optionId: string): Promise<LessonState>;
   askAssistant(levelId: string, message: string): Promise<AssistantReply>;
@@ -47,6 +50,9 @@ export interface ApiClient {
   getClassAttainment(): Promise<ClassAttainment>;
   getStudentTrace(studentId: string): Promise<StudentTrace>;
   getFilterAudit(): Promise<FilterAudit>;
+  /** Who needs help now and small groups by shared gap (teacher-only). */
+  getInsights(): Promise<ClassInsights>;
+  getMiniLesson(checkId: string): Promise<MiniLesson>;
   // AI-assisted authoring: AI drafts, a human approves
   getAuthoring(): Promise<AuthoringState>;
   draftContent(req: DraftRequest): Promise<DraftResult>;

@@ -20,6 +20,8 @@ Rails.application.routes.draw do
       get "class", action: :show_class
       get "students/:id", action: :show_student
       get "safety", action: :safety
+      get "insights", action: :insights
+      post "insights/mini-lesson", action: :mini_lesson
       get "authoring", action: :authoring
       post "authoring/drafts", action: :draft
       post "authoring/items/:id/review", action: :review

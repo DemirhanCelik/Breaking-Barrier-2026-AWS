@@ -50,7 +50,17 @@ class LessonService
     lesson_state(s)
   end
 
-  def submit_work(s, level_id, response)
+  # Quiet formative signals from the editor (time on step, edit sessions, pastes).
+  # Never shown to the student; used by the routing advisor and the teacher view.
+  SIGNAL_LIMITS = { "timeOnTaskSec" => 7200, "edits" => 500, "pastes" => 100, "pastedChars" => 20_000 }.freeze
+
+  def self.clean_signals(raw)
+    return {} unless raw.respond_to?(:to_h)
+    raw.to_h.transform_keys(&:to_s).slice(*SIGNAL_LIMITS.keys).to_h { |k, v| [k, v.to_i.clamp(0, SIGNAL_LIMITS[k])] }
+  end
+
+  def submit_work(s, level_id, response, signals = {})
+    signals = self.class.clean_signals(signals)
     raise Error.new("That step is no longer current. Reload to continue.", 409) unless s.current_level_id == level_id
     response = response.to_s
     raise Error.new("Response is empty", 422) if response.strip.empty?
@@ -63,7 +73,7 @@ class LessonService
     FilterAudit.record!(input, student_id: s.id, context: "submission", direction: "input", ref_id: sub_id)
     unless input.ok?
       outcome = { status: "withheld", message: input.message }
-      s.create_submission!(sub_id, level_id, nil, outcome)
+      s.create_submission!(sub_id, level_id, nil, outcome, signals)
       s.add_validation!(level_code: level.code, mode: "withheld", submission_id: sub_id, model_meta: { filter: input.source })
       return { submissionId: sub_id }
     end
@@ -73,13 +83,13 @@ class LessonService
     st["attempts"] += 1
 
     outcome = if s.mode == "fallback"
-      s.create_submission!(sub_id, level_id, response, {})
+      s.create_submission!(sub_id, level_id, response, {}, signals)
       s.add_validation!(level_code: level.code, mode: "fallback", submission_id: sub_id)
       close_level(s, level_id, "done")
       advance(s)
       continue_outcome(SAVED)
     else
-      validate_and_route(s, level, response, sub_id)
+      validate_and_route(s, level, response, sub_id, signals)
     end
 
     Db.execute("UPDATE submission SET outcome_json = CAST(:o AS jsonb) WHERE id = :id", o: Db.json(outcome), id: sub_id)
@@ -130,6 +140,7 @@ class LessonService
   end
 
   def filter_audit = FilterAudit.report(cur.klass["id"])
+  def insights = InsightsService.new.report(cur.klass["id"])
 
   def student_trace(student_id)
     s = StudentRecord.find(student_id) or raise Error.new("Student not found", 404)
@@ -141,7 +152,7 @@ class LessonService
     base.merge(
       bar: cur.bar, concepts: teacher_concepts, roadmap: roadmap[:steps],
       decisions: s.decisions.map { |d| { at: StudentRecord.iso(d["at_ms"]), levelCode: d["level_code"], levelTitle: d["level_title"], rule: d["rule"], vector: d["vector_json"], advisor: d["advisor_json"] } },
-      validations: s.validations.map { |v| { at: StudentRecord.iso(v["at_ms"]), levelCode: v["level_code"], mode: v["mode"], results: v["results_json"] } },
+      validations: s.validations.map { |v| { at: StudentRecord.iso(v["at_ms"]), levelCode: v["level_code"], mode: v["mode"], results: v["results_json"], signals: v["signals_json"] } },
       practice: PracticeService.new.for_student(s.id),
     )
   end
@@ -175,8 +186,8 @@ class LessonService
 
   private
 
-  def validate_and_route(s, level, response, sub_id)
-    s.create_submission!(sub_id, level.id, response, {})
+  def validate_and_route(s, level, response, sub_id, signals = {})
+    s.create_submission!(sub_id, level.id, response, {}, signals)
     begin
       raise Validator::Unavailable, "Fault injection (demo)" if self.class.fault_injection?
       ev = Validator.new.evaluate(level, s.stages, response)

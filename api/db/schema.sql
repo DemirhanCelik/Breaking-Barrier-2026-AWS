@@ -175,3 +175,6 @@ ALTER TABLE filter_event DROP CONSTRAINT IF EXISTS filter_event_context_check;
 
 -- Migration: AI routing advisor record per decision (proposal, rules choice, reason).
 ALTER TABLE route_decision ADD COLUMN IF NOT EXISTS advisor_json jsonb;
+
+-- Migration: quiet formative signals per submission (time on step, edit sessions, pastes).
+ALTER TABLE submission ADD COLUMN IF NOT EXISTS signals_json jsonb;

@@ -12,6 +12,9 @@ import {
   ApiError,
   type AssistantReply,
   type ClassAttainment,
+  type ClassInsights,
+  type MiniLesson,
+  type WorkSignals,
   type DiagnosticAnswers,
   type AuthoringState,
   type ContentEdits,
@@ -118,8 +121,17 @@ export class HttpApiClient implements ApiClient, DemoControls {
   submitDiagnostic(answers: DiagnosticAnswers) {
     return this.request<LessonState>('POST', '/api/student/diagnostic', { answers });
   }
-  submitWork(levelId: string, response: string) {
-    return this.request<SubmitResult>('POST', `/api/student/levels/${encodeURIComponent(levelId)}/submissions`, { response });
+  submitWork(levelId: string, response: string, signals?: WorkSignals) {
+    return this.request<SubmitResult>('POST', `/api/student/levels/${encodeURIComponent(levelId)}/submissions`, {
+      response,
+      signals,
+    });
+  }
+  getInsights() {
+    return this.request<ClassInsights>('GET', '/api/teacher/insights');
+  }
+  getMiniLesson(checkId: string) {
+    return this.request<MiniLesson>('POST', '/api/teacher/insights/mini-lesson', { checkId });
   }
   getSubmission(submissionId: string) {
     return this.request<SubmissionOutcome>('GET', `/api/student/submissions/${encodeURIComponent(submissionId)}`);

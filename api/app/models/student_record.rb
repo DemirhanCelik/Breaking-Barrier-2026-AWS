@@ -82,10 +82,10 @@ class StudentRecord
     SQL
   end
 
-  def create_submission!(sub_id, level_id, content, outcome)
-    Db.execute(<<~SQL, sub: sub_id, id: id, level: level_id, content: content, outcome: Db.json(outcome))
-      INSERT INTO submission (id, student_id, level_id, content, outcome_json)
-      VALUES (:sub, :id, :level, :content, CAST(:outcome AS jsonb))
+  def create_submission!(sub_id, level_id, content, outcome, signals = nil)
+    Db.execute(<<~SQL, sub: sub_id, id: id, level: level_id, content: content, outcome: Db.json(outcome), sig: signals.present? ? Db.json(signals) : nil)
+      INSERT INTO submission (id, student_id, level_id, content, outcome_json, signals_json)
+      VALUES (:sub, :id, :level, :content, CAST(:outcome AS jsonb), CAST(:sig AS jsonb))
     SQL
   end
 
@@ -103,8 +103,10 @@ class StudentRecord
 
   def validations
     Db.query(<<~SQL, id: id)
-      SELECT level_code, mode, results_json, #{TS} FROM validation_result
-      WHERE student_id = :id ORDER BY id DESC LIMIT 100
+      SELECT v.level_code, v.mode, v.results_json, s.signals_json,
+             CAST(floor(extract(epoch FROM v.created_at) * 1000) AS bigint) AS at_ms
+      FROM validation_result v LEFT JOIN submission s ON s.id = v.submission_id
+      WHERE v.student_id = :id ORDER BY v.id DESC LIMIT 100
     SQL
   end
 

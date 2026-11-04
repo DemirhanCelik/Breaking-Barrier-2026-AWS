@@ -10,6 +10,14 @@ module DemoSeed
   module_function
 
   def run!
+    # Seeding is deterministic: rules-only routing, no Bedrock calls during a reset.
+    Thread.current[:codeai_seeding] = true
+    seed!
+  ensure
+    Thread.current[:codeai_seeding] = false
+  end
+
+  def seed!
     Db.execute("TRUNCATE practice_attempt, practice_item, filter_event, route_decision, validation_result, submission, diagnostic_result, mastery_state, student_progress, enrollment, klass, app_user, app_setting")
     cur = Curriculum.current
     insert_user(TEACHER[:id], TEACHER[:name], "teacher")
@@ -42,7 +50,32 @@ module DemoSeed
     fay.level_status[fay.current_level_id] = { "attempts" => 1, "status" => "in-progress" }
     fay.save!
 
-    place.call("s-gus", { "d1" => "d", "d2" => "d", "d3" => "d", "d4" => "d" })
+    # Gus starts where Fay does, so the two share real gaps on the Insights page.
+    place.call("s-gus", { "d1" => "c", "d2" => "c", "d3" => "a", "d4" => "b" })
+
+    # Realistic unsuccessful attempts (scored with the deterministic probes) so the
+    # teacher's Insights page has stuck students and shared gaps to show.
+    seed_attempt(svc, StudentRecord.find("s-gus"), "Make a list of the club events for the page.", { "timeOnTaskSec" => 180, "edits" => 2 })
+    seed_attempt(svc, StudentRecord.find("s-fay"), "It looks fine I guess", { "timeOnTaskSec" => 610, "edits" => 7 })
+    seed_attempt(svc, StudentRecord.find("s-chloe"), "header, events", { "timeOnTaskSec" => 70, "edits" => 1, "pastes" => 1, "pastedChars" => 14 })
+  end
+
+  # One weak submission on the student's current level, scored by the probes only.
+  def seed_attempt(svc, s, text, signals)
+    level_id = s.current_level_id or return
+    level = Curriculum.current.level(level_id)
+    probes = Engine.probe(level, s.stages, text)
+    return if probes.empty? || probes.all? { |p| p[:ok] }
+    sub_id = SecureRandom.uuid
+    s.create_submission!(sub_id, level_id, text, { status: "done", nextAction: "revise" }, signals)
+    ev = Validator.new.send(:probe_only, probes)
+    s.add_validation!(level_code: level.code, mode: "adaptive", submission_id: sub_id, results: ev.results.map(&:as_json),
+                      model_meta: { seeded: true })
+    ev.results.reject(&:passed).each { |r| k = "#{r.concept_id}:#{r.from_stage}"; s.transition_fails[k] = s.transition_fails.fetch(k, 0) + 1 }
+    st = (s.level_status[level_id] ||= { "attempts" => 0, "status" => "in-progress" })
+    st["attempts"] += 1
+    s.last_response[level_id] = text
+    s.save!
   end
 
   def insert_user(id, name, role)

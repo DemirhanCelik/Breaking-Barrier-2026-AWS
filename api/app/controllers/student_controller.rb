@@ -12,7 +12,8 @@ class StudentController < ApplicationController
   end
 
   def create_submission
-    render json: service.submit_work(student, params[:level_id], params.require(:response)), status: :accepted
+    signals = params.fetch(:signals, {}).permit(:timeOnTaskSec, :edits, :pastes, :pastedChars).to_h
+    render json: service.submit_work(student, params[:level_id], params.require(:response), signals), status: :accepted
   end
 
   def show_submission = render(json: service.submission(student, params[:id]))

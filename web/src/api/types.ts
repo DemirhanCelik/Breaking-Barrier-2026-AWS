@@ -195,11 +195,59 @@ export interface ValidationConceptResult {
   evidence: string[];
 }
 
+/** Quiet formative signals from the editor. Never shown to the student. */
+export interface WorkSignals {
+  timeOnTaskSec?: number;
+  /** Separate bursts of editing (a pause of a few seconds starts a new one). */
+  edits?: number;
+  pastes?: number;
+  pastedChars?: number;
+}
+
 export interface ValidationRecord {
   at: string;
   levelCode: string;
   mode: 'adaptive' | 'fallback' | 'error' | 'withheld';
   results: ValidationConceptResult[];
+  signals?: WorkSignals | null;
+}
+
+// Teacher Insights (GET /api/teacher/insights)
+export interface HelpNeeded {
+  studentId: string;
+  displayName: string;
+  reasons: string[];
+  levelCode: string | null;
+  levelTitle: string | null;
+}
+
+export interface SkillGroup {
+  checkId: string;
+  skill: string;
+  hint: string;
+  conceptId: ConceptId;
+  conceptName: string;
+  students: { studentId: string; displayName: string }[];
+}
+
+export interface ClassInsights {
+  needsHelp: HelpNeeded[];
+  groups: SkillGroup[];
+  concepts: { conceptId: ConceptId; name: string; byStage: number[] }[];
+  bar: Stage;
+}
+
+export interface MiniLesson {
+  title: string;
+  skill: string;
+  concept: string;
+  goal: string;
+  warmup: string;
+  example: string;
+  tryIt: string[];
+  check: string;
+  source: 'ai' | 'authored';
+  note?: string;
 }
 
 export interface RoadmapStep {

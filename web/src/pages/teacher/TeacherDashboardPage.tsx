@@ -20,6 +20,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
+import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { api, type ClassAttainment } from '../../api';
 import { Initials } from '../../components/brand';
@@ -78,6 +79,9 @@ export function TeacherDashboardPage() {
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2, mb: 2 }}>
           <StageLegend bar={data.bar} />
           <Box sx={{ flex: 1 }} />
+          <Button variant="contained" startIcon={<InsightsOutlinedIcon />} onClick={() => navigate('/teacher/insights')}>
+            Insights
+          </Button>
           <Button
             startIcon={<AutoAwesomeOutlinedIcon />}
             onClick={() => navigate('/teacher/authoring')}

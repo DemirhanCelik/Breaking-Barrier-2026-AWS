@@ -28,7 +28,7 @@ class RoutingAdvisor
   PROMPT
 
   def self.enabled?
-    return false if Validator.mode == "probes"
+    return false if Validator.mode == "probes" || Thread.current[:codeai_seeding]
     LessonService.routing_mode == "advised"
   end
 
@@ -91,8 +91,10 @@ class RoutingAdvisor
       "- #{cur.concept(c).name} #{from}→#{from.to_i + 1}: #{n} miss(es)"
     end
     recent = s.validations.first(3).flat_map do |v|
+      sig = v["signals_json"].is_a?(Hash) ? v["signals_json"] : {}
+      work = sig.any? ? " (#{(sig['timeOnTaskSec'].to_i / 60.0).round(1)} min, #{sig['edits'].to_i} edit sessions#{sig['pastes'].to_i.positive? ? ', pasted text' : ''})" : ""
       Array(v["results_json"]).map do |r|
-        "- #{v['level_code']} #{cur.concept(r['conceptId']).name} #{r['fromStage']}→#{r['targetStage']}: " \
+        "- #{v['level_code']}#{work} #{cur.concept(r['conceptId']).name} #{r['fromStage']}→#{r['targetStage']}: " \
           "#{r['passed'] ? 'met' : 'not yet'}; evidence: #{Array(r['evidence']).first(2).join(' | ')[0, 200]}"
       end
     end

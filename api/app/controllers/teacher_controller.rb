@@ -8,6 +8,10 @@ class TeacherController < ApplicationController
   # Filter audit log + coverage (BRD M7). Outcomes only, never student text.
   def safety = render(json: service.filter_audit)
 
+  # Differentiation help: who needs help now, small groups by shared gap (teacher-only).
+  def insights = render(json: service.insights)
+  def mini_lesson = render(json: InsightsService.new.mini_lesson(params.require(:checkId)))
+
   # AI-assisted authoring (design §7B). The teacher acts as the reviewer for the demo;
   # in production this is the Teaching & Learning role.
   def authoring

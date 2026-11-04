@@ -270,6 +270,15 @@ const MODE_LABEL: Record<ValidationRecord['mode'], { label: string; color: strin
   withheld: { label: 'Withheld by content filter', color: brand.orangeDark },
 };
 
+/** Quiet signals, teacher-only: "4 min · 3 edit bursts · pasted 120 chars". */
+function signalText(s: NonNullable<ValidationRecord['signals']>) {
+  const parts = [];
+  if (s.timeOnTaskSec != null) parts.push(s.timeOnTaskSec < 60 ? `${s.timeOnTaskSec}s` : `${Math.round(s.timeOnTaskSec / 60)} min`);
+  if (s.edits != null) parts.push(`${s.edits} edit burst${s.edits === 1 ? '' : 's'}`);
+  if (s.pastes) parts.push(`pasted ${s.pastedChars ?? 0} chars`);
+  return parts.join(' · ');
+}
+
 function ValidationRow({ v, name }: { v: ValidationRecord; name: (id: string) => string }) {
   const mode = MODE_LABEL[v.mode];
   return (
@@ -282,6 +291,11 @@ function ValidationRow({ v, name }: { v: ValidationRecord; name: (id: string) =>
         <Typography variant="caption" sx={{ color: mode.color, fontWeight: 700 }}>
           {mode.label}
         </Typography>
+        {v.signals && (
+          <Typography variant="caption" color="text.secondary" display="block">
+            {signalText(v.signals)}
+          </Typography>
+        )}
       </Box>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
         {v.results.length === 0 && (

@@ -15,6 +15,11 @@ import {
   type AssistantReply,
   type AttainmentStatus,
   type ClassAttainment,
+  type ClassInsights,
+  type HelpNeeded,
+  type MiniLesson,
+  type SkillGroup,
+  type WorkSignals,
   type DiagnosticAnswers,
   type AuthoringState,
   type ContentEdits,
@@ -460,7 +465,7 @@ export class MockApiClient implements ApiClient, DemoControls {
     return lessonState(s);
   }
 
-  async submitWork(levelId: string, response: string): Promise<SubmitResult> {
+  async submitWork(levelId: string, response: string, signals?: WorkSignals): Promise<SubmitResult> {
     await delay();
     const s = this.requireStudent();
     if (s.currentLevelId !== levelId) throw new ApiError('That step is no longer current. Reload to continue.', 409);
@@ -504,7 +509,7 @@ export class MockApiClient implements ApiClient, DemoControls {
     }
 
     const ev = evaluate(level, s.stages, response);
-    s.validations.push({ at: nowIso(), levelCode: level.code, mode: 'adaptive', results: ev.results });
+    s.validations.push({ at: nowIso(), levelCode: level.code, mode: 'adaptive', results: ev.results, signals: signals ?? null });
     for (const r of ev.results) {
       if (r.passed) s.stages[r.conceptId] = r.targetStage;
       else s.transitionFails[`${r.conceptId}:${r.fromStage}`] = (s.transitionFails[`${r.conceptId}:${r.fromStage}`] ?? 0) + 1;
@@ -620,6 +625,85 @@ export class MockApiClient implements ApiClient, DemoControls {
         .filter((p) => p.studentId === s.id)
         .reverse()
         .map(({ studentId: _sid, item: _item, ...r }) => r),
+    };
+  }
+
+  async getInsights(): Promise<ClassInsights> {
+    await delay();
+    this.requireTeacher();
+    const students = Object.values(this.store.students);
+    const needsHelp: HelpNeeded[] = [];
+    const groups = new Map<string, SkillGroup>();
+    for (const s of students) {
+      const latest = [...s.validations].reverse().find((v) => v.mode === 'adaptive');
+      if (s.diagnostic && !s.complete) {
+        const reasons: string[] = [];
+        if (s.mode === 'fallback') reasons.push('Moved to the non-adaptive path');
+        for (const [key, n] of Object.entries(s.transitionFails)) {
+          const [c, from] = key.split(':');
+          if (n >= 2) reasons.push(`${n} tries without meeting ${conceptById(c).name} ${from}→${Number(from) + 1}`);
+        }
+        const attempts = s.currentLevelId ? (s.levelStatus[s.currentLevelId]?.attempts ?? 0) : 0;
+        if (attempts >= 2) reasons.push(`${attempts} attempts on the current step`);
+        const sig = latest?.signals;
+        if ((sig?.timeOnTaskSec ?? 0) >= 480) reasons.push(`${Math.round((sig?.timeOnTaskSec ?? 0) / 60)} min on their last step`);
+        if ((sig?.edits ?? 0) >= 6) reasons.push(`${sig?.edits} rewrites before submitting`);
+        if (reasons.length) {
+          const lvl = s.currentLevelId ? levelById(s.currentLevelId) : null;
+          needsHelp.push({ studentId: s.id, displayName: s.displayName, reasons, levelCode: lvl?.code ?? null, levelTitle: lvl?.title ?? null });
+        }
+      }
+      if (!latest) continue;
+      const level = LEVELS.find((l) => l.code === latest.levelCode);
+      if (!level) continue;
+      const text = s.lastResponse[level.id] ?? '';
+      for (const r of latest.results.filter((x) => !x.passed)) {
+        const t = level.transitions.find((x) => x.concept === r.conceptId && x.from === r.fromStage);
+        for (const id of t?.checks ?? []) {
+          if (CHECKS[id].test(text)) continue;
+          const g = groups.get(id) ?? {
+            checkId: id,
+            skill: CHECKS[id].label,
+            hint: CHECKS[id].hint,
+            conceptId: r.conceptId,
+            conceptName: conceptById(r.conceptId).name,
+            students: [],
+          };
+          if (!g.students.some((x) => x.studentId === s.id)) g.students.push({ studentId: s.id, displayName: s.displayName });
+          groups.set(id, g);
+        }
+      }
+    }
+    return {
+      needsHelp: needsHelp.sort((a, b) => b.reasons.length - a.reasons.length),
+      groups: [...groups.values()].sort((a, b) => b.students.length - a.students.length),
+      concepts: CONCEPTS.map((c) => ({
+        conceptId: c.id,
+        name: c.name,
+        byStage: [0, 1, 2, 3].map((st) => students.filter((s) => s.diagnostic && s.stages[c.id] === st).length),
+      })),
+      bar: CLASS_INFO.bar,
+    };
+  }
+
+  async getMiniLesson(checkId: string): Promise<MiniLesson> {
+    await delay(400);
+    this.requireTeacher();
+    const check = CHECKS[checkId];
+    if (!check) throw new ApiError('Unknown skill', 404);
+    const t = LEVELS.flatMap((l) => l.transitions).find((x) => x.checks.includes(checkId))!;
+    const concept = conceptById(t.concept);
+    return {
+      title: `Mini-lesson: ${check.label}`,
+      skill: check.label,
+      concept: concept.name,
+      goal: `Students show this in their own work: ${concept.descriptors[t.to]}`,
+      warmup: 'Look at this request to an AI: "make a page for the bake sale". What would you add so the AI gets it right?',
+      example: `Model it out loud on a fresh example, then point to where it shows: ${check.hint}`,
+      tryIt: ['Each student revises their last answer using the hint above.', "Pairs swap and check each other's revision for it."],
+      check: 'Ask each student to point to the exact words in their revision that show it.',
+      source: 'authored',
+      note: 'Mock mode: authored outline (the API writes it with Bedrock).',
     };
   }
 

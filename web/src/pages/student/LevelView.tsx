@@ -35,6 +35,10 @@ export function LevelView({
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [practiceOpen, setPracticeOpen] = useState(false);
   const cancelled = useRef(false);
+  // Quiet formative signals (never shown to the student): time on this attempt,
+  // separate editing bursts, and pastes. Sent with the submission for the teacher
+  // view and the routing advisor.
+  const signals = useRef({ startedAt: Date.now(), lastEditAt: 0, edits: 0, pastes: 0, pastedChars: 0 });
 
   useEffect(() => {
     cancelled.current = false;
@@ -46,7 +50,14 @@ export function LevelView({
   const submit = async () => {
     setFeedback({ kind: 'checking' });
     try {
-      const { submissionId } = await api.submitWork(level.id, response);
+      const sig = signals.current;
+      const { submissionId } = await api.submitWork(level.id, response, {
+        timeOnTaskSec: Math.round((Date.now() - sig.startedAt) / 1000),
+        edits: sig.edits,
+        pastes: sig.pastes,
+        pastedChars: sig.pastedChars,
+      });
+      signals.current = { startedAt: Date.now(), lastEditAt: 0, edits: 0, pastes: 0, pastedChars: 0 };
       const started = Date.now();
       // Submit is accepted first, then the result is polled (design §6.2).
       for (;;) {
@@ -223,7 +234,17 @@ export function LevelView({
             fullWidth
             minRows={lineCount}
             value={response}
-            onChange={(e) => setResponse(e.target.value)}
+            onChange={(e) => {
+              const sig = signals.current;
+              const now = Date.now();
+              if (now - sig.lastEditAt > 3000) sig.edits += 1;
+              sig.lastEditAt = now;
+              setResponse(e.target.value);
+            }}
+            onPaste={(e) => {
+              signals.current.pastes += 1;
+              signals.current.pastedChars += e.clipboardData.getData('text').length;
+            }}
             placeholder={level.responsePlaceholder}
             disabled={checking || canContinue}
             sx={{
