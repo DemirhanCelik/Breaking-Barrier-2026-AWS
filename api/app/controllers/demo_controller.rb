@@ -1,6 +1,15 @@
-# Demo-only helpers. Every action 404s unless AUTH_MODE=demo.
+# Demo-only helpers.
+#   AUTH_MODE=demo: open (synthetic data only), as before.
+#   AUTH_MODE=cognito: 404 unless DEMO_CONTROLS=true, and then teacher-only.
+#     The user list stays demo-mode-only; Cognito sign-in never needs it.
 class DemoController < ApplicationController
-  before_action { head :not_found unless Auth.demo? }
+  before_action :allow_demo!
+
+  private def allow_demo!
+    return if Auth.demo?
+    return head(:not_found) unless ENV["DEMO_CONTROLS"] == "true" && action_name != "users"
+    require_teacher!
+  end
 
   def users
     rows = Db.query("SELECT id, display_name, role FROM app_user ORDER BY role DESC, display_name")

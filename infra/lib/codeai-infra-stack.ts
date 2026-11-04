@@ -115,7 +115,13 @@ export class CodeAiInfraStack extends cdk.Stack {
     const userPoolClient = userPool.addClient('WebClient', {
       userPoolClientName: 'codeai-web-spa',
       generateSecret: false, // public SPA (PKCE) client — no client secret.
-      authFlows: { userSrp: true },
+      // userPassword: the SPA calls Cognito InitiateAuth (USER_PASSWORD_AUTH)
+      // directly over TLS, without the Amplify SDK.
+      authFlows: { userSrp: true, userPassword: true },
+      // Users may edit only their email. preferred_username is admin-set and
+      // binds a Cognito user to a pre-seeded app_user row (api Auth.provision),
+      // so it must not be self-writable.
+      writeAttributes: new cognito.ClientAttributes().withStandardAttributes({ email: true }),
       oAuth: {
         flows: { authorizationCodeGrant: true },
         scopes: [
@@ -392,7 +398,11 @@ export class CodeAiInfraStack extends cdk.Stack {
         COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
         // demo = synthetic users picked via X-Demo-User header (SPA has no
         // Cognito sign-in yet). Switch to 'cognito' with -c codeai:authMode=cognito.
-        AUTH_MODE: (this.node.tryGetContext('codeai:authMode') as string | undefined) ?? 'demo',
+        // cognito = real sign-in (default). demo = X-Demo-User header, synthetic
+        // data only; opt in with -c codeai:authMode=demo.
+        AUTH_MODE: (this.node.tryGetContext('codeai:authMode') as string | undefined) ?? 'cognito',
+        // Fault injection + demo reset for teachers (M6 demo). Set to 'false' for real classes.
+        DEMO_CONTROLS: 'true',
         VALIDATION_MODE: 'model',
         ALLOWED_ORIGINS: `https://${distribution.distributionDomainName},http://localhost:5173`,
       },

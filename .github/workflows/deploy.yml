@@ -7,6 +7,8 @@ name: Deploy (infra + API + web)
 # Required repo configuration:
 #   - Variable  AWS_DEPLOY_ROLE_ARN  = the GitHubDeployRoleArn stack output
 #                                      (role codeai-github-deploy)
+#   - Variable  DEMO_PASSWORD        = shared password of the demo Cognito accounts
+#                                      (optional; public by design, see scripts/seed-cognito-demo.sh)
 # Trust is scoped to this repo + the main branch, so only main can assume it.
 
 on:
@@ -63,7 +65,7 @@ jobs:
             --query "Stacks[0].Outputs[?OutputKey=='ApiFunctionUrl'].OutputValue" --output text || true)
           if [ -n "$URL" ] && [ "$URL" != "None" ]; then
             for i in 1 2 3; do
-              code=$(curl -s -m 60 -o /dev/null -w '%{http_code}' "${URL%/}/api/demo/users" || true)
+              code=$(curl -s -m 60 -o /dev/null -w '%{http_code}' "${URL%/}/health?db=1" || true)
               echo "wake attempt $i -> $code"; [ "$code" = "200" ] && break; sleep 10
             done
           fi
@@ -85,6 +87,7 @@ jobs:
             echo "SPA_BUCKET=$(o SpaBucketName)"
             echo "DIST_ID=$(o CloudFrontDistributionId)"
             echo "SPA_DOMAIN=$(o CloudFrontDomain)"
+            echo "COGNITO_CLIENT_ID=$(o UserPoolClientId)"
           } >> "$GITHUB_ENV"
 
       - name: Build SPA
@@ -93,6 +96,12 @@ jobs:
           VITE_API_MODE: http
           VITE_API_URL: ${{ env.API_URL }}
           VITE_DEMO_CONTROLS: 'true'
+          VITE_AUTH_MODE: cognito
+          VITE_COGNITO_REGION: ${{ env.AWS_REGION }}
+          VITE_COGNITO_CLIENT_ID: ${{ env.COGNITO_CLIENT_ID }}
+          # Shared password of the synthetic demo accounts (scripts/seed-cognito-demo.sh).
+          # Ships in the bundle for one-click demo sign-in; empty = no demo buttons.
+          VITE_DEMO_PASSWORD: ${{ vars.DEMO_PASSWORD }}
         run: |
           npm ci
           npm run build
@@ -106,5 +115,5 @@ jobs:
       - name: Smoke test
         run: |
           curl -fsS -m 60 "$API_URL/health"; echo
-          curl -fsS -m 60 -o /dev/null -w "demo users -> %{http_code}\n" "$API_URL/api/demo/users"
+          curl -fsS -m 60 -o /dev/null -w "session without token -> %{http_code}\n" "$API_URL/api/session" || true
           curl -fsS -m 30 -o /dev/null -w "SPA https://$SPA_DOMAIN -> %{http_code}\n" "https://$SPA_DOMAIN/"

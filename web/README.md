@@ -18,7 +18,14 @@ Requires Node 20.19 or newer.
 | `VITE_API_MODE` | Behavior |
 |---|---|
 | `mock` (default) | In-browser mock of the Rails API with synthetic users and data, stored in `localStorage`. |
-| `http` | Calls the Rails API at `VITE_API_URL`. Cognito sign-in is not wired up yet. |
+| `http` | Calls the Rails API at `VITE_API_URL`. |
+
+Sign-in in `http` mode (`VITE_AUTH_MODE`):
+
+| `VITE_AUTH_MODE` | Behavior |
+|---|---|
+| `demo` (default) | Pick a synthetic user; sent as `X-Demo-User`. Backend must run `AUTH_MODE=demo`. |
+| `cognito` | Email + password against Amazon Cognito (`VITE_COGNITO_CLIENT_ID`, `VITE_COGNITO_REGION`); the ID token is sent as a Bearer JWT. With `VITE_DEMO_PASSWORD` set, the page also shows one-click demo accounts (created by `scripts/seed-cognito-demo.sh`). That password ships in the bundle, so it is public by design. |
 
 The contract lives in `src/api/types.ts` (DTOs) and `src/api/httpApi.ts` (endpoint paths). The Rails team should match these or update them.
 

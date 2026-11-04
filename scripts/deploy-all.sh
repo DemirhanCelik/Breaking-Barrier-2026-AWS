@@ -21,6 +21,7 @@ API_URL=$(out ApiFunctionUrl); API_URL=${API_URL%/}
 BUCKET=$(out SpaBucketName)
 DIST=$(out CloudFrontDistributionId)
 DOMAIN=$(out CloudFrontDomain)
+CLIENT_ID=$(out UserPoolClientId)
 
 echo "==> 2/5 create tables + demo data (Aurora may take ~30s to resume)"
 for i in 1 2 3; do
@@ -36,7 +37,9 @@ done
 
 echo "==> 3/5 build SPA against $API_URL"
 (cd "$ROOT/web" && npm ci --silent && \
-  VITE_API_MODE=http VITE_API_URL="$API_URL" VITE_DEMO_CONTROLS=true npm run build)
+  VITE_API_MODE=http VITE_API_URL="$API_URL" VITE_DEMO_CONTROLS=true \
+  VITE_AUTH_MODE=cognito VITE_COGNITO_REGION="$REGION" VITE_COGNITO_CLIENT_ID="$CLIENT_ID" \
+  VITE_DEMO_PASSWORD="${DEMO_PASSWORD:-}" npm run build)
 
 echo "==> 4/5 upload SPA + invalidate CloudFront"
 aws s3 sync "$ROOT/web/dist" "s3://$BUCKET" --delete --region "$REGION"
@@ -45,6 +48,6 @@ aws cloudfront create-invalidation --distribution-id "$DIST" --paths '/*' \
 
 echo "==> 5/5 smoke test"
 curl -s -m 60 "$API_URL/health"; echo
-curl -s -m 30 "$API_URL/api/demo/users" | head -c 300; echo
+curl -s -m 30 -o /dev/null -w "session without token -> %{http_code} (expect 401)\n" "$API_URL/api/session"
 curl -s -m 30 -o /dev/null -w "SPA https://$DOMAIN -> %{http_code}\n" "https://$DOMAIN/"
 echo "Done. Open https://$DOMAIN"

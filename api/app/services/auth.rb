@@ -39,7 +39,7 @@ module Auth
     claims = verify(token)
     return nil unless claims
     role = Array(claims["cognito:groups"]).include?("teacher") ? "teacher" : "student"
-    provision(claims["sub"], role)
+    provision(claims["sub"], role, link_id: claims["preferred_username"])
   end
 
   # Verifies signature, issuer, audience, expiry and token_use (ID token).
@@ -67,8 +67,20 @@ module Auth
 
   # Maps a Cognito sub to an app user. No names or emails are copied from the
   # token (NFR2); display names are pseudonymous until a roster integration exists.
-  def provision(sub, role)
+  #
+  # link_id: admin-set `preferred_username` that binds a Cognito user to a
+  # pre-seeded app_user row (the synthetic demo accounts). Users cannot change it:
+  # the SPA client has no write access to that attribute. A row is linked only
+  # while it has no cognito_sub yet, and only when the roles agree.
+  def provision(sub, role, link_id: nil)
     row = Db.query("SELECT id, display_name, role FROM app_user WHERE cognito_sub = :sub", sub: sub).first
+    if !row && link_id.present?
+      row = Db.query(<<~SQL, id: link_id, sub: sub, role: role).first
+        UPDATE app_user SET cognito_sub = :sub
+        WHERE id = :id AND cognito_sub IS NULL AND role = :role
+        RETURNING id, display_name, role
+      SQL
+    end
     unless row
       id = "u-#{sub[0, 8]}"
       name = role == "teacher" ? "Teacher #{sub[0, 4]}" : "Student #{sub[0, 4]}"

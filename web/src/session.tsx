@@ -1,10 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { api, type SessionUser } from './api';
+import { api, authMode, type SessionUser } from './api';
+import * as cognito from './auth/cognito';
 
 interface SessionValue {
   user: SessionUser | null;
   loading: boolean;
+  /** Demo picker (AUTH_MODE=demo / mock). */
   signIn: (userId: string) => Promise<SessionUser>;
+  /** Amazon Cognito email + password. */
+  signInWithPassword: (email: string, password: string) => Promise<SessionUser>;
   signOut: () => Promise<void>;
 }
 
@@ -28,12 +32,27 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return u;
   }, []);
 
+  const signInWithPassword = useCallback(async (email: string, password: string) => {
+    await cognito.signIn(email, password);
+    const u = await api.getSession();
+    if (!u) {
+      cognito.signOut();
+      throw new Error('Signed in, but the API did not accept the session.');
+    }
+    setUser(u);
+    return u;
+  }, []);
+
   const signOut = useCallback(async () => {
+    if (authMode === 'cognito') cognito.signOut();
     await api.signOut();
     setUser(null);
   }, []);
 
-  const value = useMemo(() => ({ user, loading, signIn, signOut }), [user, loading, signIn, signOut]);
+  const value = useMemo(
+    () => ({ user, loading, signIn, signInWithPassword, signOut }),
+    [user, loading, signIn, signInWithPassword, signOut],
+  );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 

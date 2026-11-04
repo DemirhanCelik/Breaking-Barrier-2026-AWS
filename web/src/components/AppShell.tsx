@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 import TuneIcon from '@mui/icons-material/Tune';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import { api, demoControls } from '../api';
+import { api, authMode, demoControls } from '../api';
 import { useSession } from '../session';
 import { brand } from '../theme';
 import { Initials, Logo } from './brand';
@@ -36,7 +36,9 @@ export function useHeaderSlot(node: ReactNode, key: string) {
 }
 
 function DemoMenu() {
-  const controls = demoControls;
+  const { user } = useSession();
+  // With Cognito the backend serves demo controls to teachers only.
+  const controls = authMode === 'cognito' && user?.role !== 'teacher' ? null : demoControls;
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [fault, setFault] = useState(false);
   useEffect(() => {
