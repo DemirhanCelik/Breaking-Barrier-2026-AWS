@@ -18,6 +18,7 @@ import {
 import FlagRoundedIcon from '@mui/icons-material/FlagRounded';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
+import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { api, type ClassAttainment } from '../../api';
 import { Initials } from '../../components/brand';
@@ -76,6 +77,9 @@ export function TeacherDashboardPage() {
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2, mb: 2 }}>
           <StageLegend bar={data.bar} />
           <Box sx={{ flex: 1 }} />
+          <Button startIcon={<FactCheckOutlinedIcon />} onClick={() => navigate('/teacher/evidence')} sx={{ color: brand.charcoal }}>
+            Launch gates
+          </Button>
           <Button startIcon={<ShieldOutlinedIcon />} onClick={() => navigate('/teacher/safety')} sx={{ color: brand.charcoal }}>
             Safety log
           </Button>
