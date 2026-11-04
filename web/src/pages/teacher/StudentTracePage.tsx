@@ -200,7 +200,7 @@ export function StudentTracePage() {
           </Panel>
         </Box>
 
-        <Panel title="Validation evidence" note="Demo mode scores with fixed checks only. Production adds the Bedrock rubric eval.">
+        <Panel title="Validation evidence" note="Fixed checks look for the required parts of an answer. Where a step uses the AI rubric (Bedrock), its reasoning is shown under each concept. Drag-and-drop and fill-in steps use fixed checks only.">
           {trace.validations.length === 0 ? (
             <Typography variant="body2" color="text.secondary">
               No submissions yet.
@@ -279,6 +279,16 @@ function signalText(s: NonNullable<ValidationRecord['signals']>) {
   return parts.join(' · ');
 }
 
+const isRubric = (e: string) => e.startsWith('Rubric: ');
+
+/** How this attempt was scored, read from its own evidence. */
+function scorer(v: ValidationRecord): string | null {
+  if (v.results.length === 0) return null;
+  const all = v.results.flatMap((r) => r.evidence);
+  if (all.some((e) => e.startsWith('Seeded'))) return 'Seeded demo data';
+  return all.some(isRubric) ? 'Fixed checks + AI rubric' : 'Fixed checks';
+}
+
 function ValidationRow({ v, name }: { v: ValidationRecord; name: (id: string) => string }) {
   const mode = MODE_LABEL[v.mode];
   const [showResponse, setShowResponse] = useState(false);
@@ -293,6 +303,11 @@ function ValidationRow({ v, name }: { v: ValidationRecord; name: (id: string) =>
         <Typography variant="caption" sx={{ color: mode.color, fontWeight: 700 }}>
           {mode.label}
         </Typography>
+        {scorer(v) && (
+          <Typography variant="caption" color="text.secondary" display="block">
+            {scorer(v)}
+          </Typography>
+        )}
         {v.signals && (
           <Typography variant="caption" color="text.secondary" display="block">
             {signalText(v.signals)}
@@ -323,7 +338,7 @@ function ValidationRow({ v, name }: { v: ValidationRecord; name: (id: string) =>
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 0.75 }}>
-              {r.evidence.map((e) => {
+              {r.evidence.filter((e) => !isRubric(e)).map((e) => {
                 const met = e.startsWith('Met') || e.startsWith('Seeded');
                 return (
                   <Box
@@ -342,6 +357,18 @@ function ValidationRow({ v, name }: { v: ValidationRecord; name: (id: string) =>
                 );
               })}
             </Box>
+            {r.evidence.some(isRubric) && (
+              <Box sx={{ mt: 1, pl: 1.5, py: 0.75, borderLeft: `3px solid ${brand.purple}`, bgcolor: '#f6f3fb', borderRadius: 1 }}>
+                <Typography variant="caption" sx={{ fontWeight: 800, color: brand.purple, letterSpacing: 0.4 }}>
+                  AI RUBRIC
+                </Typography>
+                {r.evidence.filter(isRubric).map((e) => (
+                  <Typography key={e} sx={{ fontSize: 15, lineHeight: 1.5, color: brand.charcoal }}>
+                    {e.replace(/^Rubric: /, '')}
+                  </Typography>
+                ))}
+              </Box>
+            )}
           </Box>
         ))}
         {response && (
