@@ -12,6 +12,7 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as bedrock from 'aws-cdk-lib/aws-bedrock';
 import { Platform } from 'aws-cdk-lib/aws-ecr-assets';
 import * as path from 'path';
+import { DatabaseSchema } from './database-schema';
 
 export interface CodeAiInfraStackProps extends cdk.StackProps {
   /** GitHub repo in "owner/name" form used to scope the OIDC trust policy. */
@@ -190,6 +191,21 @@ export class CodeAiInfraStack extends cdk.Stack {
       storageEncryptionKey: dataKey,
       removalPolicy: cdk.RemovalPolicy.DESTROY, // MVP.
     });
+
+    // =========================================================================
+    // 3b. Database schema (data model, design §5) as IaC.
+    // =========================================================================
+    // Create/maintain the tables as part of the deploy via the Aurora Data API
+    // (HTTPS, no NAT path). Idempotent DDL — safe on every create/update. This
+    // replaces the out-of-band `rake db:schema` step with reproducible IaC.
+    if (dbCluster.secret) {
+      new DatabaseSchema(this, 'DatabaseSchema', {
+        cluster: dbCluster,
+        secret: dbCluster.secret,
+        databaseName: 'codeai',
+        encryptionKey: dataKey,
+      });
+    }
 
     // =========================================================================
     // 4. Private S3 buckets — SPA + artifacts. BPA on, SSE-KMS, no public access.
