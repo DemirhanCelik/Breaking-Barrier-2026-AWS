@@ -51,7 +51,7 @@ export function SidePanel({
           sx={{ flex: 1, minHeight: 44, '& .MuiTab-root': { minHeight: 44, textTransform: 'none', fontWeight: 700 } }}
         >
           <Tab value="bit" label="Ask Bit" />
-          <Tab value="preview" label="AI preview" disabled={!previewReady} />
+          {previewReady && <Tab value="preview" label="AI preview" />}
         </Tabs>
         <IconButton size="small" aria-label="Close side panel" onClick={() => onTab(null)}>
           <CloseIcon fontSize="small" />

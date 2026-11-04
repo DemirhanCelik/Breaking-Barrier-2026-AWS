@@ -42,7 +42,14 @@ export function LevelView({
   const [leftPct, setLeftPct, leftMin, leftMax] = usePaneSize('left', 42, 25, 70);
   // Side panel on the right with two tabs: Bit (opened by Hint, which also asks for a
   // hint) and the AI preview (opened by Try it). It pushes the page; it never covers it.
-  const [side, setSide] = useState<'bit' | 'preview' | null>(null);
+  // Open/closed carries over to the next step (a new step has no preview yet, so it opens on Bit).
+  const [side, setSideState] = useState<'bit' | 'preview' | null>(() => (readSideOpen() ? 'bit' : null));
+  const setSide = (next: 'bit' | 'preview' | null | ((s: 'bit' | 'preview' | null) => 'bit' | 'preview' | null)) =>
+    setSideState((prev) => {
+      const value = typeof next === 'function' ? next(prev) : next;
+      writeSideOpen(value !== null);
+      return value;
+    });
   const [sidePct, setSidePct, sideMin, sideMax] = usePaneSize('side', 32, 22, 55);
   const [hintSignal, setHintSignal] = useState(0);
   // Your work always keeps at least 30% of the width: the side panel and then the
@@ -225,7 +232,13 @@ export function LevelView({
       <Box
         component="section"
         aria-label="Your work"
-        sx={{ display: 'flex', flexDirection: 'column', minHeight: { xs: 420, md: 0 }, minWidth: 0, overflow: 'hidden' }}
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: { xs: 420, md: 0 },
+          minWidth: 0,
+          overflow: 'hidden',
+        }}
       >
         <PaneHeader
           title="Your work"
@@ -446,6 +459,24 @@ function promptPart(text: string) {
     ...(end < 0 ? rest : rest.slice(0, end)),
   ];
   return block.join('\n').trim() || text;
+}
+
+const SIDE_KEY = 'codeai-side-open';
+
+function readSideOpen() {
+  try {
+    return sessionStorage.getItem(SIDE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeSideOpen(open: boolean) {
+  try {
+    sessionStorage.setItem(SIDE_KEY, open ? '1' : '0');
+  } catch {
+    // Storage unavailable: the panel just starts closed on the next step.
+  }
 }
 
 function wordLabel(text: string) {
