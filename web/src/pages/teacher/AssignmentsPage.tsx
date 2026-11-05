@@ -6,6 +6,7 @@ import {
   Chip,
   CircularProgress,
   Container,
+  Divider,
   MenuItem,
   Table,
   TableBody,
@@ -14,19 +15,38 @@ import {
   TableHead,
   TableRow,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 import AddTaskOutlinedIcon from '@mui/icons-material/AddTaskOutlined';
 import ArchiveOutlinedIcon from '@mui/icons-material/ArchiveOutlined';
-import { api, type AssignableUnit, type Assignment } from '../../api';
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined';
+import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
+import {
+  api,
+  type AssignableUnit,
+  type Assignment,
+  type AssignmentScope,
+  type AssignmentTargetKind,
+  type RosterStudent,
+} from '../../api';
 import type { CreateAssignmentBody } from '../../api/client';
 import { brand } from '../../theme';
 import { HeaderStat, TeacherHeader } from './TeacherHeader';
 
-/** Teacher assignments: list what's assigned and create or archive assignments. */
+/**
+ * Teacher assignments. Assigning prioritizes a unit/level in the student's
+ * adaptive path (it does not force a fixed order). The create flow is a guided
+ * two-step: who it's for, then what to assign — using name/title pickers, never
+ * raw ids.
+ */
 export function AssignmentsPage() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [units, setUnits] = useState<AssignableUnit[]>([]);
+  const [students, setStudents] = useState<RosterStudent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -38,6 +58,7 @@ export function AssignmentsPage() {
       .then((r) => {
         setAssignments(r.assignments);
         setUnits(r.units);
+        setStudents(r.students);
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
@@ -46,6 +67,8 @@ export function AssignmentsPage() {
   useEffect(load, [load]);
 
   const active = assignments.filter((a) => a.status === 'active');
+  const unitName = (id: string) => units.find((u) => u.id === id)?.name ?? id;
+  const studentName = (id?: string) => (id ? (students.find((s) => s.id === id)?.name ?? id) : '');
 
   const archive = async (id: string) => {
     try {
@@ -56,18 +79,16 @@ export function AssignmentsPage() {
     }
   };
 
-  const unitName = (id: string) => units.find((u) => u.id === id)?.name ?? id;
-
   return (
     <Box sx={{ flex: 1 }}>
       <TeacherHeader
         eyebrow="Curriculum"
         title="Assignments"
-        subtitle="Assign a unit or a specific level to your class or an individual student."
+        subtitle="Point students at a unit or a specific step. Assignments guide the adaptive path — they prioritize, they don't lock the order."
         right={
           <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
             <HeaderStat label="active" value={active.length} />
-            <HeaderStat label="total" value={assignments.length} />
+            <HeaderStat label="students" value={students.length} />
           </Box>
         }
       />
@@ -83,64 +104,17 @@ export function AssignmentsPage() {
           </Box>
         ) : (
           <>
-            <CreateForm units={units} onCreated={(a) => setAssignments((xs) => [a, ...xs])} />
-
-            <Box component="section" sx={{ bgcolor: '#fff', border: `1px solid ${brand.borderLight}`, borderRadius: 2, p: 2.5 }}>
-              <Typography variant="h2" sx={{ fontSize: '1.15rem', mb: 1.5 }}>
-                Current assignments ({assignments.length})
-              </Typography>
-              {assignments.length === 0 ? (
-                <Typography color="text.secondary">No assignments yet. Create one above.</Typography>
-              ) : (
-                <TableContainer>
-                  <Table aria-label="Current assignments">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Scope</TableCell>
-                        <TableCell>Target</TableCell>
-                        <TableCell>Unit</TableCell>
-                        <TableCell>Note</TableCell>
-                        <TableCell>Status</TableCell>
-                        <TableCell align="right" />
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {assignments.map((a) => (
-                        <TableRow key={a.id} hover>
-                          <TableCell sx={{ fontWeight: 600 }}>
-                            {a.scope === 'class' ? 'Whole class' : `Student${a.studentId ? ` · ${a.studentId}` : ''}`}
-                          </TableCell>
-                          <TableCell>
-                            {a.targetKind === 'unit' ? 'Full unit' : `Level ${a.levelCode ?? ''}`}
-                          </TableCell>
-                          <TableCell>{unitName(a.unitId)}</TableCell>
-                          <TableCell>{a.note || '—'}</TableCell>
-                          <TableCell>
-                            <Chip
-                              size="small"
-                              color={a.status === 'active' ? 'primary' : 'default'}
-                              variant={a.status === 'active' ? 'filled' : 'outlined'}
-                              label={a.status}
-                            />
-                          </TableCell>
-                          <TableCell align="right">
-                            {a.status === 'active' && (
-                              <Button
-                                size="small"
-                                startIcon={<ArchiveOutlinedIcon />}
-                                onClick={() => void archive(a.id)}
-                              >
-                                Archive
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )}
-            </Box>
+            <CreateForm
+              units={units}
+              students={students}
+              onCreated={(a) => setAssignments((xs) => [a, ...xs])}
+            />
+            <AssignmentTable
+              assignments={assignments}
+              unitName={unitName}
+              studentName={studentName}
+              onArchive={archive}
+            />
           </>
         )}
       </Container>
@@ -148,20 +122,48 @@ export function AssignmentsPage() {
   );
 }
 
-function CreateForm({ units, onCreated }: { units: AssignableUnit[]; onCreated: (a: Assignment) => void }) {
-  const [scope, setScope] = useState<'class' | 'student'>('class');
-  const [targetKind, setTargetKind] = useState<'unit' | 'level'>('unit');
-  const [unitId, setUnitId] = useState(units[0]?.id ?? '');
+/** Guided create flow: who → what → confirm. */
+function CreateForm({
+  units,
+  students,
+  onCreated,
+}: {
+  units: AssignableUnit[];
+  students: RosterStudent[];
+  onCreated: (a: Assignment) => void;
+}) {
+  const [scope, setScope] = useState<AssignmentScope>('class');
+  const [targetKind, setTargetKind] = useState<AssignmentTargetKind>('unit');
+  const [unitId, setUnitId] = useState('');
   const [levelCode, setLevelCode] = useState('');
   const [studentId, setStudentId] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
 
-  const levels = useMemo(() => units.find((u) => u.id === unitId)?.levels ?? [], [units, unitId]);
+  // Default to the first unit once loaded.
+  useEffect(() => {
+    if (!unitId && units.length) setUnitId(units[0].id);
+  }, [units, unitId]);
+
+  const unit = units.find((u) => u.id === unitId);
+  const levels = useMemo(() => unit?.levels ?? [], [unit]);
+  const level = levels.find((l) => l.code === levelCode);
+  const studentLabel = students.find((s) => s.id === studentId)?.name;
+
+  const disabled =
+    busy || !unitId || (scope === 'student' && !studentId) || (targetKind === 'level' && !levelCode);
+
+  // Plain-language preview of the assignment.
+  const summary =
+    !unitId || (scope === 'student' && !studentId) || (targetKind === 'level' && !levelCode)
+      ? null
+      : `${scope === 'class' ? 'Everyone in your class' : (studentLabel ?? 'This student')} will be guided toward ${
+          targetKind === 'unit' ? `the “${unit?.name}” unit` : `step ${level?.code} · ${level?.title}`
+        }.`;
 
   const create = async () => {
-    if (!unitId) return;
+    if (disabled) return;
     setBusy(true);
     setMsg(null);
     try {
@@ -175,7 +177,7 @@ function CreateForm({ units, onCreated }: { units: AssignableUnit[]; onCreated: 
       };
       const created = await api.createAssignment(body);
       onCreated(created);
-      setMsg({ kind: 'success', text: 'Assignment created.' });
+      setMsg({ kind: 'success', text: 'Assignment created and prioritized for the student path.' });
       setNote('');
     } catch (e) {
       setMsg({ kind: 'error', text: (e as Error).message });
@@ -184,87 +186,137 @@ function CreateForm({ units, onCreated }: { units: AssignableUnit[]; onCreated: 
     }
   };
 
-  const disabled =
-    busy || !unitId || (scope === 'student' && !studentId) || (targetKind === 'level' && !levelCode);
-
   return (
-    <Box component="section" sx={{ bgcolor: '#fff', border: `1px solid ${brand.borderLight}`, borderRadius: 2, p: 2.5 }}>
-      <Typography variant="h2" sx={{ fontSize: '1.15rem', mb: 0.5 }}>
-        Create an assignment
+    <Box component="section" sx={{ bgcolor: '#fff', border: `1px solid ${brand.borderLight}`, borderRadius: 2, p: 3 }}>
+      <Typography variant="h2" sx={{ fontSize: '1.2rem', mb: 2.5 }}>
+        New assignment
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Assign a full unit or a single level, to the whole class or one student.
-      </Typography>
+
       {units.length === 0 ? (
         <Alert severity="info">No assignable units are available right now.</Alert>
       ) : (
-        <>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2, mb: 2 }}>
-            <TextField select label="Scope" size="small" value={scope} onChange={(e) => setScope(e.target.value as 'class' | 'student')}>
-              <MenuItem value="class">Whole class</MenuItem>
-              <MenuItem value="student">A single student</MenuItem>
-            </TextField>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {/* Step 1 — who */}
+          <Box>
+            <StepLabel n={1} text="Who is this for?" />
+            <ToggleButtonGroup
+              exclusive
+              value={scope}
+              onChange={(_, v: AssignmentScope | null) => v && setScope(v)}
+              size="small"
+              sx={{ mb: scope === 'student' ? 2 : 0 }}
+            >
+              <ToggleButton value="class" sx={{ textTransform: 'none', gap: 0.75, px: 2 }}>
+                <GroupsOutlinedIcon fontSize="small" /> Whole class
+              </ToggleButton>
+              <ToggleButton value="student" sx={{ textTransform: 'none', gap: 0.75, px: 2 }}>
+                <PersonOutlineIcon fontSize="small" /> One student
+              </ToggleButton>
+            </ToggleButtonGroup>
             {scope === 'student' && (
               <TextField
-                label="Student id"
+                select
+                label="Student"
                 size="small"
                 value={studentId}
                 onChange={(e) => setStudentId(e.target.value)}
-                placeholder="e.g. s-hithesh"
-              />
-            )}
-            <TextField
-              select
-              label="Target"
-              size="small"
-              value={targetKind}
-              onChange={(e) => setTargetKind(e.target.value as 'unit' | 'level')}
-            >
-              <MenuItem value="unit">Full unit</MenuItem>
-              <MenuItem value="level">A single level</MenuItem>
-            </TextField>
-            <TextField
-              select
-              label="Unit"
-              size="small"
-              value={unitId}
-              onChange={(e) => {
-                setUnitId(e.target.value);
-                setLevelCode('');
-              }}
-            >
-              {units.map((u) => (
-                <MenuItem key={u.id} value={u.id}>
-                  {u.name}
-                </MenuItem>
-              ))}
-            </TextField>
-            {targetKind === 'level' && (
-              <TextField select label="Level" size="small" value={levelCode} onChange={(e) => setLevelCode(e.target.value)}>
-                {levels.map((l) => (
-                  <MenuItem key={l.code} value={l.code}>
-                    {l.code} · {l.title}
+                sx={{ minWidth: 260, display: 'block' }}
+                helperText={students.length === 0 ? 'No students are appointed to you for this unit yet.' : 'Your students for this unit.'}
+              >
+                {students.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {s.name}
                   </MenuItem>
                 ))}
               </TextField>
             )}
           </Box>
-          <TextField
-            label="Note (optional)"
-            size="small"
-            fullWidth
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            sx={{ mb: 2 }}
-          />
+
+          <Divider />
+
+          {/* Step 2 — what */}
+          <Box>
+            <StepLabel n={2} text="What should they work on?" />
+            <ToggleButtonGroup
+              exclusive
+              value={targetKind}
+              onChange={(_, v: AssignmentTargetKind | null) => v && setTargetKind(v)}
+              size="small"
+              sx={{ mb: 2 }}
+            >
+              <ToggleButton value="unit" sx={{ textTransform: 'none', gap: 0.75, px: 2 }}>
+                <MenuBookOutlinedIcon fontSize="small" /> A full unit
+              </ToggleButton>
+              <ToggleButton value="level" sx={{ textTransform: 'none', gap: 0.75, px: 2 }}>
+                <FlagOutlinedIcon fontSize="small" /> A specific step
+              </ToggleButton>
+            </ToggleButtonGroup>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: targetKind === 'level' ? '1fr 1fr' : '1fr' }, gap: 2 }}>
+              <TextField
+                select
+                label="Unit"
+                size="small"
+                value={unitId}
+                onChange={(e) => {
+                  setUnitId(e.target.value);
+                  setLevelCode('');
+                }}
+              >
+                {units.map((u) => (
+                  <MenuItem key={u.id} value={u.id}>
+                    {u.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+              {targetKind === 'level' && (
+                <TextField
+                  select
+                  label="Step"
+                  size="small"
+                  value={levelCode}
+                  onChange={(e) => setLevelCode(e.target.value)}
+                  helperText="The step the student is nudged toward next."
+                >
+                  {levels.map((l) => (
+                    <MenuItem key={l.code} value={l.code}>
+                      {l.code} · {l.title}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+            </Box>
+          </Box>
+
+          <Divider />
+
+          {/* Step 3 — optional note + confirm */}
+          <Box>
+            <StepLabel n={3} text="Add a note (optional)" />
+            <TextField
+              label="Note for your own reference"
+              size="small"
+              fullWidth
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g. Focus group for accessibility before Friday"
+            />
+          </Box>
+
+          {summary && (
+            <Alert icon={<AddTaskOutlinedIcon fontSize="inherit" />} severity="info" sx={{ bgcolor: brand.bg }}>
+              {summary} The adaptive engine will prioritize this when it's a valid next step.
+            </Alert>
+          )}
+
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
             <Button
               variant="contained"
+              size="large"
               startIcon={busy ? <CircularProgress size={16} color="inherit" /> : <AddTaskOutlinedIcon />}
               disabled={disabled}
               onClick={() => void create()}
             >
-              {busy ? 'Creating…' : 'Create assignment'}
+              {busy ? 'Assigning…' : 'Assign'}
             </Button>
             {msg && (
               <Alert severity={msg.kind} sx={{ flex: 1, minWidth: 240, py: 0 }}>
@@ -272,7 +324,98 @@ function CreateForm({ units, onCreated }: { units: AssignableUnit[]; onCreated: 
               </Alert>
             )}
           </Box>
-        </>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+function StepLabel({ n, text }: { n: number; text: string }) {
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.25 }}>
+      <Box
+        sx={{
+          width: 22,
+          height: 22,
+          borderRadius: '50%',
+          bgcolor: brand.teal,
+          color: '#fff',
+          fontSize: 13,
+          fontWeight: 800,
+          display: 'grid',
+          placeItems: 'center',
+        }}
+      >
+        {n}
+      </Box>
+      <Typography sx={{ fontWeight: 700 }}>{text}</Typography>
+    </Box>
+  );
+}
+
+function AssignmentTable({
+  assignments,
+  unitName,
+  studentName,
+  onArchive,
+}: {
+  assignments: Assignment[];
+  unitName: (id: string) => string;
+  studentName: (id?: string) => string;
+  onArchive: (id: string) => void;
+}) {
+  return (
+    <Box component="section" sx={{ bgcolor: '#fff', border: `1px solid ${brand.borderLight}`, borderRadius: 2, p: 2.5 }}>
+      <Typography variant="h2" sx={{ fontSize: '1.15rem', mb: 1.5 }}>
+        Current assignments ({assignments.length})
+      </Typography>
+      {assignments.length === 0 ? (
+        <Typography color="text.secondary">Nothing assigned yet. Create your first assignment above.</Typography>
+      ) : (
+        <TableContainer>
+          <Table aria-label="Current assignments">
+            <TableHead>
+              <TableRow>
+                <TableCell>For</TableCell>
+                <TableCell>Assigned</TableCell>
+                <TableCell>Unit</TableCell>
+                <TableCell>Note</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell align="right" />
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {assignments.map((a) => (
+                <TableRow key={a.id} hover>
+                  <TableCell sx={{ fontWeight: 600 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                      {a.scope === 'class' ? <GroupsOutlinedIcon fontSize="small" /> : <PersonOutlineIcon fontSize="small" />}
+                      {a.scope === 'class' ? 'Whole class' : studentName(a.studentId)}
+                    </Box>
+                  </TableCell>
+                  <TableCell>{a.targetKind === 'unit' ? 'Full unit' : `Step ${a.levelCode ?? ''}`}</TableCell>
+                  <TableCell>{unitName(a.unitId)}</TableCell>
+                  <TableCell sx={{ color: a.note ? 'inherit' : 'text.disabled' }}>{a.note || '—'}</TableCell>
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      color={a.status === 'active' ? 'primary' : 'default'}
+                      variant={a.status === 'active' ? 'filled' : 'outlined'}
+                      label={a.status}
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    {a.status === 'active' && (
+                      <Button size="small" startIcon={<ArchiveOutlinedIcon />} onClick={() => onArchive(a.id)}>
+                        Archive
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
     </Box>
   );

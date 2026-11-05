@@ -24,7 +24,7 @@ import type {
   SubmissionOutcome,
   SubmitResult,
   Assignment,
-  AssignableUnit,
+  AssignmentsData,
   AdminDirectory,
   Appointment,
   CurriculumExtract,
@@ -79,7 +79,7 @@ export interface ApiClient {
   reviewContent(id: string, decision: 'approve' | 'reject', edits?: ContentEdits, note?: string): Promise<ContentItem>;
 
   // Teacher assignments (403 for student tokens)
-  listAssignments(status?: string): Promise<{ assignments: Assignment[]; units: AssignableUnit[] }>;
+  listAssignments(status?: string): Promise<AssignmentsData>;
   createAssignment(body: CreateAssignmentBody): Promise<Assignment>;
   archiveAssignment(id: string): Promise<Assignment>;
 

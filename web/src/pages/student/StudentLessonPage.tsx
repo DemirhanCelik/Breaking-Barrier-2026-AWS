@@ -4,15 +4,19 @@ import { api, type LessonState, type PathItem } from '../../api';
 import { useHeaderSlot } from '../../components/AppShell';
 import { DiagnosticView } from './DiagnosticView';
 import { LevelView } from './LevelView';
-import { ProgressBubbles } from './ProgressBubbles';
+import { ProgressBar } from './ProgressBar';
 import { DepthChoiceView } from './DepthChoiceView';
 import { CompleteView } from './CompleteView';
 
 import { TopicPicker } from './TopicPicker';
 
 function useLessonHeader(path: PathItem[] | null, lessonName: string) {
-  const key = path ? `${lessonName}|${path.map((p) => `${p.levelId}:${p.status}`).join('|')}` : 'none';
-  useHeaderSlot(path ? <ProgressBubbles path={path} lessonName={lessonName} /> : null, key);
+  // Key only on the lesson + which step is current (not the whole path), so the
+  // bar's DOM node persists across re-routes and its width animates to the new
+  // proportion instead of resetting.
+  const current = path?.find((p) => p.status === 'current')?.levelId ?? 'none';
+  const key = path ? `${lessonName}|${current}` : 'none';
+  useHeaderSlot(path ? <ProgressBar path={path} lessonName={lessonName} /> : null, key);
 }
 
 /**
@@ -76,7 +80,7 @@ export function StudentLessonPage() {
       return <DepthChoiceView options={state.options} onChosen={setState} />;
     case 'level':
       return (
-        <LevelView key={`${state.unit?.id ?? 'default'}:${state.level.id}`} unitId={state.unit?.id} level={state.level} stepNumber={state.stepsCompleted + 1} onAdvance={load} />
+        <LevelView key={`${state.unit?.id ?? 'default'}:${state.level.id}`} unitId={state.unit?.id} level={state.level} onAdvance={load} />
       );
   }
 }

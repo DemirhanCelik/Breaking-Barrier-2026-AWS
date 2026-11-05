@@ -193,16 +193,30 @@ class LessonService
 
   def list_assignments(teacher_id, status: nil)
     { assignments: Assignment.for_teacher(teacher_id, status: status).map(&:to_json_dto),
-      units: Curriculum.selectable.map { |c| assignable_unit(c) } }
+      units: Curriculum.selectable.map { |c| assignable_unit(c) },
+      # The teacher's roster for the active unit (admin-appointed students), by
+      # name, so the UI offers a student picker instead of a raw id field.
+      students: assignable_students(teacher_id) }
+  end
+
+  # Students the teacher may assign to: their admin-appointed students for the
+  # active unit, as {id, name}.
+  def assignable_students(teacher_id)
+    appointed_ids(teacher_id).filter_map { |id| StudentRecord.find(id) }
+      .sort_by(&:display_name)
+      .map { |s| { id: s.id, name: s.display_name } }
   end
 
   def create_assignment(teacher_id, scope:, target_kind:, unit_id:, klass_id: nil, student_id: nil, level_code: nil, note: nil)
-    # Enforce that the teacher owns the class / the student is in the teacher's class.
     if scope.to_s == "class"
       klass_id = klass_id.presence || cur.klass["id"]
       raise Error.new("You do not own that class.", 403) unless teacher_owns_class?(teacher_id, klass_id)
     elsif scope.to_s == "student"
-      raise Error.new("That student is not in your class.", 403) unless teacher_has_student?(teacher_id, student_id)
+      # Appointment-authoritative: a teacher may assign only to a student they are
+      # admin-appointed to for this unit.
+      unless TeachingAppointment.allows?(teacher_id: teacher_id, student_id: student_id.to_s, unit_id: cur.id)
+        raise Error.new("You are not appointed to this student for this unit.", 403)
+      end
     end
     Assignment.create!(teacher_id: teacher_id, scope: scope, target_kind: target_kind, unit_id: unit_id,
                        klass_id: klass_id, student_id: student_id, level_code: level_code, note: note).to_json_dto

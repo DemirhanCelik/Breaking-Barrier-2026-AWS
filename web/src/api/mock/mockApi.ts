@@ -14,7 +14,7 @@ import {
   ApiError,
   type AssistantReply,
   type Assignment,
-  type AssignableUnit,
+  type AssignmentsData,
   type AdminDirectory,
   type Appointment,
   type CurriculumExtract,
@@ -1046,9 +1046,9 @@ export class MockApiClient implements ApiClient, DemoControls {
 
   // Teacher assignments -----------------------------------------------------
   // Mock mode has no assignment store; the UI compiles and runs, empty.
-  async listAssignments(): Promise<{ assignments: Assignment[]; units: AssignableUnit[] }> {
+  async listAssignments(): Promise<AssignmentsData> {
     await delay(50);
-    return { assignments: [], units: [] };
+    return { assignments: [], units: [], students: [] };
   }
 
   async createAssignment(_body: CreateAssignmentBody): Promise<Assignment> {

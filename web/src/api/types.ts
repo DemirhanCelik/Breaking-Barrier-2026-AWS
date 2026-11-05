@@ -471,6 +471,18 @@ export interface AssignableUnit {
   levels: AssignableLevel[];
 }
 
+/** A student the teacher may assign to (admin-appointed for the active unit). */
+export interface RosterStudent {
+  id: string;
+  name: string;
+}
+
+export interface AssignmentsData {
+  assignments: Assignment[];
+  units: AssignableUnit[];
+  students: RosterStudent[];
+}
+
 // ---------------------------------------------------------------------------
 // Admin directory + appointments (GET/POST /api/admin/...)
 // ---------------------------------------------------------------------------

@@ -30,12 +30,10 @@ type Feedback =
 /** Lab layout: instructions on the left, the student's workspace on the right. */
 export function LevelView({
   level,
-  stepNumber,
   onAdvance,
   unitId,
 }: {
   level: StudentLevel;
-  stepNumber: number;
   onAdvance: () => void;
   unitId?: string;
 }) {
@@ -155,7 +153,7 @@ export function LevelView({
             title="Instructions"
             right={
               <Typography variant="overline" color="text.secondary">
-                {isProject ? 'Project' : `Step ${stepNumber}`}
+                {isProject ? 'Project' : 'Current step'}
               </Typography>
             }
           />

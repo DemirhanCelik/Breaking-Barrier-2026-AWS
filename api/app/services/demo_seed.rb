@@ -2,7 +2,7 @@
 # seeded class so the teacher view has students in different states.
 module DemoSeed
   TEACHER = { id: "t-rivera", name: "Ms. Rivera (teacher)" }.freeze
-  ADMIN = { id: "a-khan", name: "Mr. Khan (admin)" }.freeze
+  ADMIN = { id: "Tanushree-admin", name: "Tanushree Saraf" }.freeze
   STUDENTS = {
     "s-hithesh" => "Hithesh", "s-tanushree" => "Tanushree", "s-demirhan" => "Demirhan", "s-tzuhan" => "Tzuhan",
     "s-hithesh1" => "Hithesh1", "s-tanushree1" => "Tanushree1", "s-demirhan1" => "Demirhan1", "s-tzuhan1" => "Tzuhan1",

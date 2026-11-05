@@ -35,7 +35,7 @@ import {
   type SubmissionOutcome,
   type SubmitResult,
   type Assignment,
-  type AssignableUnit,
+  type AssignmentsData,
   type AdminDirectory,
   type Appointment,
   type CurriculumExtract,
@@ -235,7 +235,7 @@ export class HttpApiClient implements ApiClient, DemoControls {
   // Teacher assignments -----------------------------------------------------
   listAssignments(status?: string) {
     const q = status ? `?status=${encodeURIComponent(status)}` : '';
-    return this.request<{ assignments: Assignment[]; units: AssignableUnit[] }>('GET', `/api/teacher/assignments${q}`);
+    return this.request<AssignmentsData>('GET', `/api/teacher/assignments${q}`);
   }
   createAssignment(body: CreateAssignmentBody) {
     return this.request<Assignment>('POST', '/api/teacher/assignments', body);
