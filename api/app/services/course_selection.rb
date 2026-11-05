@@ -21,6 +21,11 @@ module CourseSelection
   def select!(student_id, course_id)
     id = course_id.to_s
     raise LessonService::Error.new("That course is not available.", 422) unless Curriculum.selectable.any? { |c| c.id == id }
+    # Enrollment requires an admin assignment: a teaching appointment must exist
+    # for this student on this course's unit. Browsing is open; enrolling is not.
+    unless TeachingAppointment.assigned?(student_id: student_id, unit_id: id)
+      raise LessonService::Error.new("This course isn't assigned to you yet. Please contact your admin.", 403)
+    end
     Db.execute("UPDATE app_user SET selected_unit_id = :u WHERE id = :id AND role = 'student'", u: id, id: student_id)
     id
   end

@@ -34,6 +34,37 @@ module Engine
     placed
   end
 
+  # Self-placement: the student taps one card instead of answering a quiz. The
+  # choice sets the SAME starting stage for every required concept, and the
+  # engine re-measures on every real submission, so a mis-tap self-corrects.
+  #   new        -> stage 0            (full roadmap to the bar)
+  #   dabbled    -> bar - 1            (some steps already covered)
+  #   comfortable-> bar                (routes to depth/project)
+  PLACEMENT_LEVELS = %w[new dabbled comfortable].freeze
+
+  def placement_stage(level)
+    case level.to_s
+    when "new" then 0
+    when "dabbled" then [bar - 1, 0].max
+    when "comfortable" then bar
+    else raise ArgumentError, "Unknown placement level #{level}"
+    end
+  end
+
+  def place_self(level)
+    stage = placement_stage(level)
+    cur.required_concepts.to_h { |c| [c, stage] }
+  end
+
+  # The three cards the student chooses from (student-facing copy; no stage/score).
+  def placement_options
+    [
+      { id: "new", label: "New to this", description: "I haven't really done this before. Start me from the beginning." },
+      { id: "dabbled", label: "I've dabbled", description: "I've tried some of this. Skip the basics where it makes sense." },
+      { id: "comfortable", label: "I'm comfortable", description: "I know this well. Take me toward the project." },
+    ]
+  end
+
   def below_bar(stages) = cur.required_concepts.select { |c| stages.fetch(c, 0) < bar }
 
   def applicable_transitions(level, stages)

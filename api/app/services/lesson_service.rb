@@ -21,6 +21,33 @@ class LessonService
 
   def unit_info = { id: cur.id, name: cur.unit["name"], summary: cur.unit["summary"] }
 
+  # Read-only profile: the student's identity plus completion across ALL courses
+  # they can take. Per-course progress comes from student_progress (keyed by
+  # student_id + unit_id). No stage/score — activity only (FR13).
+  def profile(user)
+    progress = Db.query(<<~SQL, id: user.id).to_h { |r| [r["unit_id"], r] }
+      SELECT unit_id, complete, completed_order_json,
+             CAST(floor(extract(epoch FROM updated_at) * 1000) AS bigint) AS at_ms
+      FROM student_progress WHERE student_id = :id
+    SQL
+    selected = CourseSelection.current_for(user.id)
+    courses = Curriculum.selectable.map do |c|
+      row = progress[c.id]
+      done = row ? Array(row["completed_order_json"]).size : 0
+      # Total authored steps that count toward completion (levels up to + incl. the project).
+      total = Curriculum.with_unit(c.id) { Curriculum.current.levels.count { |l| !l.project? } + 1 }
+      status = row.nil? ? "not-started" : row["complete"] ? "complete" : "in-progress"
+      {
+        id: c.id, name: c.unit["name"], summary: c.unit["summary"],
+        status: status, stepsCompleted: done, totalSteps: total,
+        percent: total.positive? ? [(done * 100 / total), 100].min : 0,
+        current: c.id == selected,
+        lastActiveAt: row && row["at_ms"] ? StudentRecord.iso(row["at_ms"]) : nil,
+      }.compact
+    end
+    { user: { id: user.id, displayName: user.display_name, role: user.role }, courses: courses }
+  end
+
   def lesson_state(s) = lesson_phase(s).merge(unit: unit_info)
 
   # Optional first step: pick a topic that personalizes every step ({{topic}}).
@@ -54,18 +81,22 @@ class LessonService
       teacherNotes: teacher_notes(s) }
   end
 
-  # Student-facing: never includes the answer key, the concept, or the stage.
+  # Student-facing self-placement: one tap instead of a quiz. Returns the three
+  # cards; the engine maps the choice to a starting stage for the roadmap.
   def diagnostic_form(s)
-    { intro: cur.diagnostic_intro,
-      items: cur.diagnostic_for(s.id).map do |q|
-        { id: q.id, prompt: q.prompt, figure: q.figure, options: q.options.map { |o| { id: o.id, text: o.text } } }.compact
-      end }
+    { intro: cur.diagnostic_intro.presence ||
+             "Quick start: how familiar are you with this course? Pick one — you can't get this wrong, and it just " \
+             "helps us choose where to begin. We'll adjust as you go.",
+      kind: "self-placement",
+      options: Engine.placement_options }
   end
 
-  def submit_diagnostic(s, answers)
-    raise Error.new("Diagnostic already submitted", 409) if s.diagnostic
-    answers = answers.to_h.transform_keys(&:to_s).transform_values(&:to_s)
-    placed = Engine.place(answers, cur.diagnostic_for(s.id))
+  # Set the starting placement from the student's chosen card (new/dabbled/
+  # comfortable), then build the roadmap. Replaces the 12-question diagnostic.
+  def submit_placement(s, level)
+    raise Error.new("Start already chosen", 409) if s.diagnostic
+    raise Error.new("That option isn't available.", 422) unless Engine::PLACEMENT_LEVELS.include?(level.to_s)
+    placed = Engine.place_self(level)
     s.save_diagnostic!(placed)
     s.stages = placed.dup
     advance(s)

@@ -18,7 +18,6 @@ import {
   type PreviewResult,
   type MiniLesson,
   type WorkSignals,
-  type DiagnosticAnswers,
   type AuthoringState,
   type ContentEdits,
   type ContentItem,
@@ -29,6 +28,7 @@ import {
   type PracticeItem,
   type FilterAudit,
   type LessonState,
+  type StudentProfile,
   type SessionUser,
   type StudentTrace,
   type ClassPaths,
@@ -162,8 +162,11 @@ export class HttpApiClient implements ApiClient, DemoControls {
   getDiagnostic() {
     return this.request<DiagnosticForm>('GET', '/api/student/diagnostic');
   }
-  submitDiagnostic(answers: DiagnosticAnswers) {
-    return this.request<LessonState>('POST', '/api/student/diagnostic', { answers });
+  submitDiagnostic(level: string) {
+    return this.request<LessonState>('POST', '/api/student/diagnostic', { level });
+  }
+  getProfile() {
+    return this.request<StudentProfile>('GET', '/api/student/profile');
   }
   submitWork(levelId: string, response: string, signals?: WorkSignals) {
     return this.request<SubmitResult>('POST', `/api/student/levels/${encodeURIComponent(levelId)}/submissions`, {

@@ -27,7 +27,6 @@ import {
   type MiniLesson,
   type SkillGroup,
   type WorkSignals,
-  type DiagnosticAnswers,
   type AuthoringState,
   type ContentEdits,
   type ContentItem,
@@ -43,6 +42,7 @@ import {
   type FilterContext,
   type FilterEvent,
   type LessonState,
+  type StudentProfile,
   type PathItem,
   type RouteDecision,
   type SessionUser,
@@ -76,8 +76,6 @@ import {
   buildRoadmap,
   evaluate,
   filterText,
-  diagnosticFor,
-  placeFromDiagnostic,
   route,
   type EngineState,
 } from './engine';
@@ -466,23 +464,33 @@ export class MockApiClient implements ApiClient, DemoControls {
     this.requireStudent();
     return {
       intro: DIAGNOSTIC_INTRO,
-      // Never send the answer key, concept, or stage to the student.
-      items: diagnosticFor(this.requireStudent().id).map((q) => ({
-        id: q.id,
-        prompt: q.prompt,
-        ...(q.figure ? { figure: q.figure } : {}),
-        options: q.options.map((o) => ({ id: o.id, text: o.text })),
-      })),
+      kind: 'self-placement',
+      options: [
+        { id: 'new', label: 'New to this', description: "I haven't really built websites with AI before." },
+        { id: 'dabbled', label: "I've dabbled", description: "I've tried a bit and know some of the basics." },
+        { id: 'comfortable', label: "I'm comfortable", description: 'I build and tweak AI-made pages pretty confidently.' },
+      ],
     };
   }
 
-  async submitDiagnostic(answers: DiagnosticAnswers) {
+  async submitDiagnostic(level: string): Promise<LessonState> {
     await delay(400);
     const s = this.requireStudent();
     if (s.diagnostic) throw new ApiError('Diagnostic already submitted', 409);
-    placeStudent(s, placeFromDiagnostic(answers, diagnosticFor(s.id)));
+    // Map the self-placement choice to a starting stage for every required concept.
+    const startStage: Record<string, Stage> = { new: 0, dabbled: 1, comfortable: 2 };
+    const stage = startStage[level] ?? 0;
+    const placed = Object.fromEntries(CONCEPTS.map((c) => [c.id, stage])) as StageVector;
+    placeStudent(s, placed);
     this.persist();
     return lessonState(s);
+  }
+
+  async getProfile(): Promise<StudentProfile> {
+    await delay();
+    this.requireStudent();
+    // The mock has a single demo course; real per-course progress is served by the API.
+    return { user: { id: 'demo', displayName: 'Demo', role: 'student' }, courses: [] };
   }
 
   async submitWork(levelId: string, response: string, signals?: WorkSignals): Promise<SubmitResult> {

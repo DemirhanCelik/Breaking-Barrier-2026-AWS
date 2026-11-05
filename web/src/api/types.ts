@@ -34,13 +34,22 @@ export interface DiagnosticItem {
   options: DiagnosticOption[];
 }
 
-export interface DiagnosticForm {
-  intro: string;
-  items: DiagnosticItem[];
-}
-
 /** itemId -> optionId */
 export type DiagnosticAnswers = Record<string, string>;
+
+/** One self-placement choice (new / dabbled / comfortable). */
+export interface PlacementOption {
+  id: string;
+  label: string;
+  description: string;
+}
+
+/** The diagnostic is now a short, low-pressure self-placement, not a quiz. */
+export interface DiagnosticForm {
+  intro: string;
+  kind: 'self-placement';
+  options: PlacementOption[];
+}
 
 export interface StudentLevel {
   id: string;
@@ -60,6 +69,25 @@ export interface StudentLevel {
 }
 
 export type PreviewResult = { withheld: false; html: string } | { withheld: true; message: string };
+
+/** Read-only progress for one of the student's courses (GET /api/student/profile). */
+export interface StudentCourseProgress {
+  id: string;
+  name: string;
+  summary?: string;
+  status: 'not-started' | 'in-progress' | 'complete';
+  stepsCompleted: number;
+  totalSteps: number;
+  percent: number;
+  current: boolean;
+  lastActiveAt?: string;
+}
+
+/** The student's own profile: read-only details plus progress across their courses. */
+export interface StudentProfile {
+  user: { id: string; displayName: string; role: Role };
+  courses: StudentCourseProgress[];
+}
 
 /** Drag the shuffled lines into a working order, or fill the ____ blanks in the code. */
 export type LevelInteraction = { type: 'parsons'; lines: string[] } | { type: 'fill'; code: string; blanks: number };

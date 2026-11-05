@@ -102,12 +102,11 @@ jobs:
           VITE_API_MODE: http
           VITE_API_URL: ${{ env.API_URL }}
           VITE_DEMO_CONTROLS: 'true'
-          VITE_AUTH_MODE: cognito
+          # demo = passwordless one-tap sign-in for every tile (student, teacher,
+          # admin) via the X-Demo-User header. Must match the API's AUTH_MODE.
+          VITE_AUTH_MODE: demo
           VITE_COGNITO_REGION: ${{ env.AWS_REGION }}
           VITE_COGNITO_CLIENT_ID: ${{ env.COGNITO_CLIENT_ID }}
-          # Shared password of the synthetic demo accounts (scripts/seed-cognito-demo.sh).
-          # Ships in the bundle for one-click demo sign-in; empty = no demo buttons.
-          VITE_DEMO_PASSWORD: ${{ vars.DEMO_PASSWORD }}
         run: |
           npm ci
           npm run build

@@ -5,9 +5,14 @@ class StudentController < ApplicationController
   around_action :with_student_course
 
   def courses
-    assigned = CourseSelection.assigned_for(current_user.id)
     selected = Curriculum.current_unit_id
-    render json: Curriculum.selectable.map { |c| { id: c.id, name: c.unit["name"], summary: c.unit["summary"], assigned: c.id == assigned, selected: c.id == selected } }
+    # A course is enrollable ("assigned") iff an admin teaching appointment exists
+    # for this student on its unit. Students may browse all selectable courses.
+    assigned_units = TeachingAppointment.assigned_unit_ids(student_id: current_user.id)
+    render json: Curriculum.selectable.map { |c|
+      { id: c.id, name: c.unit["name"], summary: c.unit["summary"],
+        assigned: assigned_units.include?(c.id), selected: c.id == selected }
+    }
   end
 
   def select_course
@@ -18,9 +23,12 @@ class StudentController < ApplicationController
   def lesson = render(json: service.lesson_state(student))
   def diagnostic = render(json: service.diagnostic_form(student))
 
+  # Read-only profile: identity + completion across all the student's courses.
+  def profile = render(json: service.profile(current_user))
+
+  # Self-placement: the student taps one card (new/dabbled/comfortable).
   def submit_diagnostic
-    answers = params.require(:answers).permit!.to_h
-    render json: service.submit_diagnostic(student, answers)
+    render json: service.submit_placement(student, params.require(:level).to_s)
   end
 
   def create_submission

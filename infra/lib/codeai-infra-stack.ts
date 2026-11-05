@@ -444,11 +444,11 @@ export class CodeAiInfraStack extends cdk.Stack {
         GUARDRAIL_VERSION: 'DRAFT',
         COGNITO_USER_POOL_ID: userPool.userPoolId,
         COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
-        // demo = synthetic users picked via X-Demo-User header (SPA has no
-        // Cognito sign-in yet). Switch to 'cognito' with -c codeai:authMode=cognito.
-        // cognito = real sign-in (default). demo = X-Demo-User header, synthetic
-        // data only; opt in with -c codeai:authMode=demo.
-        AUTH_MODE: (this.node.tryGetContext('codeai:authMode') as string | undefined) ?? 'cognito',
+        // demo = synthetic users picked via X-Demo-User header (no passwords;
+        // every tile is one tap). cognito = real password sign-in.
+        // Default is 'demo' for the hackathon demo; switch to real auth with
+        // -c codeai:authMode=cognito. Synthetic data only in demo mode (NFR2).
+        AUTH_MODE: (this.node.tryGetContext('codeai:authMode') as string | undefined) ?? 'demo',
         // Fault injection + demo reset for teachers (M6 demo). Set to 'false' for real classes.
         DEMO_CONTROLS: 'true',
         VALIDATION_MODE: 'model',

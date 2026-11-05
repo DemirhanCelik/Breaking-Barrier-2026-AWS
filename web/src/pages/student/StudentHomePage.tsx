@@ -1,9 +1,23 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { Alert, Box, Button, Chip, CircularProgress, Container, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Typography,
+} from '@mui/material';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
-import { api, type CourseInfo, type LessonState } from '../../api';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import { api, ApiError, type CourseInfo, type LessonState } from '../../api';
 import { useSession } from '../../session';
 import { brand } from '../../theme';
 
@@ -14,10 +28,23 @@ export function StudentHomePage() {
   const [courses, setCourses] = useState<CourseInfo[] | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
   const [courseError, setCourseError] = useState('');
+  // Popup shown when a student tries to enroll in a course an admin hasn't
+  // assigned to them (backend returns 403 with a specific message).
+  const [notAssigned, setNotAssigned] = useState<string | null>(null);
   async function openCourse(id: string) {
     setOpening(id); setCourseError('');
-    try { await api.selectCourse(id); window.location.assign('/student/lesson'); }
-    catch { setCourseError('Could not open this course. Please try again.'); setOpening(null); }
+    try {
+      await api.selectCourse(id);
+      window.location.assign('/student/lesson');
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 403) {
+        // Not assigned by the admin — show the contact-admin popup.
+        setNotAssigned(e.message || "This course isn't assigned to you yet. Please contact your admin.");
+      } else {
+        setCourseError('Could not open this course. Please try again.');
+      }
+      setOpening(null);
+    }
   }
   const [error, setError] = useState(false);
   const load = useCallback(async () => {
@@ -48,7 +75,7 @@ export function StudentHomePage() {
         </Box>
       </Box>
 
-      <Box component="nav" aria-label="Learning navigation" sx={{ display: 'flex', gap: 3, borderBottom: `1px solid ${brand.border}`, mb: 3, pb: 1 }}><Typography fontWeight={700}>Home</Typography><Box component="a" href="#courses" sx={{ color: 'primary.main', fontWeight: 700 }}>Courses</Box></Box>
+      <Box component="nav" aria-label="Learning navigation" sx={{ display: 'flex', gap: 3, borderBottom: `1px solid ${brand.border}`, mb: 3, pb: 1 }}><Typography fontWeight={700}>Home</Typography><Box component="a" href="#courses" sx={{ color: 'primary.main', fontWeight: 700 }}>Courses</Box><Box component={RouterLink} to="/student/profile" sx={{ color: 'primary.main', fontWeight: 700, textDecoration: 'none' }}>Profile</Box></Box>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1.7fr) minmax(0, 1fr)' }, gap: 3 }}>
         <Box sx={{ bgcolor: '#fff', border: `1px solid ${brand.borderLight}`, borderRadius: 3, overflow: 'hidden' }}>
           <Box sx={{ bgcolor: '#f1f1f1', px: { xs: 3, md: 4 }, py: 2.5, color: '#292f36', position: 'relative' }}>
@@ -86,8 +113,25 @@ export function StudentHomePage() {
         <Typography variant="h2" sx={{ mb: 1 }}>Courses</Typography>
         <Typography color="text.secondary" sx={{ mb: 2 }}>Your assigned course appears first. Open a course to start or continue your saved work.</Typography>
         {courseError && <Alert severity="warning" sx={{ mb: 2 }}>{courseError}</Alert>}
-        {courses === null ? <Alert severity="info">Course list is unavailable right now. Your assigned course is shown above.</Alert> : <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 2 }}>{[...courses].sort((a, b) => Number(b.assigned) - Number(a.assigned)).map((course) => <Box key={course.id} sx={{ bgcolor: '#fff', border: `1px solid ${brand.border}`, borderTop: `5px solid ${course.assigned ? brand.tealDark : brand.purple}`, p: 2.5, display: 'flex', flexDirection: 'column', gap: 1 }}><Typography variant="h3">{course.name}</Typography><Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>{course.summary}</Typography><Button disabled={opening !== null} onClick={() => void openCourse(course.id)} variant={course.assigned ? 'contained' : 'outlined'} sx={{ alignSelf: 'flex-start', mt: 1 }}>{opening === course.id ? 'Opening…' : 'Open course'}</Button></Box>)}</Box>}
+        {courses === null ? <Alert severity="info">Course list is unavailable right now. Your assigned course is shown above.</Alert> : <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 2 }}>{[...courses].sort((a, b) => Number(b.assigned) - Number(a.assigned)).map((course) => <Box key={course.id} sx={{ bgcolor: '#fff', border: `1px solid ${brand.border}`, borderTop: `5px solid ${course.assigned ? brand.tealDark : brand.purple}`, p: 2.5, display: 'flex', flexDirection: 'column', gap: 1 }}><Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Typography variant="h3" sx={{ flex: 1 }}>{course.name}</Typography>{course.assigned ? <Chip size="small" label="Assigned" sx={{ bgcolor: brand.tealLight, color: '#006875' }} /> : <Chip size="small" variant="outlined" icon={<LockOutlinedIcon />} label="Not assigned" />}</Box><Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>{course.summary}</Typography><Button disabled={opening !== null} onClick={() => void openCourse(course.id)} variant={course.assigned ? 'contained' : 'outlined'} sx={{ alignSelf: 'flex-start', mt: 1 }}>{opening === course.id ? 'Opening…' : 'Open course'}</Button></Box>)}</Box>}
       </Box>
+
+      <Dialog open={notAssigned !== null} onClose={() => setNotAssigned(null)} aria-labelledby="not-assigned-title">
+        <DialogTitle id="not-assigned-title" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <LockOutlinedIcon color="action" /> Course not assigned
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {notAssigned} You can still browse this course here, but your admin needs to assign it before you can
+            open it.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setNotAssigned(null)} variant="contained">
+            Got it
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

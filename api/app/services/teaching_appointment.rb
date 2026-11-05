@@ -22,6 +22,21 @@ class TeachingAppointment
     SQL
   end
 
+  # True iff ANY teacher is appointed to this student for this unit — i.e. an
+  # admin has assigned the student to this course. Used to gate enrollment.
+  def self.assigned?(student_id:, unit_id:)
+    Db.query(<<~SQL, s: student_id, u: unit_id).any?
+      SELECT 1 FROM teaching_appointment
+      WHERE student_id = :s AND unit_id = :u LIMIT 1
+    SQL
+  end
+
+  # The set of unit ids a student has been assigned to (by any admin appointment).
+  def self.assigned_unit_ids(student_id:)
+    Db.query("SELECT DISTINCT unit_id FROM teaching_appointment WHERE student_id = :s", s: student_id)
+      .map { |r| r["unit_id"] }
+  end
+
   # Student ids this teacher is appointed to for a given unit (the roster the
   # teacher may see for that unit).
   def self.student_ids_for(teacher_id:, unit_id:)

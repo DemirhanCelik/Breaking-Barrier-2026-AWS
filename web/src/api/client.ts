@@ -14,10 +14,10 @@ import type {
   PreviewResult,
   MiniLesson,
   WorkSignals,
-  DiagnosticAnswers,
   FilterAudit,
   DiagnosticForm,
   LessonState,
+  StudentProfile,
   SessionUser,
   StudentTrace,
   ClassPaths,
@@ -52,7 +52,10 @@ export interface ApiClient {
   getCourses(): Promise<CourseInfo[]>;
   getLessonState(): Promise<LessonState>;
   getDiagnostic(): Promise<DiagnosticForm>;
-  submitDiagnostic(answers: DiagnosticAnswers): Promise<LessonState>;
+  /** Submit the chosen self-placement option id. */
+  submitDiagnostic(level: string): Promise<LessonState>;
+  /** The student's own read-only profile and progress across their courses. */
+  getProfile(): Promise<StudentProfile>;
   submitWork(levelId: string, response: string, signals?: WorkSignals): Promise<SubmitResult>;
   getSubmission(submissionId: string): Promise<SubmissionOutcome>;
   chooseDepth(optionId: string): Promise<LessonState>;
