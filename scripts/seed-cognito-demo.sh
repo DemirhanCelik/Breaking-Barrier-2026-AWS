@@ -19,10 +19,12 @@ STACK=CodeAiAdaptiveEngineMvp
 POOL=$(aws cloudformation describe-stacks --region "$REGION" --stack-name "$STACK" \
   --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue" --output text)
 
-ACCOUNTS="t-rivera:teacher s-hithesh:student s-tanushree:student s-demirhan:student s-tzuhan:student s-hithesh1:student s-tanushree1:student s-demirhan1:student s-tzuhan1:student"
+# entry = id:group:email  (email optional; defaults to <id without t-/s- prefix>@demo.test)
+ACCOUNTS="Tanushree-admin:admin:tanushree-admin@demo.test t-rivera:teacher s-hithesh:student s-tanushree:student s-demirhan:student s-tzuhan:student s-hithesh1:student s-tanushree1:student s-demirhan1:student s-tzuhan1:student"
 
 for entry in $ACCOUNTS; do
-  id=${entry%%:*}; group=${entry##*:}; email="${id#?-}@demo.test"
+  id=${entry%%:*}; rest=${entry#*:}; group=${rest%%:*}
+  email=${rest#*:}; [ "$email" = "$group" ] && email="${id#?-}@demo.test"
   if ! aws cognito-idp admin-get-user --region "$REGION" --user-pool-id "$POOL" --username "$email" >/dev/null 2>&1; then
     aws cognito-idp admin-create-user --region "$REGION" --user-pool-id "$POOL" --username "$email" \
       --message-action SUPPRESS \
