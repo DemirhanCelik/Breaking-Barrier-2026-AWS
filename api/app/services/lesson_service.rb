@@ -180,7 +180,7 @@ class LessonService
         teaches: l.transitions.map { |t| { conceptId: t.concept, from: t.from, to: t.to } } }
     end
     { unit: unit_info, bar: cur.bar, concepts: teacher_concepts, levels: levels,
-      students: students.map { |s| student_path(s) } }
+      students: students.map { |s| teacher_path(s) } }
   end
 
   def filter_audit(teacher_id) = FilterAudit.report(cur.klass["id"], student_ids: appointed_ids(teacher_id))
@@ -489,7 +489,7 @@ class LessonService
       diagnostic: s.diagnostic&.dup, flags: s.flags.dup, stepsCompleted: s.completed_order.size }
   end
 
-  def student_path(s)
+  def teacher_path(s)
     base = attainment(s)
     return base.merge(path: {}, ahead: [], why: nil) unless s.diagnostic
 
