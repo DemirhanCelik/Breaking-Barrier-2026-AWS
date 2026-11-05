@@ -25,14 +25,15 @@ class BitAgentClient
   end
 
   # Returns { reply:, tools_used: }. Raises Error on any failure.
-  def ask(token:, student_id:, level_code:, message:, draft:)
+  def ask(token:, student_id:, level_code:, message:, draft:, topic: nil)
     uri = URI("https://bedrock-agentcore.#{@region}.amazonaws.com/runtimes/#{ERB::Util.url_encode(@arn)}/invocations?qualifier=DEFAULT")
     req = Net::HTTP::Post.new(uri)
     req["Authorization"] = "Bearer #{token}"
     req["Content-Type"] = "application/json"
     # One session per student and step (AgentCore needs >= 33 characters).
     req["X-Amzn-Bedrock-AgentCore-Runtime-Session-Id"] = "bit-#{Digest::SHA256.hexdigest("#{Curriculum.current.id}:#{student_id}:#{level_code}")[0, 40]}"
-    req.body = JSON.generate(prompt: message, level: level_code, draft: draft.to_s[0, 2000], unit: Curriculum.current.id)
+    req.body = JSON.generate(prompt: message, level: level_code, draft: draft.to_s[0, 2000], unit: Curriculum.current.id,
+                              topic: topic.to_s[0, 60].presence)
     res = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 5, read_timeout: TIMEOUT) { |http| http.request(req) }
     raise Error, "AgentCore HTTP #{res.code}: #{res.body.to_s[0, 160]}" unless res.is_a?(Net::HTTPSuccess)
 

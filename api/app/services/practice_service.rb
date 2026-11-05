@@ -142,6 +142,14 @@ class PracticeService
     end
   end
 
+  # A fresh scenario set in the student's chosen interest (never the lesson's own
+  # project), or a stock school scenario when they have not picked one.
+  def scenario_for(s)
+    topic = s.topic.presence
+    return SCENARIOS.sample unless topic && cur.topics.include?(topic)
+    "something new connected to #{topic} (not the student's own project; pick a fresh situation a teenager into #{topic} would recognize)"
+  end
+
   def generate(s, level, t, id)
     return fallback(t, "fault injection (demo)") if LessonService.fault_injection?
     return fallback(t, "generation off in probes mode") if Validator.mode == "probes"
@@ -152,7 +160,7 @@ class PracticeService
       Concept: #{concept.name}
       Where the student is: "#{concept.descriptors[t.from]}"
       Target behavior to practice: "#{concept.descriptors[t.to]}"
-      Scenario to use: #{SCENARIOS.sample}
+      Scenario to use: #{scenario_for(s)}
       #{missing.any? ? "Their last attempt was missing (focus the practice here, without naming it as a mistake):\n#{missing.map { |h| "- #{h}" }.join("\n")}" : ''}
     P
     result = (@model || ModelClient.default).complete(system: format(GEN_SYSTEM, context: cur.context), prompt: prompt, max_tokens: 350, temperature: 0.7)

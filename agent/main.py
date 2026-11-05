@@ -45,6 +45,13 @@ def load_unit(unit_id: str) -> dict:
 
 # The unit for the request being served (set in invoke; one request per runtime session).
 UNIT = load_unit(DEFAULT_UNIT)
+# The student's chosen interest for this request (allow-listed against the unit's topics).
+TOPIC = ""
+
+
+def fill(text: str) -> str:
+    """Fill the {{topic}} placeholder the curriculum uses in student-facing text."""
+    return str(text).replace("{{topic}}", TOPIC or "their topic")
 
 SYSTEM_PROMPT = """You are Bit, a friendly tutor for high-school students (grades 9-12) in {context}. Use your tools to look up the lesson before you answer: find the step the student
 is on, read its instructions and what a strong answer includes, and offer a practice item if they want more practice.
@@ -85,9 +92,9 @@ def get_step_guidance(step_code: str) -> dict:
                 hints.append(hint)
     return {
         "code": lvl["code"],
-        "title": lvl["title"],
-        "intro": lvl["intro"],
-        "instructions": lvl["instructions"],
+        "title": fill(lvl["title"]),
+        "intro": fill(lvl["intro"]),
+        "instructions": [fill(i) for i in lvl["instructions"]],
         "strongAnswerIncludes": hints,
     }
 
@@ -141,10 +148,15 @@ def invoke(payload: dict) -> dict:
     draft = str(payload.get("draft", "")).strip()[:2000]
     if draft:
         prompt += f"\n\n<my_draft>\n{draft}\n</my_draft>"
-    global UNIT
+    global UNIT, TOPIC
     UNIT = load_unit(str(payload.get("unit", DEFAULT_UNIT))[:40])
+    topic = str(payload.get("topic") or "").strip()[:60]
+    TOPIC = topic if topic in (UNIT["data"].get("topics") or []) else ""
     context = UNIT["data"]["unit"].get("context") or "a computer science lesson"
-    agent = Agent(model=MODEL, system_prompt=SYSTEM_PROMPT.format(context=context), tools=TOOLS, callback_handler=None)
+    system = SYSTEM_PROMPT.format(context=context)
+    if TOPIC:
+        system += f"\nThe student's chosen interest is {TOPIC}. When an example would help, draw it from this interest."
+    agent = Agent(model=MODEL, system_prompt=system, tools=TOOLS, callback_handler=None)
     result = agent(prompt)
     try:
         used = sorted(result.metrics.tool_metrics.keys())

@@ -17,14 +17,15 @@ class Coach
 
   # agent: { token:, student_id: } routes the question to the AgentCore Bit agent
   # (tool-using, acts on the student's own token); any failure falls back below.
-  def reply(level:, stages:, last_response:, message:, agent: nil)
+  # topic: the interest the student picked (from the unit's allow-listed topics).
+  def reply(level:, stages:, last_response:, message:, agent: nil, topic: nil)
     hints = Engine.hints_for(level, stages, last_response.to_s)
     return scripted(level, hints) if Validator.mode == "probes"
 
     if agent && agent[:token].present? && BitAgentClient.configured?
       begin
         r = BitAgentClient.new.ask(token: agent[:token], student_id: agent[:student_id], level_code: level.code,
-                                   message: message, draft: last_response)
+                                   message: message, draft: last_response, topic: topic)
         Rails.logger.info("[coach] AgentCore Bit replied (tools: #{r[:tools_used].join(', ').presence || 'none'})")
         return r[:reply]
       rescue BitAgentClient::Error => e
@@ -32,11 +33,13 @@ class Coach
       end
     end
 
+    fill = ->(text) { text.to_s.gsub("{{topic}}", topic.presence || "their topic") }
     prompt = <<~P
-      Current task: #{level.title}
-      #{level.intro}
-      Instructions: #{level.instructions.join(' ')}
-      #{level.ai_output ? "AI output the student is reviewing:\n#{level.ai_output}\n" : ''}
+      Current task: #{fill.(level.title)}
+      #{fill.(level.intro)}
+      Instructions: #{fill.(level.instructions.join(' '))}
+      #{level.ai_output ? "AI output the student is reviewing:\n#{fill.(level.ai_output)}\n" : ''}
+      #{topic.present? ? "The student's chosen interest: #{topic}. When an example would help, draw it from this interest." : ''}
       What a strong answer includes (for your guidance only, do not list these back verbatim):
       #{hints.any? ? hints.map { |h| "- #{h}" }.join("\n") : '- The student has covered the basics; help them sharpen it.'}
 
