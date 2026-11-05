@@ -172,6 +172,11 @@ export function PathsPage() {
                     >
                       {s.displayName}
                     </Link>
+                    {s.focus && (
+                      <Typography variant="caption" display="block" sx={{ color: brand.purple, fontWeight: 700 }}>
+                        Focus: {s.focus.name}
+                      </Typography>
+                    )}
                     {STATUS_NOTE[s.status] && (
                       <Typography variant="caption" display="block" sx={{ color: '#94611a', fontWeight: 600 }}>
                         {STATUS_NOTE[s.status]}

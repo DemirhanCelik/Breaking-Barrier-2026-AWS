@@ -8,7 +8,8 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import { useSession } from '../../session';
 import { clearSessionDraft, useSessionDraft } from '../../hooks/useSessionDraft';
-import { api, type StudentLevel, type SubmissionOutcome } from '../../api';
+import { api, type StudentLevel, type SubmissionOutcome, type TeacherNote } from '../../api';
+import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
 import { PaneHeader, SpeechBubble } from '../../components/brand';
 import { brand } from '../../theme';
 import { BitTutorPanel } from './BitTutorPanel';
@@ -34,12 +35,15 @@ export function LevelView({
   onAdvance,
   unitId,
   welcome = false,
+  teacherNotes = [],
 }: {
   level: StudentLevel;
   onAdvance: () => void;
   unitId?: string;
   /** First step after the warm-up: a one-time, number-free welcome. */
   welcome?: boolean;
+  /** Private notes from the teacher (a skill focus or message). Never levels or peers. */
+  teacherNotes?: TeacherNote[];
 }) {
   const [showWelcome, setShowWelcome] = useState(welcome);
   const { user } = useSession();
@@ -195,6 +199,22 @@ export function LevelView({
                 </IconButton>
               </Box>
             )}
+
+            {teacherNotes.map((n) => (
+              <Box
+                key={n.id}
+                sx={{ display: 'flex', gap: 1.25, p: 1.5, borderRadius: 2, bgcolor: '#f6f3fb', border: '1px solid #e2dbf1' }}
+              >
+                <CampaignOutlinedIcon sx={{ color: brand.purple, mt: '2px' }} />
+                <Box>
+                  <Typography variant="caption" sx={{ fontWeight: 800, color: brand.purple, letterSpacing: 0.3 }}>
+                    FROM {n.from.toUpperCase()}
+                    {n.dueOn ? ` · BY ${new Date(`${n.dueOn}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase()}` : ''}
+                  </Typography>
+                  <Typography sx={{ color: brand.charcoal }}>{n.text}</Typography>
+                </Box>
+              </Box>
+            ))}
 
             <Typography variant="h2" component="h1">
               {level.title}

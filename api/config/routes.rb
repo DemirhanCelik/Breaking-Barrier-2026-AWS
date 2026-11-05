@@ -32,6 +32,7 @@ Rails.application.routes.draw do
       post "authoring/items/:id/review", action: :review
       get "assignments", action: :assignments
       post "assignments", action: :create_assignment
+      post "assignments/group-focus", action: :create_group_focus
       post "assignments/:id/archive", action: :archive_assignment
     end
 

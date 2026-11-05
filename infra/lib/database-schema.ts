@@ -314,6 +314,9 @@ export const MIGRATION_STATEMENTS: string[] = [
 
   // Backfill teaching appointments for classes seeded before they existed.
   readFileSync(path.join(__dirname, '../../api/db/migrations/002_backfill_teaching_appointments.sql'), 'utf8'),
+
+  // Skill-focus assignments (target_kind 'concept'), due dates, group labels.
+  readFileSync(path.join(__dirname, '../../api/db/migrations/003_assignment_focus.sql'), 'utf8'),
 ];
 
 /** All DDL in execution order: base tables first, then migrations. */

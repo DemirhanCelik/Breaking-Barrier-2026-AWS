@@ -5,7 +5,7 @@ class StudentController < ApplicationController
   around_action :with_student_course
 
   def courses
-    assigned = Curriculum.assigned_unit_id
+    assigned = CourseSelection.assigned_for(current_user.id)
     selected = Curriculum.current_unit_id
     render json: Curriculum.selectable.map { |c| { id: c.id, name: c.unit["name"], summary: c.unit["summary"], assigned: c.id == assigned, selected: c.id == selected } }
   end

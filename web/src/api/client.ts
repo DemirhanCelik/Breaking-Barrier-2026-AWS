@@ -82,6 +82,7 @@ export interface ApiClient {
   listAssignments(status?: string): Promise<AssignmentsData>;
   createAssignment(body: CreateAssignmentBody): Promise<Assignment>;
   archiveAssignment(id: string): Promise<Assignment>;
+  createGroupFocus(body: GroupFocusBody): Promise<{ assignments: Assignment[]; groupLabel: string }>;
 
   // Approval queue (teacher OR admin)
   getReviewItems(status?: string): Promise<{ items: ContentItem[] }>;
@@ -115,12 +116,23 @@ export interface ApiClient {
 /** Body for POST /api/teacher/assignments. */
 export interface CreateAssignmentBody {
   scope: 'class' | 'student';
-  targetKind: 'unit' | 'level';
+  targetKind: 'unit' | 'level' | 'concept';
   unitId: string;
   klassId?: string;
   studentId?: string;
   levelCode?: string;
+  conceptId?: string;
+  dueOn?: string;
   note?: string;
+}
+
+/** Body for POST /api/teacher/assignments/group-focus. */
+export interface GroupFocusBody {
+  studentIds: string[];
+  conceptId: string;
+  note?: string;
+  dueOn?: string;
+  groupLabel?: string;
 }
 
 /** Body for POST /api/admin/curriculum. */

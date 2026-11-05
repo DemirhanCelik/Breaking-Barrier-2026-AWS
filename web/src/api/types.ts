@@ -98,12 +98,14 @@ export type LessonPhase =
       level: StudentLevel;
       path: PathItem[];
       stepsCompleted: number;
+      teacherNotes?: TeacherNote[];
     }
   | {
       phase: 'choose-depth';
       options: DepthOption[];
       path: PathItem[];
       stepsCompleted: number;
+      teacherNotes?: TeacherNote[];
     }
   | { phase: 'complete'; stepsCompleted: number; message: string };
 
@@ -197,6 +199,8 @@ export interface StudentPath extends StudentAttainment {
   path: Record<string, { state: PathState; order?: number }>;
   ahead: string[];
   why: { levelCode: string; rule: string; advisor?: string | null } | null;
+  /** The teacher's skill focus currently steering this student, if any. */
+  focus?: { conceptId: string; name: string } | null;
 }
 
 export interface ClassPaths {
@@ -443,7 +447,7 @@ export interface FilterAudit {
 // ---------------------------------------------------------------------------
 
 export type AssignmentScope = 'class' | 'student';
-export type AssignmentTargetKind = 'unit' | 'level';
+export type AssignmentTargetKind = 'unit' | 'level' | 'concept';
 export type AssignmentStatus = 'active' | 'archived';
 
 export interface Assignment {
@@ -454,9 +458,36 @@ export interface Assignment {
   targetKind: AssignmentTargetKind;
   unitId: string;
   levelCode?: string;
+  /** Skill focus: the engine prefers rule-approved steps that build this concept. */
+  conceptId?: string;
+  conceptName?: string;
+  levelTitle?: string;
+  dueOn?: string;
+  groupLabel?: string;
   status: AssignmentStatus;
   note?: string;
   createdAt: string;
+  /** How the assignment is landing for each student it applies to (active only). */
+  progress?: AssignmentProgress[];
+}
+
+export type AssignmentProgressState = 'met' | 'active' | 'queued' | 'waiting' | 'blocked';
+
+export interface AssignmentProgress {
+  studentId: string;
+  name: string;
+  state: AssignmentProgressState;
+  /** Teacher-facing explanation, e.g. "Next up after the current step: L8 · ...". */
+  detail: string;
+  overdue?: boolean;
+}
+
+/** A private note from the teacher on the student's lesson (never levels or peers). */
+export interface TeacherNote {
+  id: string;
+  text: string;
+  from: string;
+  dueOn?: string;
 }
 
 export interface AssignableLevel {
@@ -479,6 +510,10 @@ export interface RosterStudent {
 
 export interface AssignmentsData {
   assignments: Assignment[];
+  /** The active unit's skills, for skill-focus assignments. */
+  concepts?: TeacherConcept[];
+  /** The unit the skills belong to (the teacher's active unit). */
+  currentUnitId?: string;
   units: AssignableUnit[];
   students: RosterStudent[];
 }

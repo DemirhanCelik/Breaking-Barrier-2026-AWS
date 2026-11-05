@@ -1059,6 +1059,11 @@ export class MockApiClient implements ApiClient, DemoControls {
     throw new ApiError('Not available in demo', 501);
   }
 
+  async createGroupFocus(): Promise<{ assignments: Assignment[]; groupLabel: string }> {
+    await delay();
+    throw new ApiError('Assignments need the API (mock mode has no assignment store).', 501);
+  }
+
   // Approval queue (teacher or admin) ---------------------------------------
   async getReviewItems(_status?: string): Promise<{ items: ContentItem[] }> {
     await delay(50);

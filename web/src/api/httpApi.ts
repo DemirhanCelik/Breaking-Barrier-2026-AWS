@@ -7,7 +7,7 @@
  *  - Demo: when the backend runs with AUTH_MODE=demo, the chosen synthetic user
  *    id is sent as X-Demo-User. Synthetic data only.
  */
-import type { ApiClient, CreateAssignmentBody, DemoControls, SaveCurriculumBody } from './client';
+import type { ApiClient, CreateAssignmentBody, DemoControls, GroupFocusBody, SaveCurriculumBody } from './client';
 import {
   ApiError,
   type AssistantReply,
@@ -242,6 +242,9 @@ export class HttpApiClient implements ApiClient, DemoControls {
   }
   archiveAssignment(id: string) {
     return this.request<Assignment>('POST', `/api/teacher/assignments/${encodeURIComponent(id)}/archive`);
+  }
+  createGroupFocus(body: GroupFocusBody) {
+    return this.request<{ assignments: Assignment[]; groupLabel: string }>('POST', '/api/teacher/assignments/group-focus', body);
   }
 
   // Approval queue (teacher or admin) ---------------------------------------

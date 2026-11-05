@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { Alert, Box, Button, Chip, CircularProgress, Container, Link, Tooltip, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, CircularProgress, Container, Link, TextField, Tooltip, Typography } from '@mui/material';
+import CenterFocusStrongOutlinedIcon from '@mui/icons-material/CenterFocusStrongOutlined';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import FlagRoundedIcon from '@mui/icons-material/FlagRounded';
@@ -194,6 +195,31 @@ function GroupCard({ group }: { group: SkillGroup }) {
   const [lesson, setLesson] = useState<MiniLesson | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [assigning, setAssigning] = useState(false);
+  const [message, setMessage] = useState(group.hint);
+  const [dueOn, setDueOn] = useState('');
+  const [assignBusy, setAssignBusy] = useState(false);
+  const [assigned, setAssigned] = useState<number | null>(null);
+
+  const assignFocus = async () => {
+    setAssignBusy(true);
+    setError(null);
+    try {
+      const r = await api.createGroupFocus({
+        studentIds: group.students.map((s) => s.studentId),
+        conceptId: group.conceptId,
+        note: message.trim() || undefined,
+        dueOn: dueOn || undefined,
+        groupLabel: group.skill,
+      });
+      setAssigned(r.assignments.length);
+      setAssigning(false);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setAssignBusy(false);
+    }
+  };
 
   const plan = async () => {
     setBusy(true);
@@ -223,7 +249,76 @@ function GroupCard({ group }: { group: SkillGroup }) {
         >
           {lesson ? 'New mini-lesson' : 'Plan a 5-min mini-lesson'}
         </Button>
+        {assigned === null && (
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<CenterFocusStrongOutlinedIcon />}
+            onClick={() => setAssigning((v) => !v)}
+            aria-expanded={assigning}
+          >
+            Assign focus
+          </Button>
+        )}
       </Box>
+      {assigning && (
+        <Box sx={{ mt: 1.5, p: 1.5, borderRadius: 1.5, bgcolor: '#f6f3fb', display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+          <Typography variant="body2">
+            Their next steps will build <strong>{group.conceptName}</strong> first, at each student’s own level. Nobody skips
+            what they’re not ready for.
+          </Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 170px' }, gap: 1.25 }}>
+            <TextField
+              size="small"
+              label="Message for these students"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              helperText="Each student sees this privately on their lesson."
+              inputProps={{ maxLength: 300 }}
+            />
+            <TextField
+              size="small"
+              type="date"
+              label="Due"
+              value={dueOn}
+              onChange={(e) => setDueOn(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="contained"
+              size="small"
+              disabled={assignBusy}
+              startIcon={assignBusy ? <CircularProgress size={14} color="inherit" /> : <CenterFocusStrongOutlinedIcon />}
+              onClick={() => void assignFocus()}
+            >
+              {assignBusy ? 'Assigning…' : `Assign to ${group.students.length} students`}
+            </Button>
+            <Button size="small" onClick={() => setAssigning(false)} sx={{ color: brand.charcoal }}>
+              Cancel
+            </Button>
+          </Box>
+        </Box>
+      )}
+      {assigned !== null && (
+        <Alert
+          severity="success"
+          sx={{ mt: 1.5 }}
+          action={
+            <Box sx={{ display: 'flex', gap: 0.5 }}>
+              <Button color="inherit" size="small" component={RouterLink} to="/teacher/paths">
+                See paths
+              </Button>
+              <Button color="inherit" size="small" component={RouterLink} to="/teacher/assignments">
+                Track it
+              </Button>
+            </Box>
+          }
+        >
+          Focus on {group.conceptName} assigned to {assigned} students.
+        </Alert>
+      )}
       <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mt: 1 }}>
         {group.students.map((s) => (
           <Chip

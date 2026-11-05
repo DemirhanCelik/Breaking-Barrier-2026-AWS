@@ -39,10 +39,18 @@ class TeacherController < ApplicationController
   def assignments = render(json: service.list_assignments(current_user.id, status: params[:status].presence))
 
   def create_assignment
-    p = params.permit(:scope, :targetKind, :unitId, :klassId, :studentId, :levelCode, :note)
+    p = params.permit(:scope, :targetKind, :unitId, :klassId, :studentId, :levelCode, :conceptId, :dueOn, :note)
     render json: service.create_assignment(current_user.id, scope: p[:scope], target_kind: p[:targetKind],
                                             unit_id: p[:unitId], klass_id: p[:klassId], student_id: p[:studentId],
-                                            level_code: p[:levelCode], note: p[:note]), status: :created
+                                            level_code: p[:levelCode], concept_id: p[:conceptId], due_on: p[:dueOn],
+                                            note: p[:note]), status: :created
+  end
+
+  # One skill focus for a small group of students (e.g. from Insights).
+  def create_group_focus
+    p = params.permit(:conceptId, :note, :dueOn, :groupLabel, studentIds: [])
+    render json: service.create_group_focus(current_user.id, student_ids: p[:studentIds], concept_id: p[:conceptId],
+                                            note: p[:note], due_on: p[:dueOn], group_label: p[:groupLabel]), status: :created
   end
 
   def archive_assignment = render(json: service.archive_assignment(current_user.id, params[:id]))

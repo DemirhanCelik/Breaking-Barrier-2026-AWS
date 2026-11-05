@@ -46,10 +46,12 @@ class LessonService
       return { phase: "complete", stepsCompleted: steps, message: message }
     end
     if s.current_level_id
-      return { phase: "level", level: student_level(s.current_level_id, s), path: student_path(s), stepsCompleted: steps }
+      return { phase: "level", level: student_level(s.current_level_id, s), path: student_path(s), stepsCompleted: steps,
+               teacherNotes: teacher_notes(s) }
     end
-    r = Engine.route(s.engine_state)
-    { phase: "choose-depth", options: r[:kind] == :choose_depth ? r[:options] : [], path: student_path(s), stepsCompleted: steps }
+    r = Engine.route(routing_state(s))
+    { phase: "choose-depth", options: r[:kind] == :choose_depth ? r[:options] : [], path: student_path(s), stepsCompleted: steps,
+      teacherNotes: teacher_notes(s) }
   end
 
   # Student-facing: never includes the answer key, the concept, or the stage.
@@ -126,7 +128,7 @@ class LessonService
   end
 
   def choose_depth(s, option_id)
-    r = Engine.route(s.engine_state)
+    r = Engine.route(routing_state(s))
     unless r[:kind] == :choose_depth && r[:options].any? { |o| o[:id] == option_id }
       raise Error.new("That choice is not available right now.", 409)
     end
@@ -192,7 +194,8 @@ class LessonService
   # scope/target consistency. `teacher_id` scopes everything to the caller.
 
   def list_assignments(teacher_id, status: nil)
-    { assignments: Assignment.for_teacher(teacher_id, status: status).map(&:to_json_dto),
+    { assignments: Assignment.for_teacher(teacher_id, status: status).map { |a| with_progress(a, teacher_id) },
+      concepts: teacher_concepts, currentUnitId: cur.id,
       units: Curriculum.selectable.map { |c| assignable_unit(c) },
       # The teacher's roster for the active unit (admin-appointed students), by
       # name, so the UI offers a student picker instead of a raw id field.
@@ -207,7 +210,8 @@ class LessonService
       .map { |s| { id: s.id, name: s.display_name } }
   end
 
-  def create_assignment(teacher_id, scope:, target_kind:, unit_id:, klass_id: nil, student_id: nil, level_code: nil, note: nil)
+  def create_assignment(teacher_id, scope:, target_kind:, unit_id:, klass_id: nil, student_id: nil, level_code: nil, note: nil,
+                        concept_id: nil, due_on: nil, group_label: nil)
     if scope.to_s == "class"
       klass_id = klass_id.presence || cur.klass["id"]
       raise Error.new("You do not own that class.", 403) unless teacher_owns_class?(teacher_id, klass_id)
@@ -218,10 +222,30 @@ class LessonService
         raise Error.new("You are not appointed to this student for this unit.", 403)
       end
     end
-    Assignment.create!(teacher_id: teacher_id, scope: scope, target_kind: target_kind, unit_id: unit_id,
-                       klass_id: klass_id, student_id: student_id, level_code: level_code, note: note).to_json_dto
+    if target_kind.to_s == "concept"
+      Assignment.archive_previous_focus!(teacher_id: teacher_id, unit_id: unit_id,
+                                         student_id: (student_id if scope.to_s == "student"), klass_id: (klass_id if scope.to_s == "class"))
+    end
+    a = Assignment.create!(teacher_id: teacher_id, scope: scope, target_kind: target_kind, unit_id: unit_id,
+                           klass_id: klass_id, student_id: student_id, level_code: level_code, note: note,
+                           concept_id: concept_id, due_on: due_on, group_label: group_label)
+    with_progress(a)
   rescue Assignment::Error => e
     raise Error.new(e.message, e.status)
+  end
+
+  # One skill focus for a small group (e.g. from Insights): one student-scoped
+  # assignment per student, sharing a group label.
+  def create_group_focus(teacher_id, student_ids:, concept_id:, note: nil, due_on: nil, group_label: nil)
+    ids = Array(student_ids).map(&:to_s).uniq.reject(&:empty?)
+    raise Error.new("Pick at least one student.", 422) if ids.empty?
+    raise Error.new("That's a lot of students for one group.", 422) if ids.size > 60
+    label = group_label.presence || "#{cur.concept(concept_id.to_s).name} group" rescue raise(Error.new("Unknown skill.", 422))
+    created = ids.map do |sid|
+      create_assignment(teacher_id, scope: "student", target_kind: "concept", unit_id: cur.id, student_id: sid,
+                                    concept_id: concept_id, note: note, due_on: due_on, group_label: label)
+    end
+    { assignments: created, groupLabel: label }
   end
 
   def archive_assignment(teacher_id, id)
@@ -241,7 +265,7 @@ class LessonService
       raise Error.new("You are not appointed to this student for this unit.", 403)
     end
     s = StudentRecord.find(student_id) or raise Error.new("Student not found", 404)
-    roadmap = s.diagnostic ? Engine.build_roadmap(s.engine_state) : { steps: [], gaps: [] }
+    roadmap = s.diagnostic ? Engine.build_roadmap(routing_state(s)) : { steps: [], gaps: [] }
     base = attainment(s)
     if roadmap[:gaps].any?
       base[:flags] += ["Roadmap gap: no authored route to the bar for #{roadmap[:gaps].map { |g| cur.concept(g).name }.join(', ')}."]
@@ -382,10 +406,10 @@ class LessonService
   end
 
   def advance(s)
-    r = Engine.route(s.engine_state)
+    r = Engine.route(routing_state(s))
     if r[:kind] == :fallback
       enter_fallback(s, r[:reason])
-      r = Engine.route(s.engine_state)
+      r = Engine.route(routing_state(s))
     end
     case r[:kind]
     when :level
@@ -400,8 +424,11 @@ class LessonService
         if assigned
           r = r.merge(level_id: assigned[:level_id], rule: assigned[:rule])
         elsif r[:candidates] && RoutingAdvisor.enabled?
-          advised = RoutingAdvisor.new.advise(s, r)
-          r = r.merge(level_id: advised[:level_id], rule: advised[:rule])
+          # With a teacher focus, the advisor chooses only among focus-building candidates.
+          for_advisor = r[:focus] ? r.merge(candidates: r[:candidates].select { |c| c[:serves].any? { |t| t.concept == r[:focus] } }) : r
+          advised = RoutingAdvisor.new.advise(s, for_advisor)
+          focus_note = r[:focus] && !advised[:rule].start_with?("Teacher focus") ? "Teacher focus: #{cur.concept(r[:focus]).name}. " : ""
+          r = r.merge(level_id: advised[:level_id], rule: focus_note + advised[:rule])
           advisor = advised[:advisor]
         end
         lvl = cur.level(r[:level_id])
@@ -470,7 +497,7 @@ class LessonService
     done = s.completed_order.map { |id| { levelId: id, title: cur.level(id).title, status: "done" } }
     current = s.current_level_id ? [{ levelId: s.current_level_id, title: cur.level(s.current_level_id).title, status: "current" }] : []
     seen = s.completed_order + [s.current_level_id]
-    upcoming = Engine.build_roadmap(s.engine_state)[:steps]
+    upcoming = Engine.build_roadmap(routing_state(s))[:steps]
       .map { |step| cur.levels.find { |l| l.code == step[:levelCode] }.id }
       .reject { |id| seen.include?(id) }
       .map { |id| { levelId: id, title: cur.level(id).title, status: "upcoming" } }
@@ -491,7 +518,7 @@ class LessonService
 
   def teacher_path(s)
     base = attainment(s)
-    return base.merge(path: {}, ahead: [], why: nil) unless s.diagnostic
+    return base.merge(path: {}, ahead: [], why: nil, focus: nil) unless s.diagnostic
 
     path = {}
     s.completed_order.each_with_index do |id, i|
@@ -502,7 +529,7 @@ class LessonService
     if s.current_level_id && cur.level?(s.current_level_id)
       path[cur.level(s.current_level_id).code] = { state: "current", order: path.size + 1 }
     end
-    ahead = s.complete ? [] : Engine.build_roadmap(s.engine_state)[:steps].map { |st| st[:levelCode] }.reject { |c| path.key?(c) }
+    ahead = s.complete ? [] : Engine.build_roadmap(routing_state(s))[:steps].map { |st| st[:levelCode] }.reject { |c| path.key?(c) }
     ahead.each_with_index { |code, i| path[code] = { state: "ahead", order: path.size + 1 } }
     cur.levels.each do |l|
       next if path.key?(l.code)
@@ -511,7 +538,107 @@ class LessonService
 
     last = s.decisions.first
     why = last && { levelCode: last["level_code"], rule: last["rule"], advisor: last.dig("advisor_json", "reason") }
-    base.merge(path: path, ahead: ahead, why: why)
+    focus = s.mode == "fallback" ? nil : focus_for(s)
+    focus = nil if focus && s.stages.fetch(focus.concept_id, 0) >= cur.bar
+    base.merge(path: path, ahead: ahead, why: why, focus: focus && { conceptId: focus.concept_id, name: cur.concept(focus.concept_id).name })
+  end
+
+  # ---- assignment focus + status --------------------------------------------
+
+  # Engine state plus the student's active teacher focus (if any).
+  def routing_state(s) = s.engine_state.merge("focus" => focus_for(s)&.concept_id)
+
+  # The newest active skill focus that applies to this student in this unit
+  # (a direct assignment wins over a class-wide one).
+  def focus_for(s)
+    active_assignments_for(s).find { |a| a.target_kind == "concept" }
+  end
+
+  def active_assignments_for(s)
+    @active_assignments ||= {}
+    @active_assignments[[s.id, cur.id]] ||= Assignment.active_for_student_in_unit(s.id, cur.id)
+  rescue StandardError => e
+    Rails.logger.warn("[assignment] lookup failed: #{e.message}")
+    []
+  end
+
+  # Student-facing notes from the teacher: what to focus on and the teacher's own
+  # words. Never levels, stages, or anything about other students.
+  def teacher_notes(s)
+    steering = focus_for(s)
+    active_assignments_for(s).filter_map do |a|
+      next if a.target_kind == "concept" && a.id != steering&.id
+      focus = a.target_kind == "concept" && cur.concept(a.concept_id)
+      next if focus && s.stages.fetch(a.concept_id, 0) >= cur.bar && a.note.blank?
+      text = if focus then "Focus for now: #{focus.name}."
+             elsif a.target_kind == "level" then "Your teacher picked a step for you to work on soon."
+             end
+      text = [text, a.note.presence].compact.join(" ")
+      next if text.blank?
+      { id: a.id, text: text, from: teacher_name(a.teacher_id), dueOn: a.due_on }.compact
+    end.first(3)
+  end
+
+  def teacher_name(id)
+    @teacher_names ||= {}
+    @teacher_names[id] ||= Db.query("SELECT display_name FROM app_user WHERE id = :id", id: id).first&.fetch("display_name").to_s.sub(/\s*\(teacher\)\z/, "").presence || "Your teacher"
+  end
+
+  # The assignment DTO plus how it is landing for each student it applies to.
+  def with_progress(a, teacher_id = a.teacher_id)
+    ids = a.scope == "student" ? [a.student_id] : TeachingAppointment.student_ids_for(teacher_id: teacher_id, unit_id: a.unit_id)
+    rows = Curriculum.with_unit(a.unit_id) do
+      ids.filter_map { |id| StudentRecord.find(id) }.sort_by(&:display_name).map { |s| assignment_status(a, s) }
+    end
+    a.to_json_dto.merge(progress: a.status == "active" ? rows : [],
+                        conceptName: a.concept_id && Curriculum.unit(a.unit_id).concept(a.concept_id)&.name,
+                        levelTitle: a.level_code && Curriculum.unit(a.unit_id).levels.find { |l| l.code == a.level_code }&.title).compact
+  end
+
+  # state: met | active | queued | waiting | blocked; detail is teacher-facing.
+  def assignment_status(a, s)
+    st = ->(state, detail) do
+      overdue = a.due_on.present? && state != "met" && Date.iso8601(a.due_on) < Date.current
+      { studentId: s.id, name: s.display_name, state: state, detail: detail, overdue: overdue || nil }.compact
+    end
+    return st.("waiting", "Hasn't started this course yet.") unless s.diagnostic
+    return st.("met", "Finished the course.") if s.complete && a.target_kind != "concept"
+
+    current = s.current_level_id && cur.level(s.current_level_id)
+    roadmap = Engine.build_roadmap(routing_state(s))[:steps]
+    case a.target_kind
+    when "unit"
+      st.("active", "#{s.completed_order.size} step#{'s' unless s.completed_order.size == 1} done#{current ? ", now on #{current.code}" : ''}.")
+    when "concept"
+      concept = cur.concept(a.concept_id)
+      stage = s.stages.fetch(a.concept_id, 0)
+      return st.("met", "Meets the class bar in #{concept.name} (stage #{stage}).") if stage >= cur.bar
+      steering = focus_for(s)
+      if steering && steering.id != a.id
+        return st.("waiting", "Their own focus on #{cur.concept(steering.concept_id).name} comes first.")
+      end
+      return st.("blocked", "On the guided path, so the focus can't steer their steps.") if s.mode == "fallback"
+      if current && current.transitions.any? { |t| t.concept == a.concept_id && t.from == stage }
+        return st.("active", "Working on it now: #{current.code} · #{current.title}.")
+      end
+      nxt = roadmap.find { |step| step[:targets].include?(a.concept_id) }
+      return st.("queued", "Next up after the current step: #{nxt[:levelCode]} · #{nxt[:title]}.") if nxt
+      st.("blocked", "No step left that builds #{concept.name} from stage #{stage}. A mini-lesson may help.")
+    when "level"
+      level = cur.levels.find { |l| l.code == a.level_code }
+      return st.("blocked", "That step isn't in this course.") unless level
+      status = s.level_status.dig(level.id, "status")
+      return st.("met", "Done.") if %w[passed done].include?(status)
+      return st.("met", "Moved on after their tries on it.") if status == "exhausted"
+      return st.("active", "Working on it now.") if current&.id == level.id
+      return st.("queued", "Coming up on their path.") if roadmap.any? { |step| step[:levelCode] == level.code }
+      ahead = level.transitions.select { |t| s.stages.fetch(t.concept, 0) < t.from }
+      if ahead.any?
+        need = ahead.map { |t| "#{cur.concept(t.concept).name} stage #{t.from}" }.join(", ")
+        return st.("blocked", "Not reachable yet: needs #{need} first.")
+      end
+      st.("met", "Already past what this step teaches.")
+    end
   end
 
   def teacher_concepts

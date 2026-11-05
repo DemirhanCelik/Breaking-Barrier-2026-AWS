@@ -8,6 +8,9 @@
 #   scope='student' -> student_id set, klass_id null
 #   target_kind='unit'  -> unit_id set, level_code null
 #   target_kind='level' -> unit_id + level_code set
+#   target_kind='concept' -> unit_id + concept_id set (skill focus: the engine
+#                           prefers rule-approved levels that build this concept)
+# Optional: due_on (date), group_label (e.g. a small group from Insights).
 require "securerandom"
 
 class Assignment
@@ -20,9 +23,10 @@ class Assignment
   end
 
   SCOPES = %w[class student].freeze
-  KINDS  = %w[unit level].freeze
+  KINDS  = %w[unit level concept].freeze
 
-  attr_reader :id, :teacher_id, :scope, :klass_id, :student_id, :target_kind, :unit_id, :level_code, :status, :note, :created_at
+  attr_reader :id, :teacher_id, :scope, :klass_id, :student_id, :target_kind, :unit_id, :level_code, :status, :note, :created_at,
+              :concept_id, :due_on, :group_label
 
   def initialize(row)
     @id = row["id"]
@@ -35,17 +39,22 @@ class Assignment
     @level_code = row["level_code"]
     @status = row["status"]
     @note = row["note"]
+    @concept_id = row["concept_id"]
+    @due_on = row["due_on"]&.to_s&.slice(0, 10)
+    @group_label = row["group_label"]
     @created_at = row["at_ms"] ? StudentRecord.iso(row["at_ms"]) : row["created_at"]
   end
 
   TS = "CAST(floor(extract(epoch FROM created_at) * 1000) AS bigint) AS at_ms".freeze
-  COLS = "id, teacher_id, scope, klass_id, student_id, target_kind, unit_id, level_code, status, note, #{TS}".freeze
+  COLS = "id, teacher_id, scope, klass_id, student_id, target_kind, unit_id, level_code, concept_id, " \
+         "CAST(due_on AS text) AS due_on, group_label, status, note, #{TS}".freeze
 
   # ---- writes -------------------------------------------------------------
 
   # Create an assignment. Validates scope/target consistency and that the
   # target (unit, and level if given) exists in the curriculum.
-  def self.create!(teacher_id:, scope:, target_kind:, unit_id:, klass_id: nil, student_id: nil, level_code: nil, note: nil)
+  def self.create!(teacher_id:, scope:, target_kind:, unit_id:, klass_id: nil, student_id: nil, level_code: nil, note: nil,
+                   concept_id: nil, due_on: nil, group_label: nil)
     scope = scope.to_s
     target_kind = target_kind.to_s
     raise Error, "scope must be one of #{SCOPES.join(', ')}" unless SCOPES.include?(scope)
@@ -72,11 +81,26 @@ class Assignment
       level_code = nil
     end
 
+    if target_kind == "concept"
+      concept_id = concept_id.to_s
+      raise Error, "concept_id is required for a skill-focus assignment" if concept_id.empty?
+      raise Error, "Unknown skill #{concept_id} in unit #{unit_id}" unless Curriculum.unit(unit_id).concepts.any? { |c| c.id == concept_id }
+    else
+      concept_id = nil
+    end
+
+    due = nil
+    if due_on.present?
+      due = (Date.iso8601(due_on.to_s) rescue raise(Error, "due_on must be a date like 2026-11-14"))
+    end
+
     id = SecureRandom.uuid
-    Db.execute(<<~SQL, id: id, t: teacher_id, scope: scope, k: klass_id, s: student_id, tk: target_kind, u: unit_id, lc: level_code, note: note.to_s.strip[0, 2000].presence)
-      INSERT INTO assignment (id, teacher_id, scope, klass_id, student_id, target_kind, unit_id, level_code, status, note)
-      VALUES (:id, :t, :scope, :k, :s, :tk, :u, :lc, 'active', :note)
+    sql = <<~SQL
+      INSERT INTO assignment (id, teacher_id, scope, klass_id, student_id, target_kind, unit_id, level_code, concept_id, due_on, group_label, status, note)
+      VALUES (:id, :t, :scope, :k, :s, :tk, :u, :lc, :c, CAST(:due AS date), :g, 'active', :note)
     SQL
+    Db.execute(sql, id: id, t: teacher_id, scope: scope, k: klass_id, s: student_id, tk: target_kind, u: unit_id, lc: level_code,
+                    c: concept_id, due: due&.iso8601, g: group_label.to_s.strip[0, 120].presence, note: note.to_s.strip[0, 2000].presence)
     find(id, teacher_id: teacher_id)
   end
 
@@ -88,6 +112,17 @@ class Assignment
     SQL
     raise Error.new("Assignment not found", 404) if rows.empty?
     new(rows.first)
+  end
+
+  # One skill focus at a time: archive this teacher's earlier active focus for the
+  # same student (or the same class) in the unit. Returns the archived ids.
+  def self.archive_previous_focus!(teacher_id:, unit_id:, student_id: nil, klass_id: nil)
+    target = student_id ? "student_id = :who AND scope = 'student'" : "klass_id = :who AND scope = 'class'"
+    Db.query(<<~SQL, t: teacher_id, u: unit_id, who: student_id || klass_id).map { |r| r["id"] }
+      UPDATE assignment SET status = 'archived'
+      WHERE teacher_id = :t AND unit_id = :u AND target_kind = 'concept' AND status = 'active' AND #{target}
+      RETURNING id
+    SQL
   end
 
   # ---- reads --------------------------------------------------------------
@@ -142,6 +177,7 @@ class Assignment
 
   def to_json_dto
     { id: id, scope: scope, klassId: klass_id, studentId: student_id, targetKind: target_kind,
-      unitId: unit_id, levelCode: level_code, status: status, note: note, createdAt: created_at }.compact
+      unitId: unit_id, levelCode: level_code, conceptId: concept_id, dueOn: due_on, groupLabel: group_label,
+      status: status, note: note, createdAt: created_at }.compact
   end
 end

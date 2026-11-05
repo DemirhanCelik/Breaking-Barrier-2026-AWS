@@ -6,6 +6,7 @@
 #   "stages" => { concept_id => 0..3 },
 #   "level_status" => { level_id => { "attempts" => n, "status" => "in-progress|passed|exhausted|done" } },
 #   "depth_choice" => nil | concept_id | "project",
+#   "focus" => nil | concept_id,   # teacher-assigned skill focus (optional)
 # }
 module Engine
   MAX_ATTEMPTS_PER_LEVEL = 2  # then route to an alternate level for the same transition
@@ -66,20 +67,27 @@ module Engine
           min_stage: serves.map { |t| stages.fetch(t.concept, 0) }.min,
           min_order: serves.map { |t| cur.concept(t.concept).order }.min }
       end
-      # Most below-bar concepts advanced; tie-break lowest current stage, then concept order, then authored order.
-      scored.sort_by! { |c| [-c[:serves].size, c[:min_stage], c[:min_order], c[:index]] }
+      # A teacher's skill focus comes first (only among rule-approved levels, so it never
+      # skips prerequisites); then most below-bar concepts advanced; tie-break lowest
+      # current stage, then concept order, then authored order.
+      focus = state["focus"]
+      focus = nil unless focus && below.include?(focus)
+      serves_focus = ->(c) { focus && c[:serves].any? { |t| t.concept == focus } }
+      scored.sort_by! { |c| [serves_focus.(c) ? 0 : 1, -c[:serves].size, c[:min_stage], c[:min_order], c[:index]] }
       names = below.map { |c| cur.concept(c).name }.join(", ")
       return { kind: :fallback, reason: "No authored level left for #{names}." } if scored.empty?
 
       pick = scored.first
       serves = pick[:serves].map { |t| "#{cur.concept(t.concept).name} #{t.from}→#{t.to}" }.join("; ")
+      focus_note = serves_focus.(pick) ? "Teacher focus: #{cur.concept(focus).name}. " : ""
       return {
         kind: :level, level_id: pick[:level].id,
         # Every rule-approved option, for the AI routing advisor (RoutingAdvisor) to choose among.
         candidates: scored.map { |c| { level_id: c[:level].id, serves: c[:serves] } },
-        rule: "Below bar: #{names}. Picked #{pick[:level].code}: advances #{pick[:serves].size} below-bar concept(s) (#{serves}), " \
-              "the most of #{scored.size} candidate level(s). Tie-break: lowest current stage, then concept order. " \
-              "Vector: #{fmt_vector(stages)}.",
+        focus: (focus if serves_focus.(pick)),
+        rule: "#{focus_note}Below bar: #{names}. Picked #{pick[:level].code}: advances #{pick[:serves].size} below-bar concept(s) (#{serves}), " \
+              "#{focus_note.empty? ? "the most of #{scored.size} candidate level(s)" : "the best match for the focus among #{scored.size} candidate level(s)"}. " \
+              "Tie-break: lowest current stage, then concept order. Vector: #{fmt_vector(stages)}.",
       }
     end
 

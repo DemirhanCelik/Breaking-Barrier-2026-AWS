@@ -82,7 +82,7 @@ export function StudentLessonPage() {
       return <DepthChoiceView options={state.options} onChosen={setState} />;
     case 'level':
       return (
-        <LevelView key={`${state.unit?.id ?? 'default'}:${state.level.id}`} unitId={state.unit?.id} level={state.level} welcome={welcome} onAdvance={() => { setWelcome(false); void load(); }} />
+        <LevelView key={`${state.unit?.id ?? 'default'}:${state.level.id}`} unitId={state.unit?.id} level={state.level} teacherNotes={state.teacherNotes} welcome={welcome} onAdvance={() => { setWelcome(false); void load(); }} />
       );
   }
 }
