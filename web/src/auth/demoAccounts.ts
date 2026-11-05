@@ -7,6 +7,7 @@ import type { SessionUser } from '../api';
  * Emails are <name>@demo.test (reserved .test TLD, so nothing is ever delivered).
  */
 export const DEMO_ACCOUNTS: (SessionUser & { email: string })[] = [
+  { id: 'Tanushree-admin', displayName: 'Tanushree Saraf', role: 'admin', email: 'tanushree-admin@demo.test' },
   { id: 't-rivera', displayName: 'Ms. Rivera (teacher)', role: 'teacher' },
   { id: 's-hithesh', displayName: 'Hithesh', role: 'student' },
   { id: 's-tanushree', displayName: 'Tanushree', role: 'student' },
@@ -17,9 +18,12 @@ export const DEMO_ACCOUNTS: (SessionUser & { email: string })[] = [
   { id: 's-demirhan1', displayName: 'Demirhan1', role: 'student' },
   { id: 's-tzuhan1', displayName: 'Tzuhan1', role: 'student' },
 ].map((u) => ({
-  ...u,
+  id: u.id,
+  displayName: u.displayName,
   role: u.role as SessionUser['role'],
-  email: `${u.id.replace(/^[st]-/, '')}@demo.test`,
+  // Default email derivation for the t-/s- demo ids; honor an explicit email
+  // (e.g. the admin, whose id has no t-/s- prefix).
+  email: (u as { email?: string }).email ?? `${u.id.replace(/^[st]-/, '')}@demo.test`,
 }));
 
 export const DEMO_PASSWORD = import.meta.env.VITE_DEMO_PASSWORD || '';
