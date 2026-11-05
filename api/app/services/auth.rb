@@ -86,6 +86,14 @@ module Auth
   # while it has no cognito_sub yet, and only when the roles agree.
   def provision(sub, role, link_id: nil)
     row = Db.query("SELECT id, display_name, role FROM app_user WHERE cognito_sub = :sub", sub: sub).first
+    # Self-heal: a demo reset re-creates the seeded rows without their Cognito link,
+    # and a request that lands mid-reset gets an auto-created "u-" row instead. Move
+    # the login back to its seeded row once that row exists and is unlinked.
+    if row && link_id.present? && row["id"].start_with?("u-") && row["id"] != link_id &&
+       Db.query("SELECT 1 FROM app_user WHERE id = :id AND cognito_sub IS NULL AND role = :role", id: link_id, role: role).any?
+      Db.execute("UPDATE app_user SET cognito_sub = NULL WHERE id = :id", id: row["id"])
+      row = nil
+    end
     if !row && link_id.present?
       row = Db.query(<<~SQL, id: link_id, sub: sub, role: role).first
         UPDATE app_user SET cognito_sub = :sub
