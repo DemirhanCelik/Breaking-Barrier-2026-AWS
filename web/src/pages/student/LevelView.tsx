@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Box, Button, InputBase, LinearProgress, Typography } from '@mui/material';
+import { Box, Button, IconButton, InputBase, LinearProgress, Typography } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import FitnessCenterOutlinedIcon from '@mui/icons-material/FitnessCenterOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
@@ -32,11 +33,15 @@ export function LevelView({
   level,
   onAdvance,
   unitId,
+  welcome = false,
 }: {
   level: StudentLevel;
   onAdvance: () => void;
   unitId?: string;
+  /** First step after the warm-up: a one-time, number-free welcome. */
+  welcome?: boolean;
 }) {
+  const [showWelcome, setShowWelcome] = useState(welcome);
   const { user } = useSession();
   const draftKey = `codeai-draft:${user?.id}:${unitId ?? 'default'}:${level.id}`;
   const [response, setResponse, draftSaved] = useSessionDraft<string>(draftKey, '', (v): v is string => typeof v === 'string');
@@ -168,6 +173,29 @@ export function LevelView({
               gap: 2.5,
             }}
           >
+            {showWelcome && (
+              <Box
+                role="status"
+                sx={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 1.5,
+                  p: 1.75,
+                  borderRadius: 2,
+                  bgcolor: brand.tealLight,
+                  border: `1px solid #9fdde3`,
+                }}
+              >
+                <Typography sx={{ flex: 1, color: brand.charcoal }}>
+                  <Box component="strong">Nice work on the warm-up!</Box> Your path was put together from your answers,
+                  so it starts right where you are. It keeps adjusting as you work, and Bit is here whenever you want a hint.
+                </Typography>
+                <IconButton size="small" aria-label="Dismiss" onClick={() => setShowWelcome(false)} sx={{ mt: -0.5 }}>
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            )}
+
             <Typography variant="h2" component="h1">
               {level.title}
             </Typography>

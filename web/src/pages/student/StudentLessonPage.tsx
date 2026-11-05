@@ -26,6 +26,8 @@ function useLessonHeader(path: PathItem[] | null, lessonName: string) {
 export function StudentLessonPage() {
   const [state, setState] = useState<LessonState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // One-time welcome right after the warm-up (number-free, never a placement result).
+  const [welcome, setWelcome] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -73,14 +75,14 @@ export function StudentLessonPage() {
     case 'topic':
       return <TopicPicker topics={state.topics} unitName={state.unit?.name} onChosen={setState} />;
     case 'diagnostic':
-      return <DiagnosticView key={state.unit?.id ?? 'default'} unitId={state.unit?.id} onDone={setState} unitName={state.unit?.name} />;
+      return <DiagnosticView key={state.unit?.id ?? 'default'} unitId={state.unit?.id} onDone={(next) => { setWelcome(true); setState(next); }} unitName={state.unit?.name} />;
     case 'complete':
       return <CompleteView state={state} />;
     case 'choose-depth':
       return <DepthChoiceView options={state.options} onChosen={setState} />;
     case 'level':
       return (
-        <LevelView key={`${state.unit?.id ?? 'default'}:${state.level.id}`} unitId={state.unit?.id} level={state.level} onAdvance={load} />
+        <LevelView key={`${state.unit?.id ?? 'default'}:${state.level.id}`} unitId={state.unit?.id} level={state.level} welcome={welcome} onAdvance={() => { setWelcome(false); void load(); }} />
       );
   }
 }
