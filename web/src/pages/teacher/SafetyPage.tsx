@@ -32,6 +32,9 @@ const CONTEXT_LABEL: Record<FilterContext, string> = {
 };
 const SOURCE_LABEL: Record<string, string> = {
   guardrail: 'Bedrock Guardrail',
+  'guardrail-masked': 'Guardrail (names masked)',
+  'guardrail-prompt-allowed': 'Guardrail (prompt-writing allowed)',
+  'guardrail-prompt-attack': 'Guardrail (off-task instruction)',
   local: 'Local check',
   'local-pii': 'Personal info',
   'local-unsafe': 'Unsafe content',

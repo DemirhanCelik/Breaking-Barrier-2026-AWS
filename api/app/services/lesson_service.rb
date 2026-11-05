@@ -123,7 +123,7 @@ class LessonService
     sub_id = SecureRandom.uuid
 
     # 1. Filter input (fail-closed). Withheld text is not stored.
-    input = ContentFilter.check_input(response)
+    input = ContentFilter.check_input(response, prompt_work: true)
     FilterAudit.record!(input, student_id: s.id, context: "submission", direction: "input", ref_id: sub_id)
     unless input.ok?
       outcome = { status: "withheld", message: input.message }

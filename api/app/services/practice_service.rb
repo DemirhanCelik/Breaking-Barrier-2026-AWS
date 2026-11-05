@@ -91,7 +91,7 @@ class PracticeService
     raise LessonService::Error.new("Response is too long", 422) if response.size > 4000
 
     attempt_id = SecureRandom.uuid
-    input = ContentFilter.check_input(response)
+    input = ContentFilter.check_input(response, prompt_work: true)
     FilterAudit.record!(input, student_id: s.id, context: "practice_answer", direction: "input", ref_id: attempt_id)
     unless input.ok?
       save_attempt(attempt_id, p, s, nil, input.message, true)

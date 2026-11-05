@@ -24,6 +24,8 @@ module ContentFilter
   UNSAFE_MESSAGE = "We can't use that message here. If something is worrying you, please talk to your teacher or another adult you trust."
   PRIVATE_MESSAGE = "It looks like your message includes personal information, like an address. Please remove it and try again."
   FAILED_MESSAGE = "We couldn't check that message just now. Please try again."
+  OFF_TASK_MESSAGE = "That reads like instructions for an AI, so I can't take it as a question. Your latest draft is already " \
+                     "shared with me, so just ask about it, like \"Is my prompt specific enough?\""
 
   # Fictional characters the curriculum itself uses (e.g. Jordan, the reader in
   # the magazine unit). The Guardrail sees them as people's names; masking them
@@ -33,14 +35,20 @@ module ContentFilter
 
   module_function
 
-  def check_input(text) = check(text, "INPUT")
+  # prompt_work: the text IS a prompt the student wrote for an AI (their lesson
+  # work, a Try it prompt, a practice answer). Role-play and instructions such as
+  # "You are a web designer..." are the skill being taught, so the Guardrail's
+  # prompt-attack filter does not block them; every harmful-content filter still
+  # does. Downstream model calls treat this text as data and grading is capped by
+  # deterministic checks, so an injection cannot change a score.
+  def check_input(text, prompt_work: false) = check(text, "INPUT", prompt_work: prompt_work)
   def check_output(text) = check(text, "OUTPUT")
 
-  def check(text, source)
+  def check(text, source, prompt_work: false)
     text = text.to_s
     local = local_check(text)
     return local unless local.ok?
-    guardrail_id.present? ? guardrail_check(text, source) : local
+    guardrail_id.present? ? guardrail_check(text, source, prompt_work: prompt_work) : local
   rescue StandardError => e
     Rails.logger.error("[filter] failed closed: #{e.class}: #{e.message}")
     Result.new(ok: false, message: FAILED_MESSAGE, source: "error", text: nil)
@@ -56,7 +64,7 @@ module ContentFilter
     Result.new(ok: true, source: "local", text: text)
   end
 
-  def guardrail_check(text, source)
+  def guardrail_check(text, source, prompt_work: false)
     resp = client.apply_guardrail(
       guardrail_identifier: guardrail_id,
       guardrail_version: ENV["GUARDRAIL_VERSION"].presence || ENV["BEDROCK_GUARDRAIL_VERSION"].presence || "DRAFT",
@@ -66,6 +74,9 @@ module ContentFilter
     return Result.new(ok: true, source: "guardrail", text: text) unless resp.action == "GUARDRAIL_INTERVENED"
 
     assessments = resp.assessments.map(&:to_h)
+    attack_only = prompt_attack_only?(assessments)
+    return Result.new(ok: true, source: "guardrail-prompt-allowed", text: text) if attack_only && prompt_work
+    return Result.new(ok: false, source: "guardrail-prompt-attack", text: nil, message: OFF_TASK_MESSAGE) if attack_only
     if blocked?(assessments)
       pii_only = assessments.all? { |a| a.except(:sensitive_information_policy, :invocation_metrics).values.none? { |v| blocked?(v) } }
       return Result.new(ok: false, source: "guardrail", text: nil, message: pii_only ? PRIVATE_MESSAGE : UNSAFE_MESSAGE)
@@ -94,6 +105,26 @@ module ContentFilter
       Array(sip[:pii_entities]).map { |e| { type: e[:type], match: e[:match] } } +
         Array(sip[:regexes]).map { |e| { type: e[:name] || "PII", match: e[:match] } }
     end
+  end
+
+  # True when the only blocked finding is the prompt-attack content filter.
+  def prompt_attack_only?(assessments)
+    found = false
+    assessments.each do |a|
+      a.each do |policy, value|
+        next if policy == :invocation_metrics
+        if policy == :content_policy
+          Array(value[:filters]).each do |f|
+            next unless f[:action] == "BLOCKED"
+            return false unless f[:type] == "PROMPT_ATTACK"
+            found = true
+          end
+        elsif blocked?(value)
+          return false
+        end
+      end
+    end
+    found
   end
 
   # True if any nested assessment entry has action BLOCKED.

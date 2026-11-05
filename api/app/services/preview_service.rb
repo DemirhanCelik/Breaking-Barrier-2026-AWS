@@ -43,7 +43,7 @@ class PreviewService
     raise LessonService::Error.new("That's a lot of previews. Take a breath and refine your prompt, then try again later.", 429) if over_limit?(s)
 
     ref = SecureRandom.uuid
-    input = ContentFilter.check_input(prompt)
+    input = ContentFilter.check_input(prompt, prompt_work: true)
     FilterAudit.record!(input, student_id: s.id, context: "preview", direction: "input", ref_id: ref)
     return { withheld: true, message: input.message } unless input.ok?
 
