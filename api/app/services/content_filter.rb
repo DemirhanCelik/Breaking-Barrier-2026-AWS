@@ -25,6 +25,12 @@ module ContentFilter
   PRIVATE_MESSAGE = "It looks like your message includes personal information, like an address. Please remove it and try again."
   FAILED_MESSAGE = "We couldn't check that message just now. Please try again."
 
+  # Fictional characters the curriculum itself uses (e.g. Jordan, the reader in
+  # the magazine unit). The Guardrail sees them as people's names; masking them
+  # turns lessons and hints into "{NAME} reads on the bus". Other names are
+  # still masked. Keep in sync with config/curriculum/*.yml.
+  CURRICULUM_NAMES = %w[jordan maya sam alex priya ana kai mia].freeze
+
   module_function
 
   def check_input(text) = check(text, "INPUT")
@@ -64,9 +70,30 @@ module ContentFilter
       pii_only = assessments.all? { |a| a.except(:sensitive_information_policy, :invocation_metrics).values.none? { |v| blocked?(v) } }
       return Result.new(ok: false, source: "guardrail", text: nil, message: pii_only ? PRIVATE_MESSAGE : UNSAFE_MESSAGE)
     end
-    # Only anonymized PII: allow the masked text.
-    masked = resp.outputs.map(&:text).join
+    # Only anonymized PII: mask it ourselves, keeping the curriculum's fictional
+    # characters. Falls back to the Guardrail's own masked output if the matches
+    # can't be located in the text.
+    entities = pii_entities(assessments)
+    to_mask = entities.reject { |e| e[:type].to_s == "NAME" && CURRICULUM_NAMES.include?(e[:match].to_s.strip.downcase) }
+    return Result.new(ok: true, source: "guardrail", text: text) if to_mask.empty?
+
+    masked = text.dup
+    to_mask.sort_by { |e| -e[:match].to_s.length }.each do |e|
+      m = e[:match].to_s
+      next if m.empty?
+      masked = masked.gsub(/(?<![\w])#{Regexp.escape(m)}(?![\w])/, "{#{e[:type]}}")
+    end
+    masked = resp.outputs.map(&:text).join if to_mask.any? { |e| e[:match].to_s.present? && masked.include?(e[:match].to_s) }
     Result.new(ok: true, source: "guardrail-masked", text: masked)
+  end
+
+  # Anonymized PII entities ({ type:, match: }) across all assessments.
+  def pii_entities(assessments)
+    assessments.flat_map do |a|
+      sip = a[:sensitive_information_policy] || {}
+      Array(sip[:pii_entities]).map { |e| { type: e[:type], match: e[:match] } } +
+        Array(sip[:regexes]).map { |e| { type: e[:name] || "PII", match: e[:match] } }
+    end
   end
 
   # True if any nested assessment entry has action BLOCKED.

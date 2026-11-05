@@ -15,6 +15,7 @@ import {
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import { api, type PracticeFeedback, type PracticeItem, type StudentLevel } from '../../api';
 import { SpeechBubble } from '../../components/brand';
+import { RichText } from '../../components/RichText';
 
 /**
  * Low-stakes practice round for the current step (design §7A). The item may be
@@ -104,7 +105,7 @@ export function PracticeDialog({ open, onClose, level }: { open: boolean; onClos
             />
             {feedback && (
               <SpeechBubble tone={feedback.withheld ? 'caution' : 'coach'} mood="happy" role="status">
-                {feedback.feedback}
+                <RichText text={feedback.feedback} />
               </SpeechBubble>
             )}
           </Box>

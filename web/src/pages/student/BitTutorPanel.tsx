@@ -5,6 +5,7 @@ import SendRoundedIcon from '@mui/icons-material/SendRounded';
 import { api, type StudentLevel } from '../../api';
 import { Bit } from '../../components/brand';
 import { brand, headingFont } from '../../theme';
+import { RichText } from '../../components/RichText';
 
 interface Message {
   from: 'student' | 'assistant';
@@ -135,7 +136,7 @@ export function BitTutorPanel({
         )}
         {messages.map((m, i) => (
           <Bubble key={i} from={m.from} withheld={m.withheld}>
-            {m.text}
+            {m.from === 'assistant' ? <RichText text={m.text} /> : m.text}
           </Bubble>
         ))}
         {sending && <Bubble from="assistant">Bit is thinking…</Bubble>}
