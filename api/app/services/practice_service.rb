@@ -100,7 +100,7 @@ class PracticeService
 
     response = input.text # names masked by the Guardrail
     feedback = feedback_for(p, response)
-    output = ContentFilter.check_output(feedback)
+    output = ContentFilter.check_output(Coach.hide_step_codes(feedback))
     FilterAudit.record!(output, student_id: s.id, context: "practice", direction: "output", ref_id: attempt_id)
     feedback = "Nice effort. Reread the task and check that your answer covers each part of it." unless output.ok?
     feedback = output.text if output.ok?

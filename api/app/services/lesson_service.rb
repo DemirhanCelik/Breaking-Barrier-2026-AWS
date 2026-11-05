@@ -151,7 +151,7 @@ class LessonService
 
     reply = Coach.new.reply(level: cur.level(level_id), stages: s.stages, last_response: s.last_response[level_id], message: input.text,
                             agent: agent_token.present? ? { token: agent_token, student_id: s.id } : nil, topic: topic_for(s))
-    output = ContentFilter.check_output(reply)
+    output = ContentFilter.check_output(Coach.hide_step_codes(reply))
     FilterAudit.record!(output, student_id: s.id, context: "assistant", direction: "output", ref_id: ref)
     return { reply: "Let me think about that differently. Try rereading the step instructions.", withheld: true } unless output.ok?
     { reply: output.text, withheld: false }
