@@ -244,7 +244,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             <Logo />
           </Box>
-          {user?.role === 'student' && <Button component={RouterLink} to="/student" startIcon={pathname === '/student/lesson' ? <ArrowBackRoundedIcon /> : undefined} sx={{ color: '#d5e5df', whiteSpace: 'nowrap', minWidth: 0, fontSize: 13 }}>{pathname === '/student/lesson' ? 'My learning' : 'Learning home'}</Button>}
+          {user?.role === 'student' && <Button component={RouterLink} to="/student" startIcon={pathname === '/student/lesson' ? <ArrowBackRoundedIcon /> : undefined} aria-label={pathname === '/student/lesson' ? 'My learning' : 'Learning home'} sx={{ color: '#d5e5df', whiteSpace: 'nowrap', minWidth: 0, fontSize: 13, '& .MuiButton-startIcon': { mr: { xs: 0, sm: 1 } } }}><Box component="span" sx={{ display: pathname === '/student/lesson' ? { xs: 'none', sm: 'inline' } : 'inline' }}>{pathname === '/student/lesson' ? 'My learning' : 'Learning home'}</Box></Button>}
           {!user && <Typography variant="body2" sx={{ color: '#b5cec5', display: { xs: 'none', sm: 'block' }, ml: 2 }}>Learn • Create • Practice</Typography>}
           {user?.role === 'teacher' && (
             <Typography sx={{ color: 'rgba(255,255,255,0.75)', fontWeight: 600, display: { xs: 'none', md: 'block' } }}>
